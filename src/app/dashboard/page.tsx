@@ -1,0 +1,239 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import AppNav from '@/components/AppNav';
+import { fetchDeadlineSoon, fetchMyApplications, fetchMyDocumentSlots, fetchMyProfile, fetchMySales, countVerified } from '@/lib/supabase/queries';
+import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil } from '@/lib/types';
+import type { EventRow, ApplicationWithRelations, Profile, SaleWithEvent, DocumentSlot } from '@/lib/types';
+
+/**
+ * 홈(대시보드) · Supabase 연동
+ * 로그인 사용자 프로필 + 마감 임박 4건 + 내 신청 요약 + 매출 요약
+ */
+export default function DashboardPage() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [deadlineEvents, setDeadlineEvents] = useState<EventRow[]>([]);
+  const [applications, setApplications] = useState<ApplicationWithRelations[]>([]);
+  const [sales, setSales] = useState<SaleWithEvent[]>([]);
+  const [docSlots, setDocSlots] = useState<DocumentSlot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const p = await fetchMyProfile();
+        if (!cancelled) setProfile(p);
+        if (p) {
+          const [events, apps, s, docs] = await Promise.all([
+            fetchDeadlineSoon(4),
+            fetchMyApplications(p.id).catch(() => []),
+            fetchMySales(p.id).catch(() => []),
+            fetchMyDocumentSlots(p.id).catch(() => []),
+          ]);
+          if (!cancelled) {
+            setDeadlineEvents(events);
+            setApplications(apps);
+            setSales(s);
+            setDocSlots(docs);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setError((e as Error).message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const totalRevenue = sales.reduce((s, r) => s + r.revenue, 0);
+  const pendingCount = applications.filter((a) => a.status === 'pending').length;
+  const approvedCount = applications.filter((a) => a.status === 'approved').length;
+  const verifiedDocsCount = countVerified(docSlots);
+  const docsPercent = docSlots.length > 0 ? Math.round((verifiedDocsCount / docSlots.length) * 100) : 0;
+  const expiringSoon = docSlots.filter((s) => s.urgency === 'expiring').length;
+  const missingCount = docSlots.filter((s) => s.urgency === 'missing').length;
+
+  return (
+    <main className="min-h-screen bg-page">
+      <AppNav role="seller" />
+
+      <div className="container-app py-8 md:py-12">
+        {/* 히어로 */}
+        <section className="animate-fh-up">
+          {profile && (
+            <div className="text-[13px] font-semibold tracking-[0.05em] uppercase text-accent-warm mb-3">
+              안녕하세요 · {profile.name}
+            </div>
+          )}
+          <h1 className="t-hero mb-4">
+            이번 주 <span className="text-accent-deep">{deadlineEvents.filter((e) => (daysUntil(e.deadline) ?? 99) <= 7).length}개</span> 신청 마감 중.<br />
+            서류부터 챙기세요.
+          </h1>
+          <p className="t-body text-text-secondary max-w-[560px]">
+            검증된 파트너만 우선 노출됩니다. 필수 서류 5종을 등록해두면 신청 시 자동으로 첨부됩니다.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-6">
+            <Link href="/events" className="btn-primary">행사 찾기</Link>
+            <Link href="/seller/documents" className="btn-secondary">서류 관리</Link>
+          </div>
+        </section>
+
+        {error && (
+          <div className="card mt-8" style={{ borderColor: '#E0DACB' }}>
+            <div className="text-[13px] font-bold text-warning mb-1">Supabase 연결 확인 필요</div>
+            <div className="text-[12px] text-text-secondary">
+              {error} · <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">SETUP.md</code> 참고
+            </div>
+          </div>
+        )}
+
+        {/* 3 위젯 */}
+        <section className="grid gap-3 mt-10" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+          <StatCard
+            label="진행 중 신청"
+            value={loading ? '—' : `${applications.length}건`}
+            delta={`대기 ${pendingCount} · 승인 ${approvedCount}`}
+            trend={pendingCount > 0 ? 'up' : 'warn'}
+          />
+          <StatCard
+            label="누적 매출"
+            value={loading ? '—' : `₩ ${totalRevenue.toLocaleString()}`}
+            delta={sales.length > 0 ? `${sales.length}회 참여` : '이력 없음'}
+            trend="up"
+          />
+          <StatCard
+            label="서류 완료율"
+            value={loading ? '—' : `${docsPercent}%`}
+            delta={
+              docsPercent === 100 && expiringSoon === 0 ? '모두 검증됨'
+              : missingCount > 0 ? `${missingCount}건 미등록`
+              : expiringSoon > 0 ? `${expiringSoon}건 만료 임박`
+              : '검토 진행 중'
+            }
+            trend={docsPercent === 100 && expiringSoon === 0 ? 'up' : 'warn'}
+          />
+        </section>
+
+        {/* 진행 중 행사 */}
+        <section className="mt-12">
+          <div className="flex items-end justify-between mb-4">
+            <h2 className="t-section">지금 신청받는 행사</h2>
+            <Link href="/events" className="text-[13px] font-semibold text-accent-warm hover:text-accent-deep">전체 보기 →</Link>
+          </div>
+          {loading ? (
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="card">
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-4 bg-muted rounded w-16" />
+                    <div className="h-5 bg-muted rounded w-3/4" />
+                    <div className="space-y-2">
+                      <div className="h-3 bg-muted rounded" />
+                      <div className="h-3 bg-muted rounded w-5/6" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : deadlineEvents.length === 0 ? (
+            <div className="card text-center py-12">
+              <div className="text-[14px] font-semibold text-ink mb-1">현재 신청받는 행사가 없습니다</div>
+              <div className="t-sub">알림을 켜두면 새 공고가 뜰 때 안내드립니다</div>
+            </div>
+          ) : (
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+              {deadlineEvents.map((e) => <EventCard key={e.id} event={e} />)}
+            </div>
+          )}
+        </section>
+
+        {/* 서류 알림 */}
+        <section className="mt-12">
+          <div className="flex items-end justify-between mb-4">
+            <h2 className="t-section">필수 서류 검증</h2>
+            <Link href="/seller/documents" className="text-[13px] font-semibold text-accent-warm hover:text-accent-deep">
+              관리하기 →
+            </Link>
+          </div>
+          <div className="card">
+            {docSlots.length === 0 ? (
+              <div className="text-[13px] text-text-tertiary text-center py-6">서류 정보가 없습니다</div>
+            ) : (
+              docSlots.map((s, i) => {
+                const daysLeft = s.doc?.expires_at
+                  ? Math.ceil((new Date(s.doc.expires_at).getTime() - Date.now()) / 86400000)
+                  : null;
+                const note = s.urgency === 'expiring' ? `${daysLeft}일 뒤 만료`
+                  : s.urgency === 'expired' ? '만료됨'
+                  : s.urgency === 'pending' ? '검토 중'
+                  : s.urgency === 'rejected' ? '반려'
+                  : s.urgency === 'missing' ? '미등록' : undefined;
+                return <DocRow key={s.kind} name={s.label} urgency={s.urgency} note={note} isLast={i === docSlots.length - 1} />;
+              })
+            )}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function StatCard({ label, value, delta, trend }: { label: string; value: string; delta: string; trend: 'up' | 'down' | 'warn' }) {
+  const deltaColor = trend === 'up' ? 'text-success' : trend === 'warn' ? 'text-warning' : 'text-danger';
+  return (
+    <div className="card card-hover">
+      <div className="t-sub mb-2">{label}</div>
+      <div className="t-num mb-1">{value}</div>
+      <div className={`text-[12px] font-semibold ${deltaColor}`}>{delta}</div>
+    </div>
+  );
+}
+
+function EventCard({ event: e }: { event: EventRow }) {
+  const t = eventType(e);
+  const d = daysUntil(e.deadline);
+  const urgent = d !== null && d <= 3;
+  return (
+    <Link href={`/events/${e.id}`} className={`card card-hover ${t === 'apply' ? 'card-apply' : 'card-info'} block`}>
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <span className={`badge ${t === 'apply' ? 'badge-warning' : 'badge-info'}`}>{t === 'apply' ? '신청형' : '정보형'}</span>
+        <span className={`text-[11px] font-bold ${urgent ? 'text-danger' : t === 'apply' ? 'text-warning' : 'text-info'}`}>{deadlineLabel(e.deadline)}</span>
+      </div>
+      <div className="t-card mb-3">{e.name}</div>
+      <div className="space-y-1.5 text-[13px] text-text-secondary">
+        <div className="flex gap-2"><span className="w-10 shrink-0 text-text-tertiary">일정</span><span className="text-ink font-semibold">{periodLabel(e.start_date, e.end_date)}</span></div>
+        <div className="flex gap-2"><span className="w-10 shrink-0 text-text-tertiary">장소</span><span className="text-ink font-semibold">{e.region}</span></div>
+        <div className="flex gap-2"><span className="w-10 shrink-0 text-text-tertiary">참가비</span><span className="text-ink font-semibold">{feeLabel(e.fee, e.fee_rate)}</span></div>
+      </div>
+    </Link>
+  );
+}
+
+function DocRow({ name, urgency, note, isLast }: { name: string; urgency: DocumentSlot['urgency']; note?: string; isLast?: boolean }) {
+  const badge = {
+    verified: { text: '검증됨', cls: 'badge-success' },
+    expiring: { text: '만료 임박', cls: 'badge-warning' },
+    pending: { text: '검토 중', cls: 'badge-info' },
+    rejected: { text: '반려', cls: 'badge-danger' },
+    expired: { text: '만료됨', cls: 'badge-danger' },
+    missing: { text: '미등록', cls: '' },
+  }[urgency];
+  const dot = {
+    verified: 'bg-success', expiring: 'bg-warning', expired: 'bg-danger',
+    pending: 'bg-info', rejected: 'bg-danger', missing: 'bg-text-tertiary',
+  }[urgency];
+  return (
+    <div className={`flex items-center justify-between py-3 ${!isLast ? 'border-b border-line-faint' : ''}`}>
+      <div className="flex items-center gap-3 min-w-0">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+        <span className="text-[14px] font-semibold text-ink truncate">{name}</span>
+        {note && <span className="text-[12px] text-text-tertiary hidden md:inline">{note}</span>}
+      </div>
+      <span className={`badge ${badge.cls}`}>{badge.text}</span>
+    </div>
+  );
+}

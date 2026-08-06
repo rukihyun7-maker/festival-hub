@@ -1,0 +1,228 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================
+   Design System v2.0 (Handoff 확정)
+   ============================ */
+
+:root {
+  /* Background */
+  --bg-page: #FBF9F4;
+  --bg-surface: #FFFFFF;
+  --bg-surface-sunken: #FDFBF6;
+  --bg-muted: #F0ECE1;
+  --bg-muted-2: #F3EFE5;
+
+  /* Ink · Text */
+  --ink: #14120E;
+  --ink-soft: #3C3626;
+  --text-secondary: #6F675A;
+  --text-tertiary: #8C8474;
+  --text-disabled: #B5AC98;
+
+  /* Line */
+  --line: #E7E2D6;
+  --line-strong: #E0DACB;
+  --line-faint: #F3EFE5;
+
+  /* Accent · Yellow */
+  --accent: #FFC800;
+  --accent-hover: #FFD433;
+  --accent-shadow: #C99F00;
+  --accent-warm: #B78A00;
+  --accent-deep: #7A5B00;
+
+  /* Semantic */
+  --success: #1D6B2A;
+  --success-bg: #E2F3E4;
+  --warning: #7A5B00;
+  --warning-bg: #FFF3C4;
+  --danger: #9B2C22;
+  --danger-bg: #FBE3E1;
+  --info: #2B4B9B;
+  --info-bar: #8FA6DE;
+  --info-bg: #E9EEFB;
+}
+
+/* Base */
+html, body {
+  font-family: 'Wanted Sans Variable', 'Pretendard', system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ink);
+  background: var(--bg-page);
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* Component Classes */
+@layer components {
+  /* Primary CTA · 옐로우 + 하드 셰도우 */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-accent text-ink font-extrabold rounded-input
+           px-5 py-3 shadow-cta transition-colors;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled {
+    background: #EDE8DC;
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* Secondary · 흰 배경 · 잉크 텍스트 */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-surface text-ink font-bold rounded-input
+           px-5 py-3 border border-line-strong transition-colors;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+
+  /* Dark · 잉크 배경 */
+  .btn-dark {
+    @apply inline-flex items-center justify-center gap-2
+           bg-ink text-white font-bold rounded-input
+           px-5 py-3 transition-colors;
+  }
+  .btn-dark:hover { background: var(--ink-soft); }
+
+  /* Input */
+  .input {
+    @apply w-full bg-surface border border-line-strong rounded-input
+           px-3.5 py-3 text-[15px] text-ink
+           placeholder:text-text-tertiary
+           transition-all;
+    font-variant-numeric: tabular-nums;
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px rgba(20,18,14,0.08);
+  }
+
+  /* Card */
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: clamp(20px, 2.5vw, 30px);
+  }
+  .card-hover {
+    transition: all 0.15s ease-out;
+  }
+  .card-hover:hover {
+    border-color: var(--ink);
+    transform: translateY(-1px);
+  }
+
+  /* Card with apply/info bar */
+  .card-apply::before {
+    content: "";
+    display: block;
+    height: 5px;
+    background: var(--accent);
+    margin: -1px -1px 20px -1px;
+    border-radius: 14px 14px 0 0;
+  }
+  .card-info::before {
+    content: "";
+    display: block;
+    height: 5px;
+    background: var(--info-bar);
+    margin: -1px -1px 20px -1px;
+    border-radius: 14px 14px 0 0;
+  }
+
+  /* Chip */
+  .chip {
+    @apply inline-flex items-center px-3 py-1.5 rounded-pill
+           text-[13px] font-semibold text-text-secondary
+           bg-transparent border border-line-strong
+           cursor-pointer transition-colors;
+  }
+  .chip[aria-selected="true"],
+  .chip.selected {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded
+           text-[12px] font-semibold;
+    background: var(--bg-muted);
+    color: var(--ink-soft);
+  }
+  .badge-success { background: var(--success-bg); color: var(--success); }
+  .badge-warning { background: var(--warning-bg); color: var(--warning); }
+  .badge-danger { background: var(--danger-bg); color: var(--danger); }
+  .badge-info { background: var(--info-bg); color: var(--info); }
+
+  /* Container */
+  .container-app {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-inline: clamp(16px, 3vw, 32px);
+  }
+
+  /* Typography helpers */
+  .t-hero {
+    font-size: clamp(28px, 4.2vw, 44px);
+    font-weight: 800;
+    line-height: 1.24;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+  }
+  .t-title {
+    font-size: clamp(24px, 3vw, 32px);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+  }
+  .t-section {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .t-card {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .t-body {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink);
+  }
+  .t-sub {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .t-caption {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+  }
+  .t-num {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Utility */
+.animate-fh-up { animation: fhUp 0.35s ease-out; }
+@keyframes fhUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

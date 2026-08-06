@@ -1,0 +1,398 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import AppNav from '@/components/AppNav';
+import {
+  fetchApplicationsForEvent,
+  fetchMyHostEvents,
+  fetchMyProfile,
+  updateApplicationStatus,
+} from '@/lib/supabase/queries';
+import { deadlineLabel, periodLabel, daysUntil } from '@/lib/types';
+import type { ApplicationWithRelations, EventRow, Profile } from '@/lib/types';
+
+/**
+ * 주최사 대시보드 · Supabase 연동
+ * 자기 행사 목록 → 선택 → 신청자 승인/거절 실행
+ */
+
+export default function HostDashboardPage() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [applications, setApplications] = useState<ApplicationWithRelations[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingApps, setLoadingApps] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [error, setError] = useState<string | null>(null);
+  const [actionOn, setActionOn] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const p = await fetchMyProfile();
+        setProfile(p);
+        if (p) {
+          const list = await fetchMyHostEvents(p.id);
+          setEvents(list);
+          if (list.length > 0) setSelectedEventId(list[0].id);
+        }
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedEventId) {
+      setApplications([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingApps(true);
+      try {
+        const apps = await fetchApplicationsForEvent(selectedEventId);
+        if (!cancelled) setApplications(apps);
+      } catch (e) {
+        if (!cancelled) setError((e as Error).message);
+      } finally {
+        if (!cancelled) setLoadingApps(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedEventId]);
+
+  const selectedEvent = useMemo(
+    () => events.find((e) => e.id === selectedEventId) ?? null,
+    [events, selectedEventId]
+  );
+
+  const filtered = applications.filter((a) => statusFilter === 'all' || a.status === statusFilter);
+  const pendingCount = applications.filter((a) => a.status === 'pending').length;
+  const approvedCount = applications.filter((a) => a.status === 'approved').length;
+
+  const days = selectedEvent
+    ? Math.max(1, Math.ceil((new Date(selectedEvent.end_date).getTime() - new Date(selectedEvent.start_date).getTime()) / 86400000) + 1)
+    : 0;
+  const dday = selectedEvent ? daysUntil(selectedEvent.start_date) : null;
+  const expectedRevenue = selectedEvent ? selectedEvent.fee * days * approvedCount : 0;
+  const platformFee = Math.round(expectedRevenue * 0.05);
+
+  async function handleUpdate(appId: string, status: 'approved' | 'rejected') {
+    if (!profile) return;
+    setActionOn(appId);
+    try {
+      await updateApplicationStatus(appId, status, profile.id);
+      setApplications((prev) => prev.map((a) => (a.id === appId ? { ...a, status } : a)));
+    } catch (e) {
+      alert('상태 변경 실패: ' + (e as Error).message);
+    } finally {
+      setActionOn(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-page">
+        <AppNav role="host" />
+        <div className="container-app py-12">
+          <div className="animate-pulse space-y-4 max-w-[720px]">
+            <div className="h-4 bg-muted rounded w-32" />
+            <div className="h-8 bg-muted rounded w-2/3" />
+            <div className="h-4 bg-muted rounded w-full" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!profile || profile.role !== 'host') {
+    return (
+      <main className="min-h-screen bg-page">
+        <AppNav role="host" />
+        <div className="container-app py-12">
+          <div className="card">
+            <div className="text-[16px] font-bold text-ink mb-2">행사 주최 계정으로 로그인이 필요합니다</div>
+            <div className="text-[13px] text-text-secondary mb-4">현재 계정으로는 이 페이지에 접근할 수 없습니다.</div>
+            <Link href="/login" className="btn-primary">로그인 →</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <main className="min-h-screen bg-page">
+        <AppNav role="host" />
+        <div className="container-app py-12">
+          <div className="card text-center py-16">
+            <div className="text-[16px] font-bold text-ink mb-2">등록된 행사가 없습니다</div>
+            <div className="t-sub mb-6">첫 행사를 등록해서 파트너 신청을 받아보세요</div>
+            <Link href="/host/create-event" className="btn-primary">+ 새 행사 등록</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-page">
+      <AppNav role="host" />
+
+      <div className="container-app py-8 md:py-12">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="text-[13px] font-semibold uppercase tracking-[0.05em] text-accent-warm mb-2">
+              행사 주최 · {profile.business_name ?? profile.name}
+            </div>
+            <h1 className="t-title">{selectedEvent?.name ?? '행사를 선택하세요'}</h1>
+            {selectedEvent && (
+              <p className="t-sub mt-1">
+                {periodLabel(selectedEvent.start_date, selectedEvent.end_date)} · {days}일간 · {dday !== null && dday > 0 ? `D-${dday}` : dday === 0 ? '오늘' : '종료'}
+              </p>
+            )}
+          </div>
+          <div className="hidden md:flex gap-2">
+            {selectedEvent && (
+              <Link href={`/host/events/${selectedEvent.id}/edit`} className="btn-secondary">행사 수정</Link>
+            )}
+            <Link href="/host/create-event" className="btn-primary">+ 새 행사 등록</Link>
+          </div>
+        </div>
+
+        {/* 행사 선택 */}
+        <div className="card mb-8">
+          <label className="flex flex-col gap-2">
+            <span className="text-[12px] font-bold uppercase tracking-[0.05em] text-text-tertiary">
+              내 행사 ({events.length}개)
+            </span>
+            <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="input">
+              {events.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name} · {periodLabel(e.start_date, e.end_date)} · {deadlineLabel(e.deadline)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {error && (
+          <div className="card mb-6" style={{ borderColor: '#E0DACB' }}>
+            <div className="text-[13px] font-bold text-warning mb-1">데이터 로드 오류</div>
+            <div className="text-[12px] text-text-secondary">{error}</div>
+          </div>
+        )}
+
+        {/* KPI 4 */}
+        <div className="grid gap-3 mb-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <KpiCard label="신청 파트너" value={String(applications.length)} total={selectedEvent?.capacity ? ` / ${selectedEvent.capacity}` : ''} delta={`${approvedCount}자리 확정`} />
+          <KpiCard label="승인 대기" value={String(pendingCount)} delta={pendingCount > 0 ? '검토 필요' : '없음'} tone={pendingCount > 0 ? 'warn' : undefined} />
+          <KpiCard label="예상 참가비 수익" value={`₩ ${expectedRevenue.toLocaleString()}`} delta={`확정 ${approvedCount}자리`} />
+          <KpiCard label="D-day" value={dday !== null && dday > 0 ? `${dday}일` : dday === 0 ? '오늘' : '종료'} delta={dday !== null && dday <= 7 && dday >= 0 ? '임박' : ''} tone={dday !== null && dday <= 7 && dday >= 0 ? 'warn' : undefined} />
+        </div>
+
+        {/* 신청자 관리 */}
+        <div className="mb-8">
+          <div className="flex items-end justify-between mb-4">
+            <div>
+              <div className="t-section">신청 파트너</div>
+              <div className="t-sub mt-1">전체 {applications.length}건 · 대기 {pendingCount}건</div>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              <StatusChip active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>전체</StatusChip>
+              <StatusChip active={statusFilter === 'pending'} onClick={() => setStatusFilter('pending')}>대기</StatusChip>
+              <StatusChip active={statusFilter === 'approved'} onClick={() => setStatusFilter('approved')}>승인</StatusChip>
+              <StatusChip active={statusFilter === 'rejected'} onClick={() => setStatusFilter('rejected')}>거절</StatusChip>
+            </div>
+          </div>
+
+          <div className="card p-0 overflow-hidden">
+            {loadingApps ? (
+              <div className="p-8">
+                <div className="animate-pulse space-y-3">
+                  <div className="h-4 bg-muted rounded w-1/2" />
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-4 bg-muted rounded w-2/3" />
+                </div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="text-[14px] font-semibold text-ink mb-1">
+                  {applications.length === 0 ? '아직 신청이 없습니다' : '해당 상태의 신청자가 없습니다'}
+                </div>
+                <div className="t-sub">
+                  {applications.length === 0 ? '공고를 공유하거나 마감일을 늘려보세요' : '필터를 조정해보세요'}
+                </div>
+              </div>
+            ) : (
+              filtered.map((a, i) => (
+                <ApplicantRow
+                  key={a.id}
+                  application={a}
+                  isLast={i === filtered.length - 1}
+                  actionInProgress={actionOn === a.id}
+                  onApprove={() => handleUpdate(a.id, 'approved')}
+                  onReject={() => handleUpdate(a.id, 'rejected')}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* QR 발급 · 정산 요약 */}
+        {selectedEvent && (
+          <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+            <div className="card">
+              <div className="t-section">입점 확인 QR</div>
+              <div className="t-sub mt-1 mb-4">승인 파트너에게 발급 · 현장 스캔으로 입점 자격 확인 (결제 아님)</div>
+              <div className="grid gap-2 text-[13px] mb-4">
+                <div className="flex justify-between p-3 rounded-input bg-surface-sunken">
+                  <span className="text-text-secondary">발급 완료 (승인)</span>
+                  <span className="font-extrabold text-ink">{approvedCount}건</span>
+                </div>
+                <div className="flex justify-between p-3 rounded-input bg-warning-bg">
+                  <span className="text-warning font-semibold">심사 대기</span>
+                  <span className="font-extrabold text-warning">{pendingCount}건</span>
+                </div>
+              </div>
+              <ApprovedQrList applications={applications.filter((a) => a.status === 'approved')} />
+            </div>
+
+            <div className="card">
+              <div className="t-section mb-4">정산 요약 (예상)</div>
+              <div className="space-y-3 text-[13px]">
+                <div className="flex justify-between"><span className="text-text-secondary">참가비 합계</span><span className="font-semibold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{expectedRevenue.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-text-secondary">플랫폼 수수료 (5%)</span><span className="font-semibold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>-₩{platformFee.toLocaleString()}</span></div>
+                <div className="border-t border-line-faint pt-3 flex justify-between items-baseline">
+                  <span className="font-bold text-ink">정산 예정액</span>
+                  <span className="text-[20px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{(expectedRevenue - platformFee).toLocaleString()}</span>
+                </div>
+                <div className="mt-1 text-[11px] text-text-tertiary">행사 종료 후 3영업일 예정</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function ApprovedQrList({ applications }: { applications: ApplicationWithRelations[] }) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  if (applications.length === 0) {
+    return <div className="text-[12px] text-text-tertiary text-center py-2">승인된 파트너가 없습니다</div>;
+  }
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  async function copy(token: string, id: string) {
+    try {
+      await navigator.clipboard.writeText(`${origin}/verify/${token}`);
+      setCopied(id);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {}
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="t-sub">승인 파트너 입점 확인 링크</div>
+      {applications.map((a) => {
+        const name = a.seller?.business_name || a.seller?.name || '(파트너)';
+        return (
+          <div key={a.id} className="flex items-center gap-2 p-2.5 rounded-input bg-surface-sunken">
+            <span className="flex-1 min-w-0 text-[13px] font-semibold text-ink truncate">{name}</span>
+            {a.qr_token ? (
+              <button onClick={() => copy(a.qr_token!, a.id)} className="btn-secondary text-[12px] py-1.5 px-2.5 shrink-0">
+                {copied === a.id ? '복사됨 ✓' : '확인 링크 복사'}
+              </button>
+            ) : (
+              <span className="text-[11px] text-text-tertiary shrink-0">발급 대기</span>
+            )}
+          </div>
+        );
+      })}
+      <div className="text-[11px] text-text-tertiary mt-1">복사한 링크를 QR로 만들면 현장에서 스캔 확인할 수 있습니다.</div>
+    </div>
+  );
+}
+
+function ApplicantRow({
+  application: a, isLast, actionInProgress, onApprove, onReject,
+}: {
+  application: ApplicationWithRelations;
+  isLast: boolean;
+  actionInProgress: boolean;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  const seller = a.seller;
+  const name = seller?.business_name || seller?.name || '(익명 파트너)';
+  return (
+    <div className={`grid gap-4 items-center p-5 ${!isLast ? 'border-b border-line-faint' : ''} hover:bg-surface-sunken transition-colors`} style={{ gridTemplateColumns: 'minmax(220px, 2fr) auto' }}>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="t-card text-[15px] truncate">{name}</span>
+          {a.status === 'approved' && <span className="badge badge-success">승인</span>}
+          {a.status === 'rejected' && <span className="badge badge-danger">거절</span>}
+          {a.status === 'pending' && <span className="badge badge-warning">대기</span>}
+        </div>
+        {seller?.category && <div className="text-[12px] text-text-secondary mb-1.5 truncate">{seller.category}{seller.region && ` · ${seller.region}`}</div>}
+        <div className="flex items-center gap-3 text-[11px] text-text-tertiary flex-wrap">
+          <span>신청 {new Date(a.applied_at).toLocaleDateString('ko-KR')}</span>
+          {seller?.phone && <><span className="text-line">|</span><span>{seller.phone}</span></>}
+          {a.memo && <><span className="text-line">|</span><span className="italic">{a.memo}</span></>}
+        </div>
+      </div>
+
+      <div className="flex gap-2 shrink-0">
+        {a.status === 'pending' ? (
+          <>
+            <button
+              disabled={actionInProgress}
+              onClick={onReject}
+              className="btn-secondary text-[13px] py-2 px-3 disabled:opacity-50"
+            >
+              {actionInProgress ? '…' : '거절'}
+            </button>
+            <button
+              disabled={actionInProgress}
+              onClick={onApprove}
+              className="btn-primary text-[13px] py-2 px-3 disabled:opacity-50"
+            >
+              {actionInProgress ? '처리 중…' : '승인'}
+            </button>
+          </>
+        ) : (
+          <button className="btn-secondary text-[13px] py-2 px-3">상세</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ label, value, total, delta, tone }: { label: string; value: string; total?: string; delta: string; tone?: 'warn' }) {
+  return (
+    <div className="card">
+      <div className="t-sub mb-2">{label}</div>
+      <div className="flex items-baseline gap-1 mb-1">
+        <div className="text-[26px] font-extrabold text-ink tracking-[-0.03em]" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+        {total && <div className="text-[14px] font-semibold text-text-tertiary">{total}</div>}
+      </div>
+      <div className={`text-[12px] font-semibold ${tone === 'warn' ? 'text-warning' : 'text-success'}`}>{delta}</div>
+    </div>
+  );
+}
+
+function StatusChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className={`chip ${active ? 'selected' : ''}`}>
+      {children}
+    </button>
+  );
+}
