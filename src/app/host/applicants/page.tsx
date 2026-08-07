@@ -235,7 +235,12 @@ function ApplicantCard({
                     const avg = rev.length ? Math.round(rev.reduce((s, h) => s + (h.revenue || 0), 0) / rev.length) : 0;
                     return <DetailRow label="지난 행사 평균 매출" value={avg ? `₩${avg.toLocaleString()}` : '기록 없음'} />;
                   })()}
-                  {shareOn(flags, 'hygiene_gear') && <DetailRow label="위생 착용" value={seller?.hygiene_gear} />}
+                  {shareOn(flags, 'hygiene_gear') && <DetailRow label="위생 관리" value={seller?.hygiene_gear} />}
+                  {shareOn(flags, 'vehicle') && seller?.vehicle && <DetailRow label="차량·부스 규격" value={seller.vehicle} />}
+                  {shareOn(flags, 'power') && seller?.power && <DetailRow label="전기 사용량" value={seller.power} />}
+                  {shareOn(flags, 'cooking') && seller?.cooking && <DetailRow label="조리 설비" value={seller.cooking} />}
+                  {shareOn(flags, 'crew') && seller?.crew && <DetailRow label="운영 인원" value={seller.crew} />}
+                  {shareOn(flags, 'sns') && seller?.sns && <DetailRow label="SNS" value={seller.sns} />}
                 </div>
                 {seller?.intro && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{seller.intro}</div>}
               </div>

@@ -17,24 +17,29 @@ import {
   createSellerHistory,
   deleteSellerHistory,
   recordSale,
+  fetchSellerRatings,
+  fetchRatingSummary,
+  updateProfile,
 } from '@/lib/supabase/queries';
 import { periodLabel } from '@/lib/types';
-import type { ApplicationWithRelations, Menu, Profile, SaleWithEvent, SellerHistory } from '@/lib/types';
+import type { ApplicationWithRelations, Menu, Profile, SaleWithEvent, SellerHistory, RatingWithRelations, RatingSummary, ShareFlags } from '@/lib/types';
 
 /**
  * 셀러 마이페이지 · Supabase 연동
  * 3 탭: 참여 이력(applications+sales) · 매출 요약 · 메뉴 관리(CRUD)
  */
 
-type Tab = 'history' | 'sales' | 'menu';
+type Tab = 'store' | 'history' | 'sales' | 'menu' | 'ratings';
 
 export default function SellerMyPage() {
-  const [tab, setTab] = useState<Tab>('history');
+  const [tab, setTab] = useState<Tab>('store');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [applications, setApplications] = useState<ApplicationWithRelations[]>([]);
   const [sales, setSales] = useState<SaleWithEvent[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [history, setHistory] = useState<SellerHistory[]>([]);
+  const [ratings, setRatings] = useState<RatingWithRelations[]>([]);
+  const [ratingSummary, setRatingSummary] = useState<RatingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,16 +50,20 @@ export default function SellerMyPage() {
       const p = await fetchMyProfile();
       setProfile(p);
       if (p) {
-        const [a, s, m, h] = await Promise.all([
+        const [a, s, m, h, r, rs] = await Promise.all([
           fetchMyApplications(p.id),
           fetchMySales(p.id),
           fetchMyMenus(p.id),
           fetchSellerHistory(p.id),
+          fetchSellerRatings(p.id).catch(() => [] as RatingWithRelations[]),
+          fetchRatingSummary(p.id).catch(() => null),
         ]);
         setApplications(a);
         setSales(s);
         setMenus(m);
         setHistory(h);
+        setRatings(r);
+        setRatingSummary(rs);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -95,9 +104,12 @@ export default function SellerMyPage() {
             <div className="flex flex-wrap gap-2 items-center text-[13px]">
               <span className="badge badge-success">인증 파트너</span>
               <span className="text-text-secondary">참여 {sales.length}회 · {totalDays}일</span>
+              {ratingSummary && ratingSummary.review_count > 0 && (
+                <span className="text-text-secondary">· ★ {ratingSummary.avg_score} ({ratingSummary.review_count})</span>
+              )}
             </div>
           </div>
-          <Link href="/settings" className="btn-secondary hidden sm:inline-flex">프로필 수정</Link>
+          <button onClick={() => setTab('store')} className="btn-secondary hidden sm:inline-flex">프로필 수정</button>
         </div>
 
         {error && (
@@ -115,11 +127,26 @@ export default function SellerMyPage() {
         </div>
 
         {/* 탭 */}
-        <div className="inline-flex bg-muted rounded-input p-1 mb-6">
+        <div className="flex gap-1 bg-muted rounded-input p-1 mb-6 overflow-x-auto no-scrollbar">
+          <TabBtn active={tab === 'store'} onClick={() => setTab('store')}>매장 정보</TabBtn>
           <TabBtn active={tab === 'history'} onClick={() => setTab('history')}>참여 이력 ({applications.length + sales.length + history.length})</TabBtn>
           <TabBtn active={tab === 'sales'} onClick={() => setTab('sales')}>매출 요약</TabBtn>
           <TabBtn active={tab === 'menu'} onClick={() => setTab('menu')}>메뉴 관리 ({menus.length})</TabBtn>
+          <TabBtn active={tab === 'ratings'} onClick={() => setTab('ratings')}>받은 평가 ({ratings.length})</TabBtn>
         </div>
+
+        {tab === 'store' && (
+          <StoreTab
+            loading={loading}
+            profile={profile}
+            onSave={async (patch) => {
+              if (!profile) return;
+              const updated = await updateProfile(profile.id, patch);
+              setProfile(updated);
+            }}
+          />
+        )}
+        {tab === 'ratings' && <RatingsTab loading={loading} ratings={ratings} summary={ratingSummary} />}
 
         {/* 탭 콘텐츠 */}
         {tab === 'history' && (
@@ -715,6 +742,191 @@ function MenuCard({
             <button onClick={() => onDelete(m.id)} className="text-[11px] font-bold py-1.5 px-2 rounded-[7px] text-text-tertiary hover:text-danger">삭제</button>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/** 매장 정보 (설계 06) · 항목별 공개 토글 + 저장 */
+function StoreTab({
+  loading, profile, onSave,
+}: {
+  loading: boolean;
+  profile: Profile | null;
+  onSave: (patch: Partial<Profile>) => Promise<void>;
+}) {
+  const [f, setF] = useState(() => fromProfile(profile));
+  const [share, setShare] = useState<ShareFlags>(profile?.share_flags ?? {});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setF(fromProfile(profile));
+    setShare(profile?.share_flags ?? {});
+  }, [profile]);
+
+  function set<K extends keyof StoreFields>(k: K, v: StoreFields[K]) { setF((p) => ({ ...p, [k]: v })); }
+  function toggleShare(key: string) { setShare((p) => ({ ...p, [key]: p[key] === false ? true : false })); }
+
+  async function save() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      await onSave({
+        business_name: f.business_name || null,
+        name: f.name || undefined,
+        business_no: f.business_no || null,
+        phone: f.phone || null,
+        region: f.region || null,
+        affiliation: f.affiliation || null,
+        vehicle: f.vehicle || null,
+        power: f.power || null,
+        cooking: f.cooking || null,
+        hygiene_gear: f.hygiene_gear || null,
+        crew: f.crew || null,
+        sns: f.sns || null,
+        intro: f.intro || null,
+        share_flags: share,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      alert('저장 실패: ' + (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <LoadingCard />;
+
+  const publicCount = STORE_SHAREABLE.filter((s) => share[s.key] !== false).length;
+
+  return (
+    <div className="card">
+      <div className="flex items-baseline justify-between mb-1">
+        <div className="t-section">매장 정보</div>
+        <span className="text-[12px] text-text-tertiary">주최 공개 {publicCount}/{STORE_SHAREABLE.length}항목</span>
+      </div>
+      <div className="t-sub mb-5">항목별로 신청서에 넣을지 직접 고르세요. 끈 항목은 주최에게 &lsquo;비공개&rsquo;로 표시됩니다.</div>
+
+      {/* 항상 공개 */}
+      <StoreField label="상호" value={f.business_name} onChange={(v) => set('business_name', v)} always placeholder="예: 민지네 분식차" />
+      <StoreField label="대표자" value={f.name} onChange={(v) => set('name', v)} always placeholder="예: 김민지" />
+      <StoreField label="활동 지역" value={f.region} onChange={(v) => set('region', v)} always placeholder="예: 서울 성동구" />
+
+      {/* 공개 토글 */}
+      {STORE_SHAREABLE.map((s) => (
+        <StoreField
+          key={s.key}
+          label={s.label}
+          placeholder={s.placeholder}
+          value={f[s.field]}
+          onChange={(v) => set(s.field, v)}
+          shareOn={share[s.key] !== false}
+          onToggle={() => toggleShare(s.key)}
+          textarea={s.field === 'intro'}
+        />
+      ))}
+
+      <div className="flex items-center gap-3 mt-5">
+        <button onClick={save} disabled={saving} className="btn-primary">{saving ? '저장 중…' : '매장 정보 저장'}</button>
+        {saved && <span className="text-[13px] font-semibold text-success">✓ 저장되었습니다</span>}
+      </div>
+    </div>
+  );
+}
+
+interface StoreFields {
+  business_name: string; name: string; business_no: string; phone: string; region: string;
+  affiliation: string; vehicle: string; power: string; cooking: string; hygiene_gear: string; crew: string; sns: string; intro: string;
+}
+function fromProfile(p: Profile | null): StoreFields {
+  return {
+    business_name: p?.business_name ?? '', name: p?.name ?? '', business_no: p?.business_no ?? '',
+    phone: p?.phone ?? '', region: p?.region ?? '', affiliation: p?.affiliation ?? '',
+    vehicle: p?.vehicle ?? '', power: p?.power ?? '', cooking: p?.cooking ?? '',
+    hygiene_gear: p?.hygiene_gear ?? '', crew: p?.crew ?? '', sns: p?.sns ?? '', intro: p?.intro ?? '',
+  };
+}
+const STORE_SHAREABLE: { key: string; label: string; field: keyof StoreFields; placeholder: string }[] = [
+  { key: 'biz_no', label: '사업자등록번호', field: 'business_no', placeholder: '214-05-88931' },
+  { key: 'phone', label: '연락처', field: 'phone', placeholder: '010-0000-0000' },
+  { key: 'affiliation', label: '소속', field: 'affiliation', placeholder: '예: 서울푸드트럭협동조합' },
+  { key: 'vehicle', label: '차량·부스 규격', field: 'vehicle', placeholder: '예: 3.5t 개조 푸드트럭 · 5.2×2.1m' },
+  { key: 'power', label: '전기 사용량', field: 'power', placeholder: '예: 3kW · 자체 발전기 보유' },
+  { key: 'cooking', label: '조리 설비', field: 'cooking', placeholder: '예: 가스 2구 + 전기 튀김기 1대' },
+  { key: 'hygiene_gear', label: '위생 관리', field: 'hygiene_gear', placeholder: '예: 마스크·모자·장갑 상시 착용' },
+  { key: 'crew', label: '운영 인원', field: 'crew', placeholder: '예: 상시 2명 (주말 3명)' },
+  { key: 'sns', label: 'SNS', field: 'sns', placeholder: '예: @minji_bunsik · 팔로워 8,400' },
+  { key: 'intro', label: '매장 소개', field: 'intro', placeholder: '어떤 매장인지 짧게 소개해주세요' },
+];
+
+function StoreField({
+  label, value, onChange, placeholder, always, shareOn, onToggle, textarea,
+}: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+  always?: boolean; shareOn?: boolean; onToggle?: () => void; textarea?: boolean;
+}) {
+  return (
+    <div className="py-3 border-b border-line-faint last:border-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[12px] font-semibold text-ink-soft">{label}</span>
+        {always ? (
+          <span className="badge">항상 공개</span>
+        ) : (
+          <button
+            onClick={onToggle}
+            className={`badge ${shareOn ? 'badge-success' : ''}`}
+            style={!shareOn ? { background: 'var(--bg-muted)', color: 'var(--text-tertiary)' } : undefined}
+          >
+            {shareOn ? '공개' : '비공개'}
+          </button>
+        )}
+      </div>
+      {textarea ? (
+        <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} className="input resize-none text-[14px]" placeholder={placeholder} />
+      ) : (
+        <input value={value} onChange={(e) => onChange(e.target.value)} className="input text-[14px]" placeholder={placeholder} />
+      )}
+    </div>
+  );
+}
+
+/** 받은 주최사 평가 (설계 06) */
+function RatingsTab({ loading, ratings, summary }: { loading: boolean; ratings: RatingWithRelations[]; summary: RatingSummary | null }) {
+  if (loading) return <LoadingCard />;
+  return (
+    <div className="card">
+      <div className="flex items-baseline justify-between mb-1">
+        <div className="t-section">받은 주최사 평가 {ratings.length > 0 && <span className="text-text-tertiary text-[14px]">{ratings.length}건</span>}</div>
+        {summary && summary.review_count > 0 && <span className="text-[15px] font-extrabold text-ink">★ {summary.avg_score}</span>}
+      </div>
+      <div className="t-sub mb-4">주최사가 남긴 평가입니다.</div>
+      {ratings.length === 0 ? (
+        <div className="text-center py-12 text-[13px] text-text-tertiary">아직 받은 평가가 없습니다.</div>
+      ) : (
+        <div className="space-y-3">
+          {ratings.map((r) => {
+            const host = r.host?.business_name || r.host?.name || '주최';
+            const avg = ((r.hygiene + r.punctual + r.service) / 3).toFixed(1);
+            return (
+              <div key={r.id} className="p-4 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[14px] font-bold text-ink">{host}
+                      {r.event?.name && <span className="text-[12px] font-normal text-text-tertiary"> · {r.event.name}</span>}
+                    </div>
+                    <div className="text-[11px] text-text-tertiary mt-0.5">
+                      위생 {r.hygiene} · 시간 {r.punctual} · 응대 {r.service} · {r.created_at.slice(0, 10).replace(/-/g, '.')}
+                    </div>
+                  </div>
+                  <span className="text-[15px] font-extrabold text-ink shrink-0">{avg}</span>
+                </div>
+                {r.comment && <div className="text-[13px] text-ink-soft mt-2 leading-relaxed">{r.comment}</div>}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
