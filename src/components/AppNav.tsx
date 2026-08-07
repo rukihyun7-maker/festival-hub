@@ -1,28 +1,74 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { fetchMyProfile, fetchMyNotifications, markNotificationsRead } from '@/lib/supabase/queries';
+import type { Profile, Notification, Role, NotifKind } from '@/lib/types';
 
 /**
  * 공통 상단 내비게이션 · Handoff v2 톤
- * - 좌측: 로고 + 메뉴 (홈·행사·마이페이지)
- * - 우측: 알림 벨 + 프로필 아바타
- * - 좁은 화면에서 메뉴가 스크롤 가능
+ * - 좌측: 로고 + 역할별 메뉴
+ * - 우측: 알림 벨(실데이터) + 프로필(실데이터·역할별 메뉴)
  */
-export default function AppNav({ role = 'seller' as 'seller' | 'host' | 'admin' }) {
+
+const ROLE_LABEL: Record<Role, string> = { seller: '입점 파트너', host: '행사 주최', admin: '관리자' };
+const ROLE_LETTER: Record<Role, string> = { seller: 'S', host: 'H', admin: 'A' };
+
+function profileMenu(role: Role): { href: string; label: string }[] {
+  if (role === 'host') {
+    return [
+      { href: '/host', label: '대시보드' },
+      { href: '/host/settlement', label: '정산' },
+      { href: '/settings', label: '설정' },
+    ];
+  }
+  if (role === 'admin') {
+    return [
+      { href: '/admin', label: '인사이트' },
+      { href: '/admin/users', label: '사용자 관리' },
+      { href: '/settings', label: '설정' },
+    ];
+  }
+  return [
+    { href: '/seller', label: '내 참여 이력' },
+    { href: '/seller/documents', label: '서류 관리' },
+    { href: '/settings', label: '설정' },
+  ];
+}
+
+export default function AppNav({ role = 'seller' as Role }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [notifs, setNotifs] = useState<Notification[]>([]);
 
-  const menu = role === 'host'
+  useEffect(() => {
+    (async () => {
+      try {
+        const p = await fetchMyProfile();
+        setProfile(p);
+        if (p) setNotifs(await fetchMyNotifications(p.id));
+      } catch {
+        /* 미로그인 등 · 조용히 무시 */
+      }
+    })();
+  }, []);
+
+  const effectiveRole: Role = profile?.role ?? role;
+  const unread = notifs.filter((n) => !n.read).length;
+
+  const menu = effectiveRole === 'host'
     ? [
         { href: '/host', label: '대시보드' },
         { href: '/host/events', label: '내 행사' },
         { href: '/host/applicants', label: '신청자 관리' },
         { href: '/host/settlement', label: '정산' },
       ]
-    : role === 'admin'
+    : effectiveRole === 'admin'
     ? [
         { href: '/admin', label: '인사이트' },
         { href: '/admin/users', label: '사용자' },
@@ -37,12 +83,34 @@ export default function AppNav({ role = 'seller' as 'seller' | 'host' | 'admin' 
         { href: '/seller/simulator', label: '손익 시뮬' },
       ];
 
+  async function openNotif() {
+    setNotifOpen((v) => !v);
+    setProfileOpen(false);
+    if (!notifOpen && profile && unread > 0) {
+      try {
+        await markNotificationsRead(profile.id);
+        setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+      } catch {
+        /* 무시 */
+      }
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await createClient().auth.signOut();
+    } catch {
+      /* 무시 */
+    }
+    router.push('/login');
+  }
+
   return (
     <header className="sticky top-0 z-40 bg-page/90 backdrop-blur border-b border-line">
       <div className="container-app flex items-center justify-between h-[64px]">
         {/* 좌측 · 로고 + 메뉴 */}
         <div className="flex items-center gap-8 min-w-0 flex-1">
-          <Link href={role === 'host' ? '/host' : role === 'admin' ? '/admin' : '/dashboard'} className="flex items-center gap-2 shrink-0">
+          <Link href={effectiveRole === 'host' ? '/host' : effectiveRole === 'admin' ? '/admin' : '/dashboard'} className="flex items-center gap-2 shrink-0">
             <div className="w-7 h-7 rounded-[8px] bg-ink flex items-center justify-center">
               <span className="text-accent font-extrabold text-[14px] leading-none">F</span>
             </div>
@@ -71,22 +139,25 @@ export default function AppNav({ role = 'seller' as 'seller' | 'host' | 'admin' 
           {/* 알림 벨 */}
           <div className="relative">
             <button
-              onClick={() => { setNotifOpen((v) => !v); setProfileOpen(false); }}
+              onClick={openNotif}
               className="relative w-10 h-10 rounded-[10px] hover:bg-surface-sunken flex items-center justify-center transition-colors"
               aria-label="알림"
             >
               <span className="text-[18px]">🔔</span>
-              <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-danger" />
+              {unread > 0 && <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-danger" />}
             </button>
             {notifOpen && (
               <div className="absolute right-0 top-12 w-[340px] bg-surface border border-line rounded-card shadow-dropdown animate-fh-up p-2 z-50">
                 <div className="px-3 py-2 flex items-center justify-between">
-                  <span className="text-[13px] font-bold text-ink">알림 3</span>
-                  <button className="text-[11px] font-semibold text-text-tertiary hover:text-ink">모두 읽음</button>
+                  <span className="text-[13px] font-bold text-ink">알림 {notifs.length}</span>
                 </div>
-                <NotifItem title="서울숲 8월 플리마켓 · 승인 완료" time="방금" type="success" />
-                <NotifItem title="필수 서류 1건 만료 예정 (7일 남음)" time="1시간 전" type="warning" />
-                <NotifItem title="정산 315,000원 완료" time="어제" type="info" />
+                {notifs.length === 0 ? (
+                  <div className="px-3 py-8 text-center text-[12px] text-text-tertiary">새 알림이 없습니다</div>
+                ) : (
+                  notifs.slice(0, 8).map((n) => (
+                    <NotifItem key={n.id} title={n.title} time={relTime(n.created_at)} kind={n.kind} />
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -98,23 +169,28 @@ export default function AppNav({ role = 'seller' as 'seller' | 'host' | 'admin' 
               className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-[10px] hover:bg-surface-sunken transition-colors"
             >
               <div className="w-8 h-8 rounded-pill bg-accent flex items-center justify-center text-ink font-extrabold text-[13px]">
-                {role === 'host' ? 'H' : role === 'admin' ? 'A' : 'S'}
+                {ROLE_LETTER[effectiveRole]}
               </div>
-              <span className="text-[13px] font-bold text-ink hidden sm:inline">
-                {role === 'host' ? '행사 주최' : role === 'admin' ? '관리자' : '입점 파트너'}
-              </span>
+              <span className="text-[13px] font-bold text-ink hidden sm:inline">{ROLE_LABEL[effectiveRole]}</span>
             </button>
             {profileOpen && (
               <div className="absolute right-0 top-12 w-[240px] bg-surface border border-line rounded-card shadow-dropdown animate-fh-up p-2 z-50">
                 <div className="px-3 py-2.5 border-b border-line-faint mb-1">
-                  <div className="text-[13px] font-bold text-ink">홍길동</div>
-                  <div className="text-[11px] text-text-tertiary mt-0.5">seller@festival.demo</div>
+                  <div className="text-[13px] font-bold text-ink truncate">
+                    {profile?.business_name || profile?.name || '게스트'}
+                  </div>
+                  <div className="text-[11px] text-text-tertiary mt-0.5 truncate">{profile?.email ?? '로그인이 필요합니다'}</div>
                 </div>
-                <MenuItem href="/seller">내 참여 이력</MenuItem>
-                <MenuItem href="/seller/documents">서류 관리</MenuItem>
-                <MenuItem href="/settings">설정</MenuItem>
+                {profileMenu(effectiveRole).map((m) => (
+                  <MenuItem key={m.href} href={m.href}>{m.label}</MenuItem>
+                ))}
                 <div className="border-t border-line-faint mt-1 pt-1">
-                  <MenuItem href="/login" danger>로그아웃</MenuItem>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-3 py-2 rounded-[8px] text-[13px] font-semibold text-danger hover:bg-danger-bg transition-colors"
+                  >
+                    로그아웃
+                  </button>
                 </div>
               </div>
             )}
@@ -125,28 +201,46 @@ export default function AppNav({ role = 'seller' as 'seller' | 'host' | 'admin' 
   );
 }
 
-function NotifItem({ title, time, type }: { title: string; time: string; type: 'success' | 'warning' | 'info' | 'danger' }) {
-  const dot = { success: 'bg-success', warning: 'bg-warning', info: 'bg-info-bar', danger: 'bg-danger' }[type];
+const KIND_DOT: Record<NotifKind, string> = {
+  deadline: 'bg-warning',
+  review: 'bg-success',
+  docs: 'bg-info-bar',
+  new_event: 'bg-info-bar',
+  settlement: 'bg-success',
+};
+
+function NotifItem({ title, time, kind }: { title: string; time: string; kind: NotifKind }) {
   return (
-    <button className="w-full flex items-start gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-surface-sunken text-left transition-colors">
-      <span className={`w-1.5 h-1.5 rounded-full ${dot} mt-2 shrink-0`} />
+    <div className="w-full flex items-start gap-2.5 px-3 py-2.5 rounded-[10px] hover:bg-surface-sunken text-left transition-colors">
+      <span className={`w-1.5 h-1.5 rounded-full ${KIND_DOT[kind] ?? 'bg-info-bar'} mt-2 shrink-0`} />
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-semibold text-ink truncate">{title}</div>
+        <div className="text-[13px] font-semibold text-ink">{title}</div>
         <div className="text-[11px] text-text-tertiary mt-0.5">{time}</div>
       </div>
-    </button>
+    </div>
   );
 }
 
-function MenuItem({ href, children, danger }: { href: string; children: React.ReactNode; danger?: boolean }) {
+function MenuItem({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className={`block px-3 py-2 rounded-[8px] text-[13px] font-semibold transition-colors ${
-        danger ? 'text-danger hover:bg-danger-bg' : 'text-ink hover:bg-surface-sunken'
-      }`}
+      className="block px-3 py-2 rounded-[8px] text-[13px] font-semibold text-ink hover:bg-surface-sunken transition-colors"
     >
       {children}
     </Link>
   );
+}
+
+/** 간단 상대시간 */
+function relTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return '방금';
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}일 전`;
+  return iso.slice(0, 10).replace(/-/g, '.');
 }
