@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchMyProfile, fetchMyNotifications, markNotificationsRead } from '@/lib/supabase/queries';
 import type { Profile, Notification, Role, NotifKind } from '@/lib/types';
@@ -45,6 +45,7 @@ export default function AppNav({ role = 'seller' as Role }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
+  const activeRef = useRef<HTMLAnchorElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -57,6 +58,11 @@ export default function AppNav({ role = 'seller' as Role }) {
       }
     })();
   }, []);
+
+  // 현재 메뉴를 가로 스크롤 영역 안에서 보이도록
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [pathname, profile]);
 
   const effectiveRole: Role = profile?.role ?? role;
   const unread = notifs.filter((n) => !n.read).length;
@@ -120,15 +126,16 @@ export default function AppNav({ role = 'seller' as Role }) {
             <div className="w-7 h-7 rounded-[8px] bg-ink flex items-center justify-center">
               <span className="text-accent font-extrabold text-[14px] leading-none">F</span>
             </div>
-            <span className="font-extrabold text-[15px] tracking-[-0.02em] text-ink">Festival Hub</span>
+            <span className="font-extrabold text-[15px] tracking-[-0.02em] text-ink hidden sm:inline">Festival Hub</span>
           </Link>
-          <nav className="flex items-center gap-1 overflow-x-auto min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <nav className="flex items-center gap-1 overflow-x-auto min-w-0 no-scrollbar nav-fade px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
             {menu.map((m) => {
               const active = pathname === m.href || (m.href !== '/dashboard' && pathname.startsWith(m.href));
               return (
                 <Link
                   key={m.href}
                   href={m.href}
+                  ref={active ? activeRef : undefined}
                   className={`px-3 py-2 rounded-[8px] text-[14px] font-semibold whitespace-nowrap transition-colors ${
                     active ? 'bg-muted text-ink' : 'text-text-secondary hover:text-ink hover:bg-surface-sunken'
                   }`}
