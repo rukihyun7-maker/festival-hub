@@ -150,7 +150,7 @@ export interface SaleWithEvent extends Sale {
 // Documents (v2 스키마)
 // ============================================
 
-export type DocKind = 'business_reg' | 'food_hygiene' | 'insurance' | 'hygiene_edu' | 'vehicle_reg';
+export type DocKind = 'business_reg' | 'food_hygiene' | 'insurance' | 'hygiene_edu' | 'booth_exterior' | 'booth_interior' | 'booth_storage';
 
 export type DocStatus = 'pending' | 'verified' | 'rejected' | 'expired';
 export type DocUrgency = 'verified' | 'pending' | 'rejected' | 'expiring' | 'expired' | 'missing';
@@ -184,10 +184,12 @@ export const DOC_META: Record<DocKind, { label: string; desc: string; requiresEx
   food_hygiene: { label: '식품위생업 신고증', desc: '보건소 발급 · 만료 없음', requiresExpiry: false },
   insurance:    { label: '영업배상책임보험', desc: '보험사 증권 · 만료일 필수', requiresExpiry: true },
   hygiene_edu:  { label: '위생교육 이수증', desc: '연 1회 갱신 · 만료일 필수', requiresExpiry: true },
-  vehicle_reg:  { label: '차량등록증 (푸드트럭)', desc: '푸드트럭 사업자만', requiresExpiry: true },
+  booth_exterior: { label: '부스·트럭 외부 사진', desc: '전체 외관 1컷 · 관리자·주최 확인용', requiresExpiry: false },
+  booth_interior: { label: '부스·트럭 내부 사진', desc: '조리 공간 1컷', requiresExpiry: false },
+  booth_storage:  { label: '재료 보관 공간 사진', desc: '식자재 보관 상태 1컷', requiresExpiry: false },
 };
 
-export const DOC_KINDS: DocKind[] = ['business_reg', 'food_hygiene', 'insurance', 'hygiene_edu', 'vehicle_reg'];
+export const DOC_KINDS: DocKind[] = ['business_reg', 'food_hygiene', 'insurance', 'hygiene_edu', 'booth_exterior', 'booth_interior', 'booth_storage'];
 
 /** 문서 상태에서 UI urgency 계산 (view가 없을 때 클라측 폴백) */
 export function computeUrgency(doc: DocumentRow | null): DocUrgency {

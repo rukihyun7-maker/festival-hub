@@ -72,7 +72,8 @@ export default function SellerDocumentsPage() {
   }
 
   const verifiedCount = countVerified(slots);
-  const allGood = verifiedCount === 5;
+  const totalDocs = slots.length;
+  const allGood = totalDocs > 0 && verifiedCount === totalDocs;
 
   return (
     <main className="min-h-screen bg-page">
@@ -87,21 +88,21 @@ export default function SellerDocumentsPage() {
 
         <div className="mb-8">
           <h1 className="t-title mb-1">필수 서류 관리</h1>
-          <p className="t-sub">5종 모두 검증되면 행사 신청 시 자동 첨부됩니다.</p>
+          <p className="t-sub">모든 항목이 검증되면 행사 신청 시 자동 첨부됩니다. (서류 + 부스/트럭 사진 3컷)</p>
         </div>
 
         <div className={`card mb-8 ${allGood ? 'card-apply' : 'card-info'}`}>
           <div className="flex items-center justify-between mb-3">
             <div className="text-[15px] font-extrabold text-ink">서류 검증 진행률</div>
             <span className={`text-[24px] font-extrabold ${allGood ? 'text-success' : 'text-warning'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {verifiedCount} / 5
+              {verifiedCount} / {totalDocs}
             </span>
           </div>
           <div className="h-2.5 bg-muted rounded-pill overflow-hidden mb-2">
-            <div className={`h-full transition-all ${allGood ? 'bg-success' : 'bg-warning'}`} style={{ width: `${(verifiedCount / 5) * 100}%` }} />
+            <div className={`h-full transition-all ${allGood ? 'bg-success' : 'bg-warning'}`} style={{ width: `${totalDocs ? (verifiedCount / totalDocs) * 100 : 0}%` }} />
           </div>
           <div className="text-[12px] text-text-secondary">
-            {allGood ? '✓ 모든 서류 검증 완료 · 즉시 행사 신청 가능' : `${5 - verifiedCount}건 남음 · 완료 후 신청 가능`}
+            {allGood ? '✓ 모든 항목 검증 완료 · 즉시 행사 신청 가능' : `${totalDocs - verifiedCount}건 남음 · 완료 후 신청 가능`}
           </div>
         </div>
 

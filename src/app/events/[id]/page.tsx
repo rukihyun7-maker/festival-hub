@@ -51,7 +51,8 @@ export default function EventDetailPage() {
   }, [params.id]);
 
   const verifiedCount = countVerified(docSlots);
-  const canApply = verifiedCount === 5 && !!profile && profile.role === 'seller';
+  const totalDocs = docSlots.length;
+  const canApply = totalDocs > 0 && verifiedCount === totalDocs && !!profile && profile.role === 'seller';
 
   async function handleApply() {
     if (!event || !profile) return;
@@ -225,10 +226,10 @@ export default function EventDetailPage() {
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[13px] font-bold text-ink">필수 서류 검증</span>
-                    <span className={`text-[12px] font-bold ${canApply ? 'text-success' : 'text-warning'}`}>{verifiedCount}/5 완료</span>
+                    <span className={`text-[12px] font-bold ${canApply ? 'text-success' : 'text-warning'}`}>{verifiedCount}/{totalDocs} 완료</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-pill overflow-hidden mb-3">
-                    <div className={`h-full transition-all ${canApply ? 'bg-success' : 'bg-warning'}`} style={{ width: `${(verifiedCount / 5) * 100}%` }} />
+                    <div className={`h-full transition-all ${canApply ? 'bg-success' : 'bg-warning'}`} style={{ width: `${totalDocs ? (verifiedCount / totalDocs) * 100 : 0}%` }} />
                   </div>
                   <ul className="space-y-1.5">
                     {docSlots.map((s) => {
