@@ -11,10 +11,11 @@ import {
   fetchSellerHistory,
   fetchRatingSummary,
   fetchMyMenus,
+  fetchMyDocumentSlots,
 } from '@/lib/supabase/queries';
 import type {
   Profile, EventRow, ApplicationWithRelations, ApplicationStatus,
-  SellerHistory, RatingSummary, Menu, ShareFlags,
+  SellerHistory, RatingSummary, Menu, ShareFlags, DocumentSlot,
 } from '@/lib/types';
 
 /**
@@ -169,6 +170,7 @@ function ApplicantCard({
   const [history, setHistory] = useState<SellerHistory[]>([]);
   const [rating, setRating] = useState<RatingSummary | null>(null);
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [docs, setDocs] = useState<DocumentSlot[]>([]);
 
   const seller = a.seller;
   const meta = STATUS_META[a.status];
@@ -180,14 +182,16 @@ function ApplicantCard({
     setOpen(next);
     if (next && !loaded && seller) {
       setLoadingDetail(true);
-      const [h, r, m] = await Promise.all([
+      const [h, r, m, d] = await Promise.all([
         fetchSellerHistory(seller.id).catch(() => [] as SellerHistory[]),
         fetchRatingSummary(seller.id).catch(() => null),
         fetchMyMenus(seller.id).catch(() => [] as Menu[]), // RLS 미허용 시 빈 배열
+        fetchMyDocumentSlots(seller.id).catch(() => [] as DocumentSlot[]), // v9 정책 후 열람
       ]);
       setHistory(h);
       setRating(r);
       setMenus(m);
+      setDocs(d);
       setLoaded(true);
       setLoadingDetail(false);
     }
@@ -226,9 +230,39 @@ function ApplicantCard({
                   {shareOn(flags, 'biz_no') && <DetailRow label="사업자번호" value={seller?.business_no} />}
                   {shareOn(flags, 'phone') && <DetailRow label="연락처" value={seller?.phone} />}
                   <DetailRow label="평점" value={rating ? `${rating.avg_score} (${rating.review_count}건)` : '평가 없음'} />
+                  {shareOn(flags, 'sales_revenue') && (() => {
+                    const rev = history.filter((h) => (h.revenue ?? 0) > 0);
+                    const avg = rev.length ? Math.round(rev.reduce((s, h) => s + (h.revenue || 0), 0) / rev.length) : 0;
+                    return <DetailRow label="지난 행사 평균 매출" value={avg ? `₩${avg.toLocaleString()}` : '기록 없음'} />;
+                  })()}
                   {shareOn(flags, 'hygiene_gear') && <DetailRow label="위생 착용" value={seller?.hygiene_gear} />}
                 </div>
                 {seller?.intro && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{seller.intro}</div>}
+              </div>
+
+              {/* 제출 서류 */}
+              <div>
+                <div className="text-[12px] font-bold text-ink-soft mb-2">
+                  제출 서류 {docs.length > 0 && `${docs.filter((d) => d.urgency === 'verified' || d.urgency === 'expiring').length}/${docs.length}`}
+                </div>
+                {docs.length === 0 ? (
+                  <div className="text-[12px] text-text-tertiary">서류 정보를 불러올 수 없습니다.</div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {docs.map((d) => {
+                      const ok = d.urgency === 'verified' || d.urgency === 'expiring';
+                      const pending = d.urgency === 'pending';
+                      return (
+                        <span
+                          key={d.kind}
+                          className={`text-[12px] px-2 py-1 rounded-[7px] font-semibold ${ok ? 'badge-success' : pending ? 'badge-info' : 'badge-danger'}`}
+                        >
+                          {ok ? '✓ ' : pending ? '· ' : '✕ '}{d.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* 판매 메뉴 */}

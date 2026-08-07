@@ -114,7 +114,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 320px)' }}>
+    <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
       <div className="space-y-6" style={{ minWidth: 0 }}>
         <Section title="1. 기본 정보">
           <Field label="행사명" required>
