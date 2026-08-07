@@ -33,11 +33,13 @@ export default function EventDetailPage() {
           setProfile(p);
         }
         if (p?.role === 'seller') {
-          const [s, favs] = await Promise.all([fetchMyDocumentSlots(p.id), fetchMyFavorites(p.id)]);
-          if (!cancelled) {
-            setDocSlots(s);
-            setFav(favs.some((f) => f.event_id === params.id));
-          }
+          const s = await fetchMyDocumentSlots(p.id);
+          if (!cancelled) setDocSlots(s);
+          // 찜 조회는 실패해도 상세 표시를 막지 않음 (favorites 테이블 미생성 등)
+          try {
+            const favs = await fetchMyFavorites(p.id);
+            if (!cancelled) setFav(favs.some((f) => f.event_id === params.id));
+          } catch { /* 무시 */ }
         }
       } catch (err) {
         if (!cancelled) setError((err as Error).message);

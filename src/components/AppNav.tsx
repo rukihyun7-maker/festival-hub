@@ -34,6 +34,7 @@ function profileMenu(role: Role): { href: string; label: string }[] {
   return [
     { href: '/seller', label: '내 참여 이력' },
     { href: '/seller/documents', label: '서류 관리' },
+    { href: '/seller/simulator', label: '손익 시뮬레이터' },
     { href: '/settings', label: '설정' },
   ];
 }
@@ -66,6 +67,15 @@ export default function AppNav({ role = 'seller' as Role }) {
 
   const effectiveRole: Role = profile?.role ?? role;
   const unread = notifs.filter((n) => !n.read).length;
+  // 셀러·주최는 앱형 → 모바일 하단 탭바, 관리자는 웹 → 상단 유지
+  const useBottomNav = effectiveRole === 'seller' || effectiveRole === 'host';
+
+  // 하단 탭바가 있으면 본문 하단 여백 확보 (모바일)
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.classList.toggle('has-bottomnav', useBottomNav);
+    return () => document.body.classList.remove('has-bottomnav');
+  }, [useBottomNav]);
 
   const menu = effectiveRole === 'host'
     ? [
@@ -118,6 +128,7 @@ export default function AppNav({ role = 'seller' as Role }) {
   }
 
   return (
+    <>
     <header className="sticky top-0 z-40 bg-page/90 backdrop-blur border-b border-line">
       <div className="container-app flex items-center justify-between h-[64px]">
         {/* 좌측 · 로고 + 메뉴 */}
@@ -128,7 +139,7 @@ export default function AppNav({ role = 'seller' as Role }) {
             </div>
             <span className="font-extrabold text-[15px] tracking-[-0.02em] text-ink hidden sm:inline">Festival Hub</span>
           </Link>
-          <nav className="flex items-center gap-1 overflow-x-auto min-w-0 no-scrollbar nav-fade px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <nav className={`${useBottomNav ? 'hidden sm:flex' : 'flex'} items-center gap-1 overflow-x-auto min-w-0 no-scrollbar nav-fade px-1`} style={{ WebkitOverflowScrolling: 'touch' }}>
             {menu.map((m) => {
               const active = pathname === m.href || (m.href !== '/dashboard' && pathname.startsWith(m.href));
               return (
@@ -211,7 +222,83 @@ export default function AppNav({ role = 'seller' as Role }) {
         </div>
       </div>
     </header>
+    {useBottomNav && <BottomNav role={effectiveRole} pathname={pathname} unread={unread} />}
+    </>
   );
+}
+
+// 모바일 하단 탭바 (셀러·주최 · 앱형)
+const BOTTOM_TABS: Record<'seller' | 'host', { href: string; label: string; icon: IconKey }[]> = {
+  seller: [
+    { href: '/dashboard', label: '홈', icon: 'home' },
+    { href: '/events', label: '찾기', icon: 'search' },
+    { href: '/seller/favorites', label: '찜', icon: 'star' },
+    { href: '/seller/applications', label: '신청', icon: 'list' },
+    { href: '/seller', label: '마이', icon: 'user' },
+  ],
+  host: [
+    { href: '/host', label: '홈', icon: 'home' },
+    { href: '/host/events', label: '행사', icon: 'calendar' },
+    { href: '/host/applicants', label: '신청자', icon: 'inbox' },
+    { href: '/host/ratings', label: '평가', icon: 'star' },
+    { href: '/host/settlement', label: '정산', icon: 'wallet' },
+  ],
+};
+
+function BottomNav({ role, pathname, unread }: { role: Role; pathname: string; unread: number }) {
+  if (role === 'admin') return null;
+  const tabs = BOTTOM_TABS[role];
+  return (
+    <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-line flex" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {tabs.map((t) => {
+        const active =
+          t.href === '/dashboard' || t.href === '/host' || t.href === '/seller'
+            ? pathname === t.href
+            : pathname === t.href || pathname.startsWith(t.href);
+        return (
+          <Link
+            key={t.href}
+            href={t.href}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 relative"
+            style={{ color: active ? 'var(--ink)' : 'var(--text-tertiary)' }}
+          >
+            <TabIcon name={t.icon} active={active} />
+            <span className="text-[10.5px] font-bold">{t.label}</span>
+            {t.icon === 'inbox' && unread > 0 && (
+              <span className="absolute top-1.5 right-[26%] w-1.5 h-1.5 rounded-full bg-danger" />
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+type IconKey = 'home' | 'search' | 'star' | 'list' | 'user' | 'calendar' | 'inbox' | 'wallet';
+
+function TabIcon({ name, active }: { name: IconKey; active: boolean }) {
+  const sw = active ? 2.2 : 1.8;
+  const common = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: sw, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  switch (name) {
+    case 'home':
+      return (<svg {...common}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></svg>);
+    case 'search':
+      return (<svg {...common}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></svg>);
+    case 'star':
+      return (<svg {...common} fill={active ? 'currentColor' : 'none'}><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" /></svg>);
+    case 'list':
+      return (<svg {...common}><path d="M8 6h12M8 12h12M8 18h12" /><circle cx="4" cy="6" r="1" /><circle cx="4" cy="12" r="1" /><circle cx="4" cy="18" r="1" /></svg>);
+    case 'user':
+      return (<svg {...common}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></svg>);
+    case 'calendar':
+      return (<svg {...common}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></svg>);
+    case 'inbox':
+      return (<svg {...common}><path d="M3 12h5l2 3h4l2-3h5" /><path d="M5 5h14l2 7v7H3v-7z" /></svg>);
+    case 'wallet':
+      return (<svg {...common}><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M16 12h3" /><path d="M3 9h13a2 2 0 0 1 2 2v0" /></svg>);
+    default:
+      return null;
+  }
 }
 
 const KIND_DOT: Record<NotifKind, string> = {

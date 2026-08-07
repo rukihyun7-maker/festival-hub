@@ -230,6 +230,11 @@ body {
 /* 가로 스크롤 내비게이션: 스크롤바 숨김 + 양끝 페이드로 스와이프 힌트 */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* 모바일 하단 탭바: 고정 바 높이만큼 본문 하단 여백 확보 */
+@media (max-width: 639px) {
+  body.has-bottomnav { padding-bottom: 68px; }
+}
 .nav-fade {
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
   mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
