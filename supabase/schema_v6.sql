@@ -52,7 +52,7 @@ create policy "api_sources_admin" on public.api_sources
 -- --------------------------------------------
 create table if not exists public.category_rules (
   id uuid primary key default gen_random_uuid(),
-  name text not null,
+  name text not null unique,                -- 카테고리명 유니크(중복 시드 방지)
   keywords text[] not null default '{}',   -- 원천 분류 매핑 키워드
   visible boolean not null default true,    -- 셀러 노출 여부
   count integer not null default 0,         -- 매핑된 행사 수 (표시용)
@@ -89,7 +89,7 @@ insert into public.category_rules (name, keywords, visible, count) values
   ('상시운영',   array['상설','상시','팝업'],           true,  9),
   ('기업행사',   array['임직원','기업','사내'],         true,  5),
   ('종교행사',   array['교회','사찰','법회'],           false, 3)
-on conflict do nothing;
+on conflict (name) do nothing;
 
 -- 4-3. 셀러 데모 계정에 찜 2건 (마감 임박 행사 위주)
 insert into public.favorites (seller_id, event_id, notify)
