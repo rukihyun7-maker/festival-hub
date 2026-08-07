@@ -117,13 +117,25 @@ export default function HostEventsPage() {
                 <div key={e.id} className="card">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`badge ${meta.cls}`}>{meta.label}</span>
-                        {dday !== null && dday >= 0 && e.status !== 'canceled' && (
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        {e.review_status === 'pending' ? (
+                          <span className="badge badge-warning">승인 대기</span>
+                        ) : e.review_status === 'rejected' ? (
+                          <span className="badge badge-danger">반려</span>
+                        ) : (
+                          <span className={`badge ${meta.cls}`}>{meta.label}</span>
+                        )}
+                        {dday !== null && dday >= 0 && e.status !== 'canceled' && e.review_status !== 'pending' && e.review_status !== 'rejected' && (
                           <span className="text-[12px] font-bold text-ink">D-{dday}</span>
                         )}
                       </div>
                       <div className="text-[15px] font-extrabold text-ink truncate">{e.name}</div>
+                      {e.review_status === 'pending' && (
+                        <div className="text-[12px] text-warning mt-1">관리자 승인 후 셀러에게 공개됩니다.</div>
+                      )}
+                      {e.review_status === 'rejected' && e.admin_note && (
+                        <div className="text-[12px] text-danger mt-1">반려 사유: {e.admin_note}</div>
+                      )}
                       <div className="text-[13px] text-text-secondary mt-1">
                         {periodLabel(e.start_date, e.end_date)} · {e.region}
                       </div>

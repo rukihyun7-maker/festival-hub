@@ -57,8 +57,10 @@ export default function CreateEventPage() {
         contact: v.contact.trim() || null,
         phone: v.phone.trim() || null,
         status: v.status,
+        review_status: me.role === 'admin' ? 'approved' : 'pending', // 주최=승인 대기 / 관리자=즉시 공개
       });
-      router.push(`/events/${row.id}`);
+      // 주최는 관리자 승인 후 공개 → 요청 현황으로, 관리자는 바로 상세로
+      router.push(me.role === 'admin' ? `/events/${row.id}` : '/host/events?submitted=1');
     } catch (err) {
       setError((err as Error).message);
       setSubmitting(false);

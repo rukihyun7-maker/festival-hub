@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
-import { fetchAllProfiles, fetchMyProfile, updateProfileRole } from '@/lib/supabase/queries';
-import type { Profile } from '@/lib/types';
+import { fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus } from '@/lib/supabase/queries';
+import type { Profile, SellerStatus } from '@/lib/types';
 
 /**
  * 사용자 관리 · Admin only
@@ -53,6 +53,19 @@ export default function AdminUsersPage() {
       setProfiles((prev) => prev.map((p) => (p.id === profileId ? { ...p, role } : p)));
     } catch (e) {
       alert('변경 실패: ' + (e as Error).message);
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function changeStatus(profileId: string, status: SellerStatus, confirmMsg?: string) {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    setUpdatingId(profileId);
+    try {
+      await updateProfileStatus(profileId, status);
+      setProfiles((prev) => prev.map((p) => (p.id === profileId ? { ...p, status } : p)));
+    } catch (e) {
+      alert('상태 변경 실패: ' + (e as Error).message);
     } finally {
       setUpdatingId(null);
     }
@@ -150,9 +163,10 @@ export default function AdminUsersPage() {
 
                 {/* 정보 */}
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-[15px] font-bold text-ink truncate">{p.business_name ?? p.name}</span>
                     <RoleBadge role={p.role} />
+                    {p.role === 'seller' && <SellerStatusBadge status={p.status ?? '정상'} />}
                   </div>
                   <div className="text-[12px] text-text-secondary truncate">
                     {p.name} · <span style={{ fontFamily: 'ui-monospace, monospace' }}>{p.email}</span>
@@ -178,15 +192,24 @@ export default function AdminUsersPage() {
                   </select>
                 </div>
 
-                {/* 액션 */}
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    disabled={p.id === me?.id}
-                    className="text-[12px] text-danger hover:underline font-semibold disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed"
-                    onClick={() => alert('정지 기능은 auth admin API 연결 후 활성화됩니다')}
-                  >
-                    정지
-                  </button>
+                {/* 상태 액션 (셀러 전용) */}
+                <div className="flex gap-2 shrink-0 items-center">
+                  {p.role === 'seller' ? (
+                    (() => {
+                      const st = p.status ?? '정상';
+                      if (st === '가입 심사') return (
+                        <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상')} className="btn-primary text-[12px] py-1.5 px-3">가입 승인</button>
+                      );
+                      if (st === '정지') return (
+                        <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상', '정지를 해제하시겠어요?')} className="btn-secondary text-[12px] py-1.5 px-3">정지 해제</button>
+                      );
+                      return (
+                        <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정지', '이 파트너의 이용을 정지하시겠어요? 신규 신청이 차단됩니다.')} className="text-[12px] text-danger hover:underline font-semibold">이용 정지</button>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-[11px] text-text-tertiary">—</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -197,7 +220,7 @@ export default function AdminUsersPage() {
         <div className="mt-6 p-4 rounded-card bg-surface-sunken border border-line-faint">
           <div className="text-[12px] font-bold text-ink mb-1">참고</div>
           <div className="text-[11px] text-text-secondary leading-[1.6]">
-            현재 계정 본인은 권한 변경/정지 불가. 정지 기능은 Supabase Auth Admin API 연결이 필요합니다 (server-side, service_role key 필요).
+            셀러 상태: <b>가입 심사</b>는 신규 가입 대기(승인 시 활동 가능), <b>정지</b>는 신규 신청 차단. 계정 완전 삭제는 Supabase Auth Admin API(server-side)가 필요합니다.
           </div>
         </div>
       </div>
@@ -213,4 +236,13 @@ function RoleBadge({ role }: { role: string }) {
   };
   const b = map[role] ?? { label: role, cls: '' };
   return <span className={`badge ${b.cls} ${role === 'admin' ? 'bg-ink text-accent' : ''}`}>{b.label}</span>;
+}
+
+function SellerStatusBadge({ status }: { status: SellerStatus }) {
+  const map: Record<SellerStatus, { cls: string }> = {
+    '정상': { cls: 'badge-success' },
+    '가입 심사': { cls: 'badge-warning' },
+    '정지': { cls: 'badge-danger' },
+  };
+  return <span className={`badge ${map[status].cls}`}>{status}</span>;
 }

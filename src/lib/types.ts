@@ -5,6 +5,11 @@
 
 export type Role = 'seller' | 'host' | 'admin';
 
+/** v8: 셀러 가입 심사 상태 */
+export type SellerStatus = '정상' | '가입 심사' | '정지';
+/** v8: 행사 등록 요청 심사 상태 */
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
 export type EventStatus = 'open' | 'upcoming' | 'close' | 'canceled';
 export type EventType = 'apply' | 'info'; // 파생: fee > 0 이거나 deadline 있으면 apply, 아니면 info
 
@@ -49,6 +54,7 @@ export interface Profile {
   hygiene_gear: string | null;  // v3: 마스크/모자 등 착용 운영
   share_flags: ShareFlags;      // v3: 주최사 공개 설정
   notif_prefs: NotifPrefs;      // v3: 알림 설정
+  status?: SellerStatus;        // v8: 가입 심사 상태 (없으면 '정상')
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +84,8 @@ export interface EventRow {
   status: EventStatus;
   kind?: EventType;        // v3: 신청형(apply)/정보형(info) · DB 기본 apply
   source?: string | null;  // v3: 정보형 출처 (공공 API 등)
+  review_status?: ReviewStatus; // v8: 등록 요청 심사 (없으면 approved)
+  admin_note?: string | null;   // v8: 반려 사유
   created_at: string;
   updated_at: string;
 }

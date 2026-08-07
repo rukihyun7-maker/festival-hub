@@ -64,6 +64,9 @@ export async function fetchEvents(opts?: {
 
   let list = (data ?? []) as EventRow[];
 
+  // v8: 승인된 행사만 노출 (컬럼 없으면 approved로 간주)
+  list = list.filter((e) => (e.review_status ?? 'approved') === 'approved');
+
   if (opts?.type === 'apply') list = list.filter((e) => e.fee > 0 || (e.deadline && e.status === 'open'));
   if (opts?.type === 'info') list = list.filter((e) => e.fee === 0 && (!e.deadline || e.status === 'upcoming'));
 
@@ -92,9 +95,11 @@ export async function fetchDeadlineSoon(limit = 4): Promise<EventRow[]> {
     .eq('status', 'open')
     .gte('deadline', today)
     .order('deadline', { ascending: true })
-    .limit(limit);
+    .limit(limit + 4); // 승인 필터 여유분
   if (error) throw error;
-  return (data ?? []) as EventRow[];
+  return ((data ?? []) as EventRow[])
+    .filter((e) => (e.review_status ?? 'approved') === 'approved')
+    .slice(0, limit);
 }
 
 /** 행사 상세 */
@@ -712,6 +717,61 @@ export async function updateEventStatus(id: string, status: 'open' | 'upcoming' 
 export async function deleteEvent(id: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from('events').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ============================================
+// v8 · 행사 등록 요청 승인 (관리자) / 셀러 가입 심사
+// ============================================
+
+/** 승인 대기 중인 등록 요청 (주최사 제출분) */
+export async function fetchPendingEvents(): Promise<EventRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('review_status', 'pending')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as EventRow[];
+}
+
+/** 등록 요청 승인 → 공개 */
+export async function approveEvent(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('events')
+    .update({ review_status: 'approved', admin_note: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** 등록 요청 반려 (+사유) */
+export async function rejectEvent(id: string, note: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('events')
+    .update({ review_status: 'rejected', admin_note: note || null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** 주최가 제출한 내 등록 요청 현황 (review_status 포함, 전체) */
+export async function fetchMyHostRequests(ownerId: string): Promise<EventRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as EventRow[];
+}
+
+/** 셀러 가입 심사/정지 상태 변경 (관리자) */
+export async function updateProfileStatus(id: string, status: '정상' | '가입 심사' | '정지'): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('profiles').update({ status }).eq('id', id);
   if (error) throw error;
 }
 

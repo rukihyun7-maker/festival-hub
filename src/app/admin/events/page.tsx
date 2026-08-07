@@ -8,6 +8,9 @@ import {
   fetchAllEventsAdmin,
   fetchMyProfile,
   updateEventStatus,
+  fetchPendingEvents,
+  approveEvent,
+  rejectEvent,
 } from '@/lib/supabase/queries';
 import { periodLabel, deadlineLabel, feeLabel } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
@@ -27,13 +30,36 @@ export default function AdminEventsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [pending, setPending] = useState<EventRow[]>([]);
 
   useEffect(() => {
     (async () => {
       const p = await fetchMyProfile();
       setMe(p);
+      try { setPending(await fetchPendingEvents()); } catch { /* 컬럼 미생성 등 무시 */ }
     })();
   }, []);
+
+  async function handleApprove(id: string) {
+    setActionId(id);
+    try {
+      await approveEvent(id);
+      setPending((prev) => prev.filter((e) => e.id !== id));
+      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, review_status: 'approved' } : e)));
+    } catch (e) { alert('승인 실패: ' + (e as Error).message); }
+    finally { setActionId(null); }
+  }
+
+  async function handleReject(id: string) {
+    const note = prompt('반려 사유를 입력하세요 (주최에게 표시됩니다)');
+    if (note === null) return;
+    setActionId(id);
+    try {
+      await rejectEvent(id, note);
+      setPending((prev) => prev.filter((e) => e.id !== id));
+    } catch (e) { alert('반려 실패: ' + (e as Error).message); }
+    finally { setActionId(null); }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -108,14 +134,66 @@ export default function AdminEventsPage() {
           <span className="text-ink">행사 검수</span>
         </nav>
 
-        <div className="flex items-end justify-between mb-8">
+        <div className="flex items-end justify-between mb-6">
           <div>
-            <h1 className="t-title mb-1">행사 검수</h1>
-            <p className="t-sub">
-              전체 {events.length}건 · 모집 {counts.open} · 예정 {counts.upcoming} · 종료 {counts.close} · 취소 {counts.canceled}
-            </p>
+            <h1 className="t-title mb-1">행사 등록 심사</h1>
+            <p className="t-sub">주최사가 올린 등록 요청을 승인하면 셀러의 자리 찾기 목록에 노출됩니다.</p>
           </div>
         </div>
+
+        {/* 관리자 직접 등록 */}
+        <Link
+          href="/host/create-event"
+          className="block rounded-card p-6 mb-6 transition-transform hover:-translate-y-0.5"
+          style={{ background: 'var(--ink, #14120E)' }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <div className="text-[12px] font-extrabold tracking-[0.04em] mb-1.5" style={{ color: 'var(--accent, #FFC800)' }}>관리자 직접 등록</div>
+              <div className="text-[17px] font-extrabold" style={{ color: '#fff' }}>주최사 요청 없이 바로 등록</div>
+              <div className="text-[13px] mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>관리자가 올리면 승인 없이 즉시 셀러에게 공개됩니다.</div>
+            </div>
+            <span className="text-[22px] shrink-0 ml-3" style={{ color: 'var(--accent, #FFC800)' }}>+</span>
+          </div>
+        </Link>
+
+        {/* 주최사 등록 요청 (승인 대기) */}
+        <section className="mb-10">
+          <div className="t-section mb-3">주최사 등록 요청 {pending.length > 0 && <span className="text-accent-warm">{pending.length}</span>}</div>
+          {pending.length === 0 ? (
+            <div className="card text-center py-10">
+              <div className="text-[14px] font-semibold text-ink mb-1">대기 중인 등록 요청이 없습니다</div>
+              <div className="t-sub">주최사가 행사를 등록하면 여기서 승인·반려할 수 있어요.</div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pending.map((e) => (
+                <div key={e.id} className="card">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="badge badge-warning">심사 중</span>
+                        <span className="badge">{e.category}</span>
+                      </div>
+                      <div className="text-[15px] font-extrabold text-ink truncate">{e.name}</div>
+                      <div className="text-[12px] text-text-secondary mt-1">{e.organizer} · {periodLabel(e.start_date, e.end_date)} · {e.region}</div>
+                      <div className="text-[12px] text-text-tertiary mt-0.5">참가비 {feeLabel(e.fee, e.fee_rate)}{e.capacity ? ` · 정원 ${e.capacity}` : ''}</div>
+                      {e.description && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{e.description}</div>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-line-faint">
+                    <button onClick={() => handleApprove(e.id)} disabled={actionId === e.id} className="btn-primary flex-1">
+                      {actionId === e.id ? '처리 중…' : '승인하고 공개'}
+                    </button>
+                    <button onClick={() => handleReject(e.id)} disabled={actionId === e.id} className="btn-secondary flex-1">반려</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <div className="t-section mb-3">전체 행사 관리</div>
 
         {/* 검색 + 필터 */}
         <div className="card mb-6">
