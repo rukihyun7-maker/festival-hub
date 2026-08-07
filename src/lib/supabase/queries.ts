@@ -222,6 +222,36 @@ export async function deleteMenu(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** 메뉴 수정 (이름·가격·원가·카테고리·설명·대표·사진) */
+export async function updateMenu(
+  id: string,
+  patch: Partial<Pick<Menu, 'name' | 'price' | 'cost' | 'category' | 'description' | 'signature' | 'image_url'>>
+): Promise<Menu> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('menus').update(patch).eq('id', id).select().single();
+  if (error) throw error;
+  return data as Menu;
+}
+
+/** 대표 메뉴는 셀러당 최대 2개 · 나머지 해제 후 지정 */
+export async function setMenuSignature(sellerId: string, menuId: string, signature: boolean): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('menus').update({ signature }).eq('id', menuId).eq('seller_id', sellerId);
+  if (error) throw error;
+}
+
+/** 메뉴 사진 업로드 (menu-photos 버킷 · public) → public URL 반환 */
+export async function uploadMenuImage(sellerId: string, menuId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${sellerId}/${menuId}.${ext}`;
+  const { error } = await supabase.storage.from('menu-photos').upload(path, file, { upsert: true, contentType: file.type });
+  if (error) throw error;
+  const { data } = supabase.storage.from('menu-photos').getPublicUrl(path);
+  // 캐시 무효화용 쿼리스트링
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
 // ============================================
 // Sales
 // ============================================

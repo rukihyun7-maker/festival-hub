@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import {
@@ -10,6 +10,9 @@ import {
   fetchMySales,
   createMenu,
   deleteMenu,
+  updateMenu,
+  setMenuSignature,
+  uploadMenuImage,
   fetchSellerHistory,
   createSellerHistory,
   deleteSellerHistory,
@@ -153,6 +156,21 @@ export default function SellerMyPage() {
               if (!profile) return;
               await createMenu({ ...input, seller_id: profile.id });
               load();
+            }}
+            onUpdate={async (id, patch) => {
+              const updated = await updateMenu(id, patch);
+              setMenus((prev) => prev.map((m) => (m.id === id ? updated : m)));
+            }}
+            onToggleSignature={async (id, signature) => {
+              if (!profile) return;
+              await setMenuSignature(profile.id, id, signature);
+              setMenus((prev) => prev.map((m) => (m.id === id ? { ...m, signature } : m)));
+            }}
+            onUploadImage={async (id, file) => {
+              if (!profile) return;
+              const url = await uploadMenuImage(profile.id, id, file);
+              const updated = await updateMenu(id, { image_url: url });
+              setMenus((prev) => prev.map((m) => (m.id === id ? updated : m)));
             }}
             onDelete={async (id) => {
               if (!confirm('이 메뉴를 삭제하시겠어요?')) return;
@@ -493,28 +511,35 @@ function PayMethodRow({ label, value, amount }: { label: string; value: number; 
 }
 
 function MenuTab({
-  loading, menus, profile, onCreate, onDelete,
+  loading, menus, profile, onCreate, onUpdate, onToggleSignature, onUploadImage, onDelete,
 }: {
   loading: boolean;
   menus: Menu[];
   profile: Profile | null;
   onCreate: (input: Omit<Menu, 'id' | 'created_at' | 'seller_id'>) => Promise<void>;
+  onUpdate: (id: string, patch: Partial<Pick<Menu, 'name' | 'price' | 'cost' | 'category' | 'description'>>) => Promise<void>;
+  onToggleSignature: (id: string, signature: boolean) => Promise<void>;
+  onUploadImage: (id: string, file: File) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [cost, setCost] = useState('');
+  const [desc, setDesc] = useState('');
   const [category, setCategory] = useState<Menu['category']>('MAIN');
   const [submitting, setSubmitting] = useState(false);
+
+  const sigCount = menus.filter((m) => m.signature).length;
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !price || !profile) return;
     setSubmitting(true);
     try {
-      await onCreate({ name: name.trim(), price: Number(price), cost: Number(cost || 0), category });
-      setName(''); setPrice(''); setCost(''); setCategory('MAIN'); setShowForm(false);
+      const autoCost = cost ? Number(cost) : Math.round(Number(price) * 0.35); // 비우면 판매가 35%
+      await onCreate({ name: name.trim(), price: Number(price), cost: autoCost, category, description: desc.trim() || null });
+      setName(''); setPrice(''); setCost(''); setDesc(''); setCategory('MAIN'); setShowForm(false);
     } finally {
       setSubmitting(false);
     }
@@ -524,41 +549,46 @@ function MenuTab({
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div className="t-sub">등록 메뉴 {menus.length}개</div>
+      <div className="flex items-center justify-between mb-1">
+        <div className="t-sub">등록 메뉴 {menus.length}개 · 대표 {sigCount}/2</div>
         <button onClick={() => setShowForm((v) => !v)} className="btn-primary text-[13px] py-2 px-3">
           {showForm ? '취소' : '+ 메뉴 추가'}
         </button>
       </div>
+      <div className="text-[12px] text-text-tertiary mb-4">사진·설명이 등록된 메뉴는 심사 통과율이 높습니다. 원가를 비우면 판매가의 35%로 자동 계산됩니다.</div>
 
       {showForm && (
-        <form onSubmit={handleAdd} className="card mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-semibold text-ink-soft">메뉴명</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="예: 치즈 떡볶이" required />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-semibold text-ink-soft">판매가</span>
-            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="input" placeholder="8000" required />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-semibold text-ink-soft">원가 (선택)</span>
-            <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} className="input" placeholder="2800" />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-semibold text-ink-soft">카테고리</span>
-            <select value={category} onChange={(e) => setCategory(e.target.value as Menu['category'])} className="input">
-              <option value="MAIN">메인</option>
-              <option value="SIDE">사이드</option>
-              <option value="DRINK">음료</option>
-              <option value="SET">세트</option>
-            </select>
-          </label>
-          <div className="flex items-end">
-            <button type="submit" disabled={submitting} className="btn-primary w-full">
-              {submitting ? '추가 중…' : '추가'}
-            </button>
+        <form onSubmit={handleAdd} className="card mb-4 flex flex-col gap-3">
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-ink-soft">메뉴명</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="예: 치즈 떡볶이" required />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-ink-soft">판매가</span>
+              <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="input" placeholder="8000" required />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-ink-soft">원가 (선택)</span>
+              <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} className="input" placeholder="비우면 자동" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-ink-soft">카테고리</span>
+              <select value={category} onChange={(e) => setCategory(e.target.value as Menu['category'])} className="input">
+                <option value="MAIN">메인</option>
+                <option value="SIDE">사이드</option>
+                <option value="DRINK">음료</option>
+                <option value="SET">세트</option>
+              </select>
+            </label>
           </div>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] font-semibold text-ink-soft">한 줄 설명 (선택)</span>
+            <input value={desc} onChange={(e) => setDesc(e.target.value)} className="input" placeholder="예: 쫄깃한 떡에 모차렐라를 듬뿍" />
+          </label>
+          <button type="submit" disabled={submitting} className="btn-primary self-start">
+            {submitting ? '추가 중…' : '메뉴 등록'}
+          </button>
         </form>
       )}
 
@@ -568,32 +598,125 @@ function MenuTab({
           <div className="t-sub">메뉴를 등록하면 신청 시 자동 첨부됩니다</div>
         </div>
       ) : (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
           {menus.map((m) => (
-            <div key={m.id} className="card p-4">
-              <div className="w-full aspect-square rounded-input bg-muted-2 flex items-center justify-center text-[36px] mb-3">
-                {m.category === 'MAIN' ? '🍽️' : m.category === 'SIDE' ? '🍤' : m.category === 'DRINK' ? '🥤' : '🎁'}
-              </div>
-              <div className="t-card text-[15px] mb-1 truncate">{m.name}</div>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-[14px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</span>
-                {m.cost > 0 && (
-                  <span className="text-[11px] font-semibold text-text-tertiary">
-                    마진 {Math.round(((m.price - m.cost) / m.price) * 100)}%
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => onDelete(m.id)}
-                className="mt-3 w-full text-[11px] text-text-tertiary hover:text-danger py-1 transition-colors"
-              >
-                삭제
-              </button>
-            </div>
+            <MenuCard
+              key={m.id}
+              menu={m}
+              sigCount={sigCount}
+              onUpdate={onUpdate}
+              onToggleSignature={onToggleSignature}
+              onUploadImage={onUploadImage}
+              onDelete={onDelete}
+            />
           ))}
         </div>
       )}
     </>
+  );
+}
+
+function MenuCard({
+  menu: m, sigCount, onUpdate, onToggleSignature, onUploadImage, onDelete,
+}: {
+  menu: Menu;
+  sigCount: number;
+  onUpdate: (id: string, patch: Partial<Pick<Menu, 'name' | 'price' | 'cost' | 'category' | 'description'>>) => Promise<void>;
+  onToggleSignature: (id: string, signature: boolean) => Promise<void>;
+  onUploadImage: (id: string, file: File) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(m.name);
+  const [price, setPrice] = useState(String(m.price));
+  const [cost, setCost] = useState(String(m.cost));
+  const [desc, setDesc] = useState(m.description ?? '');
+  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const margin = m.price > 0 ? Math.round(((m.price - m.cost) / m.price) * 100) : 0;
+  const emoji = m.category === 'MAIN' ? '🍽️' : m.category === 'SIDE' ? '🍤' : m.category === 'DRINK' ? '🥤' : '🎁';
+
+  async function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try { await onUploadImage(m.id, file); }
+    catch (err) { alert('사진 업로드 실패: ' + (err as Error).message + '\n(menu-photos 버킷이 필요합니다)'); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
+  }
+
+  async function saveEdit() {
+    setBusy(true);
+    try {
+      await onUpdate(m.id, { name: name.trim() || m.name, price: Number(price) || m.price, cost: Number(cost) || 0, description: desc.trim() || null });
+      setEditing(false);
+    } catch (e) { alert('수정 실패: ' + (e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleSig() {
+    if (!m.signature && sigCount >= 2) { alert('대표 메뉴는 최대 2개까지 지정할 수 있습니다.'); return; }
+    setBusy(true);
+    try { await onToggleSignature(m.id, !m.signature); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="card p-4">
+      {/* 사진 슬롯 */}
+      <div className="relative w-full aspect-square rounded-input overflow-hidden bg-muted-2 mb-3">
+        {m.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={m.image_url} alt={m.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-[36px]">{emoji}</div>
+        )}
+        {m.signature && (
+          <span className="absolute top-2 left-2 badge badge-warning">★ 대표</span>
+        )}
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="absolute bottom-2 right-2 text-[11px] font-bold px-2 py-1 rounded-[7px] bg-ink text-page/95"
+        >
+          {uploading ? '올리는 중…' : m.image_url ? '사진 변경' : '사진 추가'}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" onChange={pickImage} className="hidden" />
+      </div>
+
+      {editing ? (
+        <div className="flex flex-col gap-2">
+          <input value={name} onChange={(e) => setName(e.target.value)} className="input text-[13px]" placeholder="메뉴명" />
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="input text-[13px]" placeholder="판매가" />
+            <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} className="input text-[13px]" placeholder="원가" />
+          </div>
+          <input value={desc} onChange={(e) => setDesc(e.target.value)} className="input text-[13px]" placeholder="한 줄 설명" />
+          <div className="flex gap-2">
+            <button onClick={saveEdit} disabled={busy} className="btn-primary flex-1 text-[13px] py-2">저장</button>
+            <button onClick={() => setEditing(false)} className="btn-secondary flex-1 text-[13px] py-2">취소</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="t-card text-[15px] mb-0.5 truncate">{m.name}</div>
+          {m.description && <div className="text-[12px] text-text-secondary line-clamp-2 mb-1.5">{m.description}</div>}
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</span>
+            {m.cost > 0 && <span className="text-[11px] font-semibold text-text-tertiary">원가 ₩{m.cost.toLocaleString()} · 마진 {margin}%</span>}
+          </div>
+          <div className="flex gap-1.5 mt-3">
+            <button onClick={toggleSig} disabled={busy} className={`flex-1 text-[11px] font-bold py-1.5 rounded-[7px] transition-colors ${m.signature ? 'bg-ink text-page/95' : 'bg-surface-sunken text-ink-soft hover:bg-muted'}`}>
+              {m.signature ? '대표 해제' : '대표 지정'}
+            </button>
+            <button onClick={() => setEditing(true)} className="flex-1 text-[11px] font-bold py-1.5 rounded-[7px] bg-surface-sunken text-ink-soft hover:bg-muted">수정</button>
+            <button onClick={() => onDelete(m.id)} className="text-[11px] font-bold py-1.5 px-2 rounded-[7px] text-text-tertiary hover:text-danger">삭제</button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

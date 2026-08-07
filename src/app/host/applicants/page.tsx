@@ -8,8 +8,14 @@ import {
   fetchMyHostEvents,
   fetchApplicationsForEvent,
   updateApplicationStatus,
+  fetchSellerHistory,
+  fetchRatingSummary,
+  fetchMyMenus,
 } from '@/lib/supabase/queries';
-import type { Profile, EventRow, ApplicationWithRelations, ApplicationStatus } from '@/lib/types';
+import type {
+  Profile, EventRow, ApplicationWithRelations, ApplicationStatus,
+  SellerHistory, RatingSummary, Menu, ShareFlags,
+} from '@/lib/types';
 
 /**
  * 신청자 관리 (행사 주최)
@@ -135,50 +141,157 @@ export default function HostApplicantsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((a) => {
-              const meta = STATUS_META[a.status];
-              const name = a.seller?.business_name || a.seller?.name || '(익명 파트너)';
-              return (
-                <div key={a.id} className="card">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`badge ${meta.cls}`}>{meta.label}</span>
-                        <span className="text-[12px] text-text-tertiary truncate">{a.event?.name}</span>
-                      </div>
-                      <div className="text-[15px] font-extrabold text-ink truncate">{name}</div>
-                      <div className="text-[12px] text-text-secondary mt-1">
-                        {a.seller?.category ?? '업종 미기재'}{a.seller?.region ? ` · ${a.seller.region}` : ''}
-                      </div>
-                    </div>
-                    <Link href={`/events/${a.event_id}`} className="text-[12px] font-semibold text-text-tertiary hover:text-ink shrink-0">
-                      행사 보기
-                    </Link>
-                  </div>
-                  {a.status === 'pending' && (
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-line-faint">
-                      <button
-                        onClick={() => act(a.id, 'approved')}
-                        disabled={actionOn === a.id}
-                        className="btn-primary flex-1"
-                      >
-                        {actionOn === a.id ? '처리 중…' : '승인'}
-                      </button>
-                      <button
-                        onClick={() => act(a.id, 'rejected')}
-                        disabled={actionOn === a.id}
-                        className="btn-secondary flex-1"
-                      >
-                        반려
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {filtered.map((a) => (
+              <ApplicantCard key={a.id} app={a} actionOn={actionOn} onAct={act} />
+            ))}
           </div>
         )}
       </div>
     </main>
+  );
+}
+
+/** share_flags 기본 공개(true) · 명시적 false만 비공개 */
+function shareOn(flags: ShareFlags | undefined, key: string): boolean {
+  return flags?.[key] !== false;
+}
+
+function ApplicantCard({
+  app: a, actionOn, onAct,
+}: {
+  app: ApplicationWithRelations;
+  actionOn: string | null;
+  onAct: (id: string, status: 'approved' | 'rejected') => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [history, setHistory] = useState<SellerHistory[]>([]);
+  const [rating, setRating] = useState<RatingSummary | null>(null);
+  const [menus, setMenus] = useState<Menu[]>([]);
+
+  const seller = a.seller;
+  const meta = STATUS_META[a.status];
+  const name = seller?.business_name || seller?.name || '(익명 파트너)';
+  const flags = seller?.share_flags;
+
+  async function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && !loaded && seller) {
+      setLoadingDetail(true);
+      const [h, r, m] = await Promise.all([
+        fetchSellerHistory(seller.id).catch(() => [] as SellerHistory[]),
+        fetchRatingSummary(seller.id).catch(() => null),
+        fetchMyMenus(seller.id).catch(() => [] as Menu[]), // RLS 미허용 시 빈 배열
+      ]);
+      setHistory(h);
+      setRating(r);
+      setMenus(m);
+      setLoaded(true);
+      setLoadingDetail(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`badge ${meta.cls}`}>{meta.label}</span>
+            <span className="text-[12px] text-text-tertiary truncate">{a.event?.name}</span>
+          </div>
+          <div className="text-[15px] font-extrabold text-ink truncate">{name}</div>
+          <div className="text-[12px] text-text-secondary mt-1">
+            {seller?.category ?? '업종 미기재'}{seller?.region ? ` · ${seller.region}` : ''}
+            {seller?.affiliation ? ` · ${seller.affiliation}` : ''}
+          </div>
+        </div>
+        <button onClick={toggle} className="text-[12px] font-bold text-info shrink-0" style={{ color: 'var(--info, #2B4B9B)' }}>
+          {open ? '접기 ▲' : '세부정보 ▼'}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-4 pt-4 border-t border-line-faint animate-fh-up">
+          {loadingDetail ? (
+            <div className="text-[13px] text-text-tertiary py-4 text-center">불러오는 중…</div>
+          ) : (
+            <div className="space-y-4">
+              {/* 매장 정보 */}
+              <div>
+                <div className="text-[12px] font-bold text-ink-soft mb-2">매장 정보</div>
+                <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+                  <DetailRow label="대표자" value={seller?.name} />
+                  {shareOn(flags, 'biz_no') && <DetailRow label="사업자번호" value={seller?.business_no} />}
+                  {shareOn(flags, 'phone') && <DetailRow label="연락처" value={seller?.phone} />}
+                  <DetailRow label="평점" value={rating ? `${rating.avg_score} (${rating.review_count}건)` : '평가 없음'} />
+                  {shareOn(flags, 'hygiene_gear') && <DetailRow label="위생 착용" value={seller?.hygiene_gear} />}
+                </div>
+                {seller?.intro && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{seller.intro}</div>}
+              </div>
+
+              {/* 판매 메뉴 */}
+              {menus.length > 0 && (
+                <div>
+                  <div className="text-[12px] font-bold text-ink-soft mb-2">판매 메뉴 {menus.length}개</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {menus.map((m) => (
+                      <span key={m.id} className="text-[12px] px-2 py-1 rounded-[7px] bg-surface-sunken text-ink-soft">
+                        {m.signature ? '★ ' : ''}{m.name} ₩{m.price.toLocaleString()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 참여 이력 */}
+              <div>
+                <div className="text-[12px] font-bold text-ink-soft mb-2">참여 이력 {history.length}건</div>
+                {history.length === 0 ? (
+                  <div className="text-[12px] text-text-tertiary">등록된 참여 이력이 없습니다.</div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {history.slice(0, 6).map((h) => (
+                      <div key={h.id} className="flex items-center justify-between gap-3 text-[12px] py-1.5 border-b border-line-faint last:border-0">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-ink truncate">{h.event_name}</span>
+                          {h.event_date && <span className="text-text-tertiary"> · {h.event_date.slice(0, 10).replace(/-/g, '.')}</span>}
+                        </div>
+                        <div className="text-text-secondary shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {shareOn(flags, 'sales_count') && h.orders ? `${h.orders.toLocaleString()}건` : ''}
+                          {shareOn(flags, 'sales_revenue') && h.revenue ? `  ₩${h.revenue.toLocaleString()}` : ''}
+                          {!shareOn(flags, 'sales_revenue') && !shareOn(flags, 'sales_count') ? '비공개' : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {a.status === 'pending' && (
+        <div className="flex gap-2 mt-4 pt-4 border-t border-line-faint">
+          <button onClick={() => onAct(a.id, 'approved')} disabled={actionOn === a.id} className="btn-primary flex-1">
+            {actionOn === a.id ? '처리 중…' : '승인'}
+          </button>
+          <button onClick={() => onAct(a.id, 'rejected')} disabled={actionOn === a.id} className="btn-secondary flex-1">
+            반려
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+      <div className="text-[10.5px] text-text-tertiary mb-0.5">{label}</div>
+      <div className="text-[13px] font-semibold text-ink break-words">{value || '—'}</div>
+    </div>
   );
 }
