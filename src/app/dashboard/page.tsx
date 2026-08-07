@@ -78,8 +78,50 @@ export default function DashboardPage() {
           </p>
           <div className="flex flex-wrap gap-2 mt-6">
             <Link href="/events" className="btn-primary">행사 찾기</Link>
-            <Link href="/seller/documents" className="btn-secondary">서류 관리</Link>
           </div>
+        </section>
+
+        {/* 핵심 도구 · 파트너 USP (손익 시뮬 · 서류 관리) */}
+        <section className="grid gap-3 mt-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+          {/* 손익 시뮬레이터 */}
+          <Link
+            href="/seller/simulator"
+            className="block rounded-card p-6 transition-transform hover:-translate-y-0.5"
+            style={{ background: 'var(--ink, #14120E)' }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[12px] font-extrabold tracking-[0.04em]" style={{ color: 'var(--accent, #FFC800)' }}>손익 시뮬레이터</span>
+              <span className="text-[16px]" style={{ color: 'var(--accent, #FFC800)' }}>→</span>
+            </div>
+            <div className="text-[19px] font-extrabold leading-snug mb-2" style={{ color: '#fff' }}>
+              이 행사, 나가면 얼마 남을까?
+            </div>
+            <div className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.72)' }}>
+              방문객·객단가만 넣으면 최악·현실·최상 3가지 순익을 즉시 계산. 나가기 전에 손익분기부터 확인하세요.
+            </div>
+          </Link>
+
+          {/* 사업자 서류 관리 */}
+          <Link href="/seller/documents" className="card card-hover block p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[12px] font-extrabold tracking-[0.04em] text-accent-warm">사업자 서류 관리</span>
+              <span className="text-[16px] text-text-tertiary">→</span>
+            </div>
+            <div className="text-[19px] font-extrabold leading-snug text-ink mb-2">
+              서류 5종 검증 = 신청 자동 첨부
+            </div>
+            <div className="text-[13px] text-text-secondary leading-relaxed mb-4">
+              검증된 파트너만 주최에게 우선 노출됩니다. 한 번 등록하면 행사마다 자동으로 붙습니다.
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-2 rounded-pill overflow-hidden" style={{ background: 'var(--bg-muted, #F0ECE1)' }}>
+                <div className="h-full rounded-pill" style={{ width: `${docsPercent}%`, background: docsPercent === 100 ? 'var(--success, #1D6B2A)' : 'var(--accent, #FFC800)' }} />
+              </div>
+              <span className="text-[12px] font-extrabold text-ink shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {loading ? '—' : `${verifiedDocsCount}/${docSlots.length || 5}`}
+              </span>
+            </div>
+          </Link>
         </section>
 
         {error && (

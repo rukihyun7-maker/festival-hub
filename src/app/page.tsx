@@ -54,7 +54,7 @@ export default function Home() {
             mark="입"
             title="입점 파트너"
             desc="푸드트럭·음식부스 사업자"
-            points={['행사 찾기·간편 신청', '참여이력·매출 관리', '손익 시뮬레이터']}
+            points={['손익 시뮬레이터로 순익 예측', '서류 5종 검증·자동 첨부', '행사 찾기·간편 신청']}
           />
           <RoleCard
             mark="주"
@@ -78,7 +78,8 @@ export default function Home() {
             className="grid gap-6"
             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
           >
-            <Feature title="서류 5종 검증" desc="사업자·보험·위생교육 등 필수 서류를 검증한 파트너만 우선 노출됩니다." />
+            <Feature title="손익 시뮬레이터" desc="나가기 전에 순익부터. 방문객·객단가만 넣으면 최악·현실·최상 3가지 결과를 즉시 계산합니다." />
+            <Feature title="사업자 서류 관리" desc="사업자·보험·위생교육 등 5종을 한 번 등록하면 행사 신청 시 자동 첨부·우선 노출됩니다." />
             <Feature title="이메일 인증 가입" desc="인증번호로 본인을 확인해 가입자의 신빙성을 확보합니다." />
             <Feature title="개별 지급 정산" desc="복잡한 PG 계약 없이 행사 주최가 파트너에게 직접 지급합니다." />
           </div>
