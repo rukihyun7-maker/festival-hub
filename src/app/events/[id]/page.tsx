@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import NearbyInfoCard from '@/components/NearbyInfoCard';
-import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, countVerified } from '@/lib/supabase/queries';
+import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, countVerified, fetchMyFavorites, addFavorite, removeFavorite } from '@/lib/supabase/queries';
 import { periodLabel, feeLabel, deadlineLabel, daysUntil } from '@/lib/types';
 import type { EventRow, Profile, DocumentSlot } from '@/lib/types';
 
@@ -20,6 +20,8 @@ export default function EventDetailPage() {
   const [saved, setSaved] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [fav, setFav] = useState(false);
+  const [favBusy, setFavBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,8 +33,11 @@ export default function EventDetailPage() {
           setProfile(p);
         }
         if (p?.role === 'seller') {
-          const s = await fetchMyDocumentSlots(p.id);
-          if (!cancelled) setDocSlots(s);
+          const [s, favs] = await Promise.all([fetchMyDocumentSlots(p.id), fetchMyFavorites(p.id)]);
+          if (!cancelled) {
+            setDocSlots(s);
+            setFav(favs.some((f) => f.event_id === params.id));
+          }
         }
       } catch (err) {
         if (!cancelled) setError((err as Error).message);
@@ -57,6 +62,22 @@ export default function EventDetailPage() {
       alert('신청 실패: ' + (e as Error).message);
     } finally {
       setApplying(false);
+    }
+  }
+
+  async function toggleFav() {
+    if (!event || !profile || profile.role !== 'seller') return;
+    setFavBusy(true);
+    const next = !fav;
+    setFav(next);
+    try {
+      if (next) await addFavorite(profile.id, event.id);
+      else await removeFavorite(profile.id, event.id);
+    } catch (e) {
+      setFav(!next); // 롤백
+      alert('찜 변경 실패: ' + (e as Error).message);
+    } finally {
+      setFavBusy(false);
     }
   }
 
@@ -115,7 +136,21 @@ export default function EventDetailPage() {
             <span className="badge">{event.category}</span>
             {event.deadline && <span className={`text-[11px] font-bold ${d !== null && d <= 3 ? 'text-danger' : 'text-warning'}`}>{deadlineLabel(event.deadline)}</span>}
           </div>
-          <h1 className="t-title mb-2">{event.name}</h1>
+          <div className="flex items-start gap-3">
+            <h1 className="t-title mb-2 flex-1 min-w-0">{event.name}</h1>
+            {profile?.role === 'seller' && (
+              <button
+                onClick={toggleFav}
+                disabled={favBusy}
+                aria-label={fav ? '찜 해제' : '찜하기'}
+                title={fav ? '찜 해제' : '찜하기'}
+                className="shrink-0 text-[24px] leading-none mt-1"
+                style={{ color: fav ? 'var(--accent, #FFC800)' : 'var(--text-disabled, #B5AC98)' }}
+              >
+                {fav ? '★' : '☆'}
+              </button>
+            )}
+          </div>
           {event.description && (
             <p className="t-body text-text-secondary max-w-[680px]">{event.description}</p>
           )}

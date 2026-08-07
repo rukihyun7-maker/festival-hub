@@ -28,6 +28,10 @@ import type {
   VerifyQrResult,
   LocalInfo,
   NearbyRow,
+  Favorite,
+  FavoriteWithEvent,
+  ApiSource,
+  CategoryRule,
 } from '../types';
 import { DOC_KINDS, DOC_META, computeUrgency } from '../types';
 
@@ -1153,4 +1157,143 @@ export async function upsertLocalInfo(
     .single();
   if (error) throw error;
   return data as LocalInfo;
+}
+
+// ============================================
+// v3 · Ratings (관리자 · 전체 평가 로그)
+// ============================================
+
+/** 주최가 매긴 평가 목록 (셀러 평가 화면 · 중복 방지 표시) */
+export async function fetchHostGivenRatings(hostId: string): Promise<Rating[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('ratings')
+    .select('*')
+    .eq('host_id', hostId);
+  if (error) throw error;
+  return (data ?? []) as Rating[];
+}
+
+/** 전체 평가 목록 (관리자 · 부적절 평가 관리) */
+export async function fetchAllRatings(): Promise<RatingWithRelations[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('ratings')
+    .select(
+      '*, host:profiles!ratings_host_id_fkey(id, name, business_name), seller:profiles!ratings_seller_id_fkey(id, name, business_name), event:events(id, name)'
+    )
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as RatingWithRelations[];
+}
+
+// ============================================
+// v6 · Favorites (셀러 찜한 행사)
+// ============================================
+
+/** 내 찜 목록 (행사 정보 포함, D-day 정렬은 앱단) */
+export async function fetchMyFavorites(sellerId: string): Promise<FavoriteWithEvent[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('favorites')
+    .select('*, event:events(*)')
+    .eq('seller_id', sellerId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as FavoriteWithEvent[];
+}
+
+/** 찜 추가 */
+export async function addFavorite(sellerId: string, eventId: string): Promise<Favorite> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('favorites')
+    .insert({ seller_id: sellerId, event_id: eventId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Favorite;
+}
+
+/** 찜 삭제 */
+export async function removeFavorite(sellerId: string, eventId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('favorites')
+    .delete()
+    .eq('seller_id', sellerId)
+    .eq('event_id', eventId);
+  if (error) throw error;
+}
+
+/** 찜 마감 알림 on/off */
+export async function setFavoriteNotify(id: string, notify: boolean): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('favorites').update({ notify }).eq('id', id);
+  if (error) throw error;
+}
+
+// ============================================
+// v6 · API sources / Category rules (관리자 운영)
+// ============================================
+
+export async function fetchApiSources(): Promise<ApiSource[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('api_sources').select('*').order('created_at');
+  if (error) throw error;
+  return (data ?? []) as ApiSource[];
+}
+
+/** 소스 연동 on/off */
+export async function setApiSourceEnabled(id: string, enabled: boolean): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('api_sources')
+    .update({ enabled, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** 지금 동기화 (데모: last_sync 갱신) */
+export async function syncApiSource(id: string): Promise<ApiSource> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('api_sources')
+    .update({ last_sync: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ApiSource;
+}
+
+export async function fetchCategoryRules(): Promise<CategoryRule[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('category_rules').select('*').order('created_at');
+  if (error) throw error;
+  return (data ?? []) as CategoryRule[];
+}
+
+export async function createCategoryRule(input: { name: string; keywords: string[] }): Promise<CategoryRule> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('category_rules')
+    .insert({ name: input.name, keywords: input.keywords })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as CategoryRule;
+}
+
+/** 카테고리 노출 on/off */
+export async function setCategoryVisible(id: string, visible: boolean): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('category_rules').update({ visible }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteCategoryRule(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('category_rules').delete().eq('id', id);
+  if (error) throw error;
 }

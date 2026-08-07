@@ -240,6 +240,7 @@ export interface Rating {
 }
 export interface RatingWithRelations extends Rating {
   host?: Pick<Profile, 'id' | 'name' | 'business_name'> | null;
+  seller?: Pick<Profile, 'id' | 'name' | 'business_name'> | null;
   event?: Pick<EventRow, 'id' | 'name'> | null;
 }
 /** seller_rating_summary 뷰 */
@@ -374,6 +375,45 @@ export interface FestivalData {
   end_date: string;
   lineup?: string[];
   external_entry?: boolean;
+}
+
+// ============================================
+// v6: 찜 / 축제 API·카테고리 (관리자 운영)
+// ============================================
+
+/** 찜한 행사 (셀러) · notify=마감 알림 on/off */
+export interface Favorite {
+  id: string;
+  seller_id: string;
+  event_id: string;
+  notify: boolean;
+  created_at: string;
+}
+export interface FavoriteWithEvent extends Favorite {
+  event?: EventRow;
+}
+
+/** 공공 API 소스 (관리자 연동) */
+export interface ApiSource {
+  id: string;
+  name: string;      // 한국관광공사 TourAPI 등
+  code: string;      // tourapi | localgov | seoul
+  enabled: boolean;
+  cycle: string;     // 수집 주기 표시용 (예: "일 1회")
+  last_sync: string | null;
+  count: number;     // 누적 수집 건수
+  created_at: string;
+  updated_at: string;
+}
+
+/** 카테고리 운영 규칙 (관리자) */
+export interface CategoryRule {
+  id: string;
+  name: string;        // 플리마켓 | 지역축제 ...
+  keywords: string[];  // 원천 분류 매핑 키워드
+  visible: boolean;    // 셀러 노출 여부
+  count: number;       // 매핑된 행사 수
+  created_at: string;
 }
 
 // ============================================

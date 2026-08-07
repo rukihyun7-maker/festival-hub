@@ -66,6 +66,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/host', label: '대시보드' },
         { href: '/host/events', label: '내 행사' },
         { href: '/host/applicants', label: '신청자 관리' },
+        { href: '/host/ratings', label: '평가' },
         { href: '/host/settlement', label: '정산' },
       ]
     : effectiveRole === 'admin'
@@ -74,11 +75,16 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/admin/users', label: '사용자' },
         { href: '/admin/events', label: '행사 검수' },
         { href: '/admin/documents', label: '서류 검증' },
+        { href: '/admin/ratings', label: '평가 관리' },
+        { href: '/admin/api', label: '축제 API' },
+        { href: '/admin/settings', label: '정책' },
         { href: '/admin/payments', label: '결제 관제' },
       ]
     : [
         { href: '/dashboard', label: '홈' },
         { href: '/events', label: '행사 찾기' },
+        { href: '/seller/favorites', label: '찜' },
+        { href: '/seller/applications', label: '내 신청' },
         { href: '/seller', label: '내 참여' },
         { href: '/seller/simulator', label: '손익 시뮬' },
       ];
