@@ -6,8 +6,9 @@ import AppNav from '@/components/AppNav';
 import {
   fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus,
   fetchMyDocumentSlots, fetchMyMenus, getSignedDocumentUrl, reviewDocument, countVerified,
+  fetchSellerHistory, fetchRatingSummary,
 } from '@/lib/supabase/queries';
-import type { Profile, SellerStatus, DocumentSlot, Menu } from '@/lib/types';
+import type { Profile, SellerStatus, DocumentSlot, Menu, SellerHistory, RatingSummary } from '@/lib/types';
 
 /**
  * 사용자 관리 · Admin only
@@ -268,14 +269,23 @@ function SellerStatusBadge({ status }: { status: SellerStatus }) {
 function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: string }) {
   const [slots, setSlots] = useState<DocumentSlot[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [history, setHistory] = useState<SellerHistory[]>([]);
+  const [rating, setRating] = useState<RatingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = async () => {
     try {
-      const [d, m] = await Promise.all([fetchMyDocumentSlots(seller.id), fetchMyMenus(seller.id).catch(() => [])]);
+      const [d, m, h, r] = await Promise.all([
+        fetchMyDocumentSlots(seller.id),
+        fetchMyMenus(seller.id).catch(() => []),
+        fetchSellerHistory(seller.id).catch(() => [] as SellerHistory[]),
+        fetchRatingSummary(seller.id).catch(() => null),
+      ]);
       setSlots(d);
       setMenus(m);
+      setHistory(h);
+      setRating(r);
     } finally {
       setLoading(false);
     }
@@ -369,6 +379,29 @@ function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: str
             <div className="mt-3 text-[11px] text-text-secondary leading-[1.6] p-3 rounded-input bg-surface border border-line-faint">
               <b>{seller.business_name ?? seller.name}</b> · {seller.category ?? '카테고리 미상'} · 사업자번호 {seller.business_no ?? '—'}
               <br />연락처 {seller.phone ?? '—'} · {seller.region ?? '지역 미상'}
+              <br />평점 {rating ? `${rating.avg_score} (${rating.review_count}건)` : '평가 없음'}
+            </div>
+
+            {/* 참여 이력 (전체 열람) */}
+            <div className="md:col-span-2" style={{ gridColumn: '1 / -1' }}>
+              <div className="text-[13px] font-extrabold text-ink mb-2">참여 이력 <span className="text-text-tertiary font-semibold">{history.length}건</span></div>
+              {history.length === 0 ? (
+                <div className="text-[12px] text-text-tertiary p-3 rounded-input bg-surface border border-line-faint">등록된 참여 이력이 없습니다.</div>
+              ) : (
+                <div className="rounded-input bg-surface border border-line-faint overflow-hidden">
+                  {history.slice(0, 10).map((h, i) => (
+                    <div key={h.id} className={`flex items-center justify-between gap-3 text-[12px] px-3 py-2 ${i !== Math.min(history.length, 10) - 1 ? 'border-b border-line-faint' : ''}`}>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-ink truncate">{h.event_name}</span>
+                        {h.event_date && <span className="text-text-tertiary"> · {h.event_date.slice(0, 10).replace(/-/g, '.')}</span>}
+                      </div>
+                      <div className="text-text-secondary shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {h.orders ? `${h.orders.toLocaleString()}건` : ''}{h.revenue ? `  ₩${h.revenue.toLocaleString()}` : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
