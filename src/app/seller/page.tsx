@@ -463,75 +463,48 @@ function SalesTab({ loading, sales }: { loading: boolean; sales: SaleWithEvent[]
   if (sales.length === 0) {
     return (
       <div className="card text-center py-16">
-        <div className="text-[15px] font-semibold text-ink mb-2">매출 기록이 없습니다</div>
-        <div className="t-sub">행사 종료 후 정산 데이터가 자동 기록됩니다</div>
+        <div className="text-[15px] font-semibold text-ink mb-2">아직 기록된 매출이 없습니다</div>
+        <div className="t-sub">행사 참여 후 참여 이력 탭에서 매출을 기록하면 월별로 집계됩니다</div>
       </div>
     );
   }
 
-  // 월별 집계
-  const byMonth: Record<string, number> = {};
+  // 월별 집계 (셀러가 직접 기록한 매출 기반)
+  const byMonth: Record<string, { revenue: number; count: number }> = {};
   sales.forEach((s) => {
     const m = s.recorded_at.slice(0, 7); // YYYY-MM
-    byMonth[m] = (byMonth[m] ?? 0) + s.revenue;
+    if (!byMonth[m]) byMonth[m] = { revenue: 0, count: 0 };
+    byMonth[m].revenue += s.revenue;
+    byMonth[m].count += 1;
   });
   const monthRows = Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b));
-  const maxMonth = Math.max(...Object.values(byMonth), 1);
-
+  const maxMonth = Math.max(...Object.values(byMonth).map((v) => v.revenue), 1);
   const totalRevenue = sales.reduce((s, r) => s + r.revenue, 0);
-  const qrShare = 82; // TODO: 실 데이터 컬럼 확장 시 sale.by_method 기반 계산
 
   return (
-    <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
-      <div className="card">
-        <div className="t-section mb-4">월별 매출</div>
-        <div className="space-y-3">
-          {monthRows.map(([m, v]) => {
-            const label = `${parseInt(m.slice(5, 7), 10)}월`;
-            return (
-              <div key={m}>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-[13px] font-semibold text-ink">{label}</span>
-                  <span className="text-[13px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{v.toLocaleString()}</span>
-                </div>
-                <div className="h-2 bg-muted rounded-pill overflow-hidden">
-                  <div className="h-full bg-accent" style={{ width: `${(v / maxMonth) * 100}%` }} />
-                </div>
+    <div className="card">
+      <div className="flex items-baseline justify-between mb-1">
+        <div className="t-section">월별 매출</div>
+        <div className="text-[16px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          ₩{totalRevenue.toLocaleString()} <span className="text-[12px] font-semibold text-text-tertiary">누적</span>
+        </div>
+      </div>
+      <div className="t-sub mb-5">행사 참여 후 직접 기록한 매출을 월별로 집계합니다.</div>
+      <div className="space-y-3.5">
+        {monthRows.map(([m, v]) => {
+          const label = `${parseInt(m.slice(0, 4), 10)}.${m.slice(5, 7)}`;
+          return (
+            <div key={m}>
+              <div className="flex justify-between items-baseline mb-1.5">
+                <span className="text-[13px] font-semibold text-ink">{label} <span className="text-[11px] font-normal text-text-tertiary">· {v.count}회</span></span>
+                <span className="text-[13px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{v.revenue.toLocaleString()}</span>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="t-section mb-4">결제 수단 비중 (추정)</div>
-        <div className="space-y-4">
-          <PayMethodRow label="QR결제" value={qrShare} amount={Math.round(totalRevenue * qrShare / 100)} />
-          <PayMethodRow label="카드결제" value={12} amount={Math.round(totalRevenue * 0.12)} />
-          <PayMethodRow label="현금 (신고)" value={100 - qrShare - 12} amount={Math.round(totalRevenue * (100 - qrShare - 12) / 100)} />
-        </div>
-        <div className="mt-5 p-3 rounded-input bg-success-bg border border-success/20">
-          <div className="text-[12px] font-bold text-success">{qrShare >= 80 ? '우선권 대상' : 'QR 비중 확대 권장'} · QR {qrShare}%</div>
-          <div className="text-[11px] text-success mt-0.5">80% 이상 유지 시 다음 회차 우선 배정</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PayMethodRow({ label, value, amount }: { label: string; value: number; amount: number }) {
-  return (
-    <div>
-      <div className="flex justify-between mb-1.5">
-        <span className="text-[13px] font-semibold text-ink">{label}</span>
-        <span className="text-[13px] font-semibold text-text-secondary">
-          <span className="font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}%</span>
-          <span className="mx-2 text-line">|</span>
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>₩{amount.toLocaleString()}</span>
-        </span>
-      </div>
-      <div className="h-1.5 bg-muted rounded-pill overflow-hidden">
-        <div className={`h-full ${label === 'QR결제' ? 'bg-accent' : label === '카드결제' ? 'bg-info-bar' : 'bg-warning'}`} style={{ width: `${value}%` }} />
+              <div className="h-2 bg-muted rounded-pill overflow-hidden">
+                <div className="h-full bg-accent" style={{ width: `${(v.revenue / maxMonth) * 100}%` }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
