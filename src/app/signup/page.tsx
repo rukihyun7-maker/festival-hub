@@ -26,6 +26,9 @@ export default function SignupPage() {
   const [orgName, setOrgName] = useState('');
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState('');
+  // 입점 파트너 사업자등록증
+  const [bizNo, setBizNo] = useState('');
+  const [bizFile, setBizFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [needConfirm, setNeedConfirm] = useState(false);
@@ -33,6 +36,10 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (role === 'seller' && !bizFile) {
+      setError('사업자등록증 파일을 첨부해 주세요. (가입 필수)');
+      return;
+    }
     setLoading(true);
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
@@ -51,13 +58,29 @@ export default function SignupPage() {
       setNeedConfirm(true);
       return;
     }
-    // 주최 명함 정보를 프로필에 저장 (트리거가 생성한 프로필 갱신)
-    if (role === 'host' && data.session.user) {
-      await supabase
-        .from('profiles')
-        .update({ business_name: orgName, position, phone })
-        .eq('id', data.session.user.id);
+    const uid = data.session.user.id;
+
+    // 주최: 명함 정보 저장 / 입점 파트너: 사업자등록증 업로드 + 사업자번호
+    try {
+      if (role === 'host') {
+        await supabase.from('profiles').update({ business_name: orgName, position, phone }).eq('id', uid);
+      } else if (role === 'seller' && bizFile) {
+        const safe = bizFile.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
+        const path = `${uid}/business_reg/${Date.now()}_${safe}`;
+        const { error: upErr } = await supabase.storage.from('documents').upload(path, bizFile, { cacheControl: '3600', upsert: false });
+        if (upErr) throw upErr;
+        await supabase.from('documents').upsert(
+          { seller_id: uid, kind: 'business_reg', file_name: bizFile.name, file_url: path, status: 'pending' },
+          { onConflict: 'seller_id,kind' }
+        );
+        if (bizNo) await supabase.from('profiles').update({ business_no: bizNo }).eq('id', uid);
+      }
+    } catch (err) {
+      setLoading(false);
+      setError('사업자등록증 업로드에 실패했습니다: ' + (err as Error).message + ' · 로그인 후 [필수 서류]에서 다시 등록해 주세요.');
+      return;
     }
+
     setLoading(false);
     router.push(role === 'host' ? '/host' : '/dashboard');
   }
@@ -150,9 +173,30 @@ export default function SignupPage() {
             <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="6자 이상" />
           </label>
 
+          {/* 입점 파트너 사업자등록증 (가입 필수) */}
+          {role === 'seller' && (
+            <>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-semibold text-ink-soft">사업자등록번호</span>
+                <input type="text" value={bizNo} onChange={(e) => setBizNo(e.target.value)} className="input" placeholder="000-00-00000" />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-semibold text-ink-soft">사업자등록증 첨부 <span className="text-danger">*</span></span>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  required
+                  onChange={(e) => setBizFile(e.target.files?.[0] ?? null)}
+                  className="text-[12px] file:mr-3 file:py-2 file:px-3 file:rounded-input file:border-0 file:bg-ink file:text-accent file:font-bold file:text-[12px] file:cursor-pointer"
+                />
+                {bizFile && <span className="text-[11px] text-success">첨부됨: {bizFile.name}</span>}
+              </label>
+            </>
+          )}
+
           {role === 'seller' ? (
             <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
-              가입 후 <b>관리자 승인(가입 심사)</b>을 거쳐 행사 신청이 가능합니다. 사업자등록증·서류를 등록해두면 승인이 빨라집니다.
+              사업자등록증만 첨부하면 <b>바로 가입</b>됩니다. 가입 후 <b>필수 서류를 모두 등록·관리자 승인</b>을 마치면 행사 찾기·신청을 이용할 수 있습니다.
             </div>
           ) : (
             <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
