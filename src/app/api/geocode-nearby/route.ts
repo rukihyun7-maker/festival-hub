@@ -8,15 +8,12 @@ import { NextResponse } from 'next/server';
 
 const RADIUS = 1000;
 
-let lastStatus = 0; // 진단용: 마지막 카카오 응답 상태
-
 async function kakao(key: string, path: string, params: Record<string, string>) {
   const qs = new URLSearchParams(params).toString();
   const r = await fetch(`https://dapi.kakao.com/v2/local/search/${path}.json?${qs}`, {
     headers: { Authorization: 'KakaoAK ' + key },
     cache: 'no-store',
   });
-  lastStatus = r.status;
   if (!r.ok) return [] as any[];
   const j = await r.json();
   return (j.documents ?? []) as any[];
@@ -35,16 +32,14 @@ export async function POST(req: Request) {
   if (address) { tries.push(['address', address]); tries.push(['keyword', address]); }
   if (region || name) tries.push(['keyword', `${region ?? ''} ${name ?? ''}`.trim()]);
   let lat: number | null = null, lng: number | null = null;
-  const trace: { path: string; q: string; status: number; count: number }[] = [];
   for (const [path, query] of tries) {
     if (!query) continue;
     const docs = await kakao(key, path, { query });
-    trace.push({ path, q: query, status: lastStatus, count: docs.length });
     const d = docs[0];
     if (d?.x && d?.y) { lat = parseFloat(d.y); lng = parseFloat(d.x); break; }
   }
   if (lat == null || lng == null) {
-    return NextResponse.json({ lat: null, lng: null, summary: null, _diag: { keyLen: key.length, trace } });
+    return NextResponse.json({ lat: null, lng: null, summary: null });
   }
 
   // 2) 반경 1km 상권 요약
