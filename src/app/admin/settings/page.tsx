@@ -138,6 +138,52 @@ export default function AdminSettingsPage() {
           </div>
         </section>
 
+        <section className="card mb-4">
+          <div className="t-section mb-1">가입·검수 정책</div>
+          <div className="t-sub mb-4">공급자 검증 강도를 제어합니다. 해자(신뢰)의 핵심 설정입니다.</div>
+          <Toggle
+            label="입점 파트너 자동 승인"
+            desc="끄면(권장) 신규 파트너는 '가입 심사' 상태로 시작해 관리자 승인 후 활동합니다"
+            on={s.seller_auto_approve ?? false}
+            onChange={(v) => patch({ seller_auto_approve: v })}
+          />
+          <div className="pt-3">
+            <div className="text-[13px] font-semibold text-ink mb-1">승인 필수 서류 수</div>
+            <div className="text-[12px] text-text-tertiary mb-2">이 수 이상 서류가 확인돼야 승인을 권장합니다.</div>
+            <div className="flex flex-wrap gap-2">
+              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <button key={n} onClick={() => patch({ required_docs_count: n })} className={`chip ${(s.required_docs_count ?? 5) === n ? 'selected' : ''}`}>
+                  {n}종
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="card mb-4">
+          <div className="t-section mb-1">정산·수수료 기본값</div>
+          <div className="t-sub mb-4">행사 등록 시 기본으로 안내되는 값입니다.</div>
+          <label className="flex flex-col gap-1.5 mb-3">
+            <span className="text-[12px] font-semibold text-ink-soft">플랫폼 기본 수수료 (%)</span>
+            <input
+              type="number" min={0} max={100} step={0.5}
+              value={s.platform_fee_pct ?? 0}
+              onChange={(e) => patch({ platform_fee_pct: Number(e.target.value) })}
+              className="input max-w-[160px]"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] font-semibold text-ink-soft">기본 정산 주기 안내</span>
+            <input
+              type="text"
+              value={s.default_settlement ?? ''}
+              onChange={(e) => patch({ default_settlement: e.target.value })}
+              className="input"
+              placeholder="예: 행사 종료 후 7영업일"
+            />
+          </label>
+        </section>
+
         <div className="flex items-center gap-3 sticky bottom-0 bg-page/90 backdrop-blur py-3">
           <button onClick={save} disabled={saving} className="btn-primary">
             {saving ? '저장 중…' : '정책 저장'}

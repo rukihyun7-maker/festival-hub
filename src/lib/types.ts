@@ -337,6 +337,11 @@ export interface PlatformSettings {
   appeal: boolean;
   public_scope: PublicScope;
   min_reviews: number;
+  // v18: 운영 정책 (가입·검수·정산)
+  seller_auto_approve?: boolean;    // 입점 파트너 자동 승인 (off=수동 심사)
+  required_docs_count?: number;     // 승인 필수 서류 수
+  platform_fee_pct?: number;        // 플랫폼 기본 수수료(%)
+  default_settlement?: string | null; // 기본 정산 주기 안내
   updated_at: string;
 }
 
