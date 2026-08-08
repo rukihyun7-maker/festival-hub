@@ -140,6 +140,7 @@ export interface Sale {
   application_id: string | null;
   orders: number;
   revenue: number;
+  cost?: number | null;   // v13: 비용(재료·인건·기타 합계, 선택) → 순익=revenue-cost
   note: string | null;
   recorded_at: string;
 }

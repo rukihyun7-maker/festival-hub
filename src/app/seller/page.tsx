@@ -242,7 +242,7 @@ function HistoryTab({
   profile: Profile | null;
   onAddHistory: (input: { event_name: string; event_date?: string | null; region?: string | null; orders?: number | null; revenue?: number | null; note?: string | null }) => Promise<void>;
   onDeleteHistory: (id: string) => Promise<void>;
-  onRecordSale: (input: { event_id: string; application_id?: string | null; orders: number; revenue: number; note?: string | null }) => Promise<void>;
+  onRecordSale: (input: { event_id: string; application_id?: string | null; orders: number; revenue: number; cost?: number | null; note?: string | null }) => Promise<void>;
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [recordFor, setRecordFor] = useState<string | null>(null);
@@ -346,8 +346,8 @@ function HistoryTab({
 
               {r.kind === 'app' && r.status === 'approved' && recordFor === r.appId && (
                 <RecordSaleForm
-                  onSubmit={async (orders, revenue) => {
-                    await onRecordSale({ event_id: r.eventId, application_id: r.appId, orders, revenue });
+                  onSubmit={async (orders, revenue, cost) => {
+                    await onRecordSale({ event_id: r.eventId, application_id: r.appId, orders, revenue, cost });
                     setRecordFor(null);
                   }}
                 />
@@ -424,35 +424,50 @@ function AddHistoryForm({ onSubmit }: { onSubmit: (input: { event_name: string; 
   );
 }
 
-function RecordSaleForm({ onSubmit }: { onSubmit: (orders: number, revenue: number) => Promise<void> }) {
+function RecordSaleForm({ onSubmit }: { onSubmit: (orders: number, revenue: number, cost: number) => Promise<void> }) {
   const [orders, setOrders] = useState('');
   const [revenue, setRevenue] = useState('');
+  const [cost, setCost] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const profit = revenue ? Number(revenue) - Number(cost || 0) : null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!orders || !revenue) return;
     setSubmitting(true);
     try {
-      await onSubmit(Number(orders), Number(revenue));
+      await onSubmit(Number(orders), Number(revenue), Number(cost || 0));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 pt-4 border-t border-line-faint grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-semibold text-ink-soft">판매건수</span>
-        <input type="number" value={orders} onChange={(e) => setOrders(e.target.value)} className="input" placeholder="290" required />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-semibold text-ink-soft">매출</span>
-        <input type="number" value={revenue} onChange={(e) => setRevenue(e.target.value)} className="input" placeholder="3200000" required />
-      </label>
-      <div className="flex items-end">
-        <button type="submit" disabled={submitting} className="btn-primary w-full">{submitting ? '기록 중…' : '매출 기록'}</button>
+    <form onSubmit={submit} className="mt-4 pt-4 border-t border-line-faint">
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-semibold text-ink-soft">판매건수</span>
+          <input type="number" value={orders} onChange={(e) => setOrders(e.target.value)} className="input" placeholder="290" required />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-semibold text-ink-soft">매출</span>
+          <input type="number" value={revenue} onChange={(e) => setRevenue(e.target.value)} className="input" placeholder="3200000" required />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-semibold text-ink-soft">비용 (선택)</span>
+          <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} className="input" placeholder="재료·인건 등" />
+        </label>
       </div>
+      {profit !== null && (
+        <div className="flex items-center justify-between mt-3 p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+          <span className="text-[12px] font-semibold text-ink-soft">예상 순익 (매출 − 비용)</span>
+          <span className={`text-[15px] font-extrabold ${profit >= 0 ? 'text-success' : 'text-danger'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+            ₩{profit.toLocaleString()}
+          </span>
+        </div>
+      )}
+      <button type="submit" disabled={submitting} className="btn-primary w-full mt-3">{submitting ? '기록 중…' : '매출·순익 기록'}</button>
     </form>
   );
 }
@@ -469,35 +484,50 @@ function SalesTab({ loading, sales }: { loading: boolean; sales: SaleWithEvent[]
     );
   }
 
-  // 월별 집계 (셀러가 직접 기록한 매출 기반)
-  const byMonth: Record<string, { revenue: number; count: number }> = {};
+  // 월별 집계 (셀러가 직접 기록한 매출·비용 기반)
+  const byMonth: Record<string, { revenue: number; cost: number; count: number }> = {};
   sales.forEach((s) => {
     const m = s.recorded_at.slice(0, 7); // YYYY-MM
-    if (!byMonth[m]) byMonth[m] = { revenue: 0, count: 0 };
+    if (!byMonth[m]) byMonth[m] = { revenue: 0, cost: 0, count: 0 };
     byMonth[m].revenue += s.revenue;
+    byMonth[m].cost += s.cost ?? 0;
     byMonth[m].count += 1;
   });
   const monthRows = Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b));
   const maxMonth = Math.max(...Object.values(byMonth).map((v) => v.revenue), 1);
   const totalRevenue = sales.reduce((s, r) => s + r.revenue, 0);
+  const totalCost = sales.reduce((s, r) => s + (r.cost ?? 0), 0);
+  const totalProfit = totalRevenue - totalCost;
+  const hasCost = totalCost > 0;
 
   return (
     <div className="card">
-      <div className="flex items-baseline justify-between mb-1">
-        <div className="t-section">월별 매출</div>
-        <div className="text-[16px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          ₩{totalRevenue.toLocaleString()} <span className="text-[12px] font-semibold text-text-tertiary">누적</span>
+      <div className="flex items-baseline justify-between mb-4">
+        <div className="t-section">월별 매출{hasCost ? ' · 순익' : ''}</div>
+        <div className="text-right">
+          <div className="text-[16px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            ₩{totalRevenue.toLocaleString()} <span className="text-[12px] font-semibold text-text-tertiary">매출</span>
+          </div>
+          {hasCost && (
+            <div className={`text-[12px] font-bold ${totalProfit >= 0 ? 'text-success' : 'text-danger'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+              순익 ₩{totalProfit.toLocaleString()}
+            </div>
+          )}
         </div>
       </div>
-      <div className="t-sub mb-5">행사 참여 후 직접 기록한 매출을 월별로 집계합니다.</div>
+      <div className="t-sub mb-5">행사 참여 후 직접 기록한 매출{hasCost ? '·비용' : ''}을 월별로 집계합니다.</div>
       <div className="space-y-3.5">
         {monthRows.map(([m, v]) => {
           const label = `${parseInt(m.slice(0, 4), 10)}.${m.slice(5, 7)}`;
+          const profit = v.revenue - v.cost;
           return (
             <div key={m}>
               <div className="flex justify-between items-baseline mb-1.5">
                 <span className="text-[13px] font-semibold text-ink">{label} <span className="text-[11px] font-normal text-text-tertiary">· {v.count}회</span></span>
-                <span className="text-[13px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{v.revenue.toLocaleString()}</span>
+                <span className="text-[13px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  ₩{v.revenue.toLocaleString()}
+                  {v.cost > 0 && <span className={`ml-2 text-[11px] font-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`}>순익 ₩{profit.toLocaleString()}</span>}
+                </span>
               </div>
               <div className="h-2 bg-muted rounded-pill overflow-hidden">
                 <div className="h-full bg-accent" style={{ width: `${(v.revenue / maxMonth) * 100}%` }} />

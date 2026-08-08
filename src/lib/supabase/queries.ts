@@ -1180,6 +1180,7 @@ export async function recordSale(input: {
   application_id?: string | null;
   orders: number;
   revenue: number;
+  cost?: number | null;
   note?: string | null;
 }): Promise<Sale> {
   const supabase = createClient();
@@ -1191,6 +1192,7 @@ export async function recordSale(input: {
       application_id: input.application_id ?? null,
       orders: input.orders,
       revenue: input.revenue,
+      cost: input.cost ?? 0,
       note: input.note ?? null,
     })
     .select()
