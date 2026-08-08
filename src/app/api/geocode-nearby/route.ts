@@ -35,14 +35,16 @@ export async function POST(req: Request) {
   if (address) { tries.push(['address', address]); tries.push(['keyword', address]); }
   if (region || name) tries.push(['keyword', `${region ?? ''} ${name ?? ''}`.trim()]);
   let lat: number | null = null, lng: number | null = null;
+  const trace: { path: string; q: string; status: number; count: number }[] = [];
   for (const [path, query] of tries) {
     if (!query) continue;
     const docs = await kakao(key, path, { query });
+    trace.push({ path, q: query, status: lastStatus, count: docs.length });
     const d = docs[0];
     if (d?.x && d?.y) { lat = parseFloat(d.y); lng = parseFloat(d.x); break; }
   }
   if (lat == null || lng == null) {
-    return NextResponse.json({ lat: null, lng: null, summary: null, _diag: { keyLen: key.length, lastStatus } });
+    return NextResponse.json({ lat: null, lng: null, summary: null, _diag: { keyLen: key.length, trace } });
   }
 
   // 2) 반경 1km 상권 요약
