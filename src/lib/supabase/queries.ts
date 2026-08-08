@@ -111,6 +111,24 @@ export async function fetchEventById(id: string): Promise<EventRow | null> {
   return (data as EventRow) ?? null;
 }
 
+/** 프로필 단건 조회 (관리자 검수 · 주최 신원 확인 등) */
+export async function fetchProfileById(id: string): Promise<Profile | null> {
+  const supabase = createClient();
+  const { data } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
+  return (data as Profile) ?? null;
+}
+
+/** 유사 행사 조회 (중복 등록 검수) · 같은 지역 + 이름 첫 토큰 유사 */
+export async function fetchSimilarEvents(name: string, region: string, excludeId: string): Promise<EventRow[]> {
+  const supabase = createClient();
+  const first = (name || '').trim().split(/\s+/)[0] || name;
+  if (!first) return [];
+  let q = supabase.from('events').select('*').neq('id', excludeId).ilike('name', `%${first}%`).limit(6);
+  if (region) q = q.eq('region', region);
+  const { data } = await q;
+  return (data ?? []) as EventRow[];
+}
+
 /** 행사 생성 (호스트) · kind/source는 DB 기본값(apply/null) 허용 */
 export async function createEvent(
   input: Omit<EventRow, 'id' | 'created_at' | 'updated_at' | 'kind' | 'source'> &

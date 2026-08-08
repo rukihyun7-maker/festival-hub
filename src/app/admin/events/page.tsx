@@ -11,6 +11,8 @@ import {
   fetchPendingEvents,
   approveEvent,
   rejectEvent,
+  fetchProfileById,
+  fetchSimilarEvents,
 } from '@/lib/supabase/queries';
 import { periodLabel, deadlineLabel, feeLabel } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
@@ -168,26 +170,7 @@ export default function AdminEventsPage() {
           ) : (
             <div className="space-y-3">
               {pending.map((e) => (
-                <div key={e.id} className="card">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="badge badge-warning">심사 중</span>
-                        <span className="badge">{e.category}</span>
-                      </div>
-                      <div className="text-[15px] font-extrabold text-ink truncate">{e.name}</div>
-                      <div className="text-[12px] text-text-secondary mt-1">{e.organizer} · {periodLabel(e.start_date, e.end_date)} · {e.region}</div>
-                      <div className="text-[12px] text-text-tertiary mt-0.5">참가비 {feeLabel(e.fee, e.fee_rate)}{e.capacity ? ` · 정원 ${e.capacity}` : ''}</div>
-                      {e.description && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{e.description}</div>}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-3 pt-3 border-t border-line-faint">
-                    <button onClick={() => handleApprove(e.id)} disabled={actionId === e.id} className="btn-primary flex-1">
-                      {actionId === e.id ? '처리 중…' : '승인하고 공개'}
-                    </button>
-                    <button onClick={() => handleReject(e.id)} disabled={actionId === e.id} className="btn-secondary flex-1">반려</button>
-                  </div>
-                </div>
+                <PendingCard key={e.id} event={e} actionId={actionId} onApprove={handleApprove} onReject={handleReject} />
               ))}
             </div>
           )}
@@ -291,6 +274,117 @@ export default function AdminEventsPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/** 주최사 등록 요청 카드 + 검수 체크리스트 */
+function PendingCard({
+  event: e, actionId, onApprove, onReject,
+}: {
+  event: EventRow;
+  actionId: string | null;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
+  const [owner, setOwner] = useState<Profile | null>(null);
+  const [similar, setSimilar] = useState<EventRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [o, s] = await Promise.all([
+        fetchProfileById(e.owner_id).catch(() => null),
+        fetchSimilarEvents(e.name, e.region, e.id).catch(() => [] as EventRow[]),
+      ]);
+      setOwner(o);
+      setSimilar(s);
+      setLoaded(true);
+    })();
+  }, [e.id, e.owner_id, e.name, e.region]);
+
+  // 필수 정보 완비 체크
+  const checks: { label: string; ok: boolean }[] = [
+    { label: '일정', ok: !!(e.start_date && e.end_date) },
+    { label: '장소·주소', ok: !!(e.region && e.address) },
+    { label: '참가비 정보', ok: e.fee != null },
+    { label: '정산 주기', ok: !!e.settlement_cycle },
+    { label: '결제 방식', ok: !!e.payment_method },
+    { label: '모집 규모', ok: !!e.capacity },
+    { label: '행사 설명', ok: !!(e.description && e.description.length >= 10) },
+    { label: '위치 좌표', ok: e.lat != null && e.lng != null },
+  ];
+  const missing = checks.filter((c) => !c.ok);
+  const ownerIdentified = !!(owner && (owner.position || owner.phone) && owner.business_name);
+  const dupSuspect = similar.filter((s) => s.id !== e.id);
+
+  return (
+    <div className="card">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="badge badge-warning">심사 중</span>
+            <span className="badge">{e.category}</span>
+          </div>
+          <div className="text-[15px] font-extrabold text-ink truncate">{e.name}</div>
+          <div className="text-[12px] text-text-secondary mt-1">{e.organizer} · {periodLabel(e.start_date, e.end_date)} · {e.region}</div>
+          <div className="text-[12px] text-text-tertiary mt-0.5">참가비 {feeLabel(e.fee, e.fee_rate)}{e.capacity ? ` · 정원 ${e.capacity}` : ''}</div>
+          {e.description && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{e.description}</div>}
+        </div>
+      </div>
+
+      {/* 검수 체크리스트 */}
+      <div className="mt-3 rounded-input p-3 space-y-2.5" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+        <div className="text-[12px] font-extrabold text-ink">검수 체크리스트</div>
+
+        {/* 주최 신원 */}
+        <div className="text-[12px]">
+          <span className={ownerIdentified ? 'text-success font-bold' : 'text-warning font-bold'}>
+            {ownerIdentified ? '✓ 주최 신원 확인' : '⚠ 주최 신원 정보 부족'}
+          </span>
+          {loaded && owner && (
+            <span className="text-text-secondary">
+              {' '}· {owner.business_name ?? '소속 미기재'} / {owner.name}{owner.position ? ` ${owner.position}` : ''} · {owner.phone ?? '연락처 미기재'}
+            </span>
+          )}
+        </div>
+
+        {/* 필수 정보 완비 */}
+        <div>
+          <div className="flex flex-wrap gap-1.5">
+            {checks.map((c) => (
+              <span key={c.label} className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${c.ok ? 'badge-success' : 'badge-danger'}`}>
+                {c.ok ? '✓' : '✕'} {c.label}
+              </span>
+            ))}
+          </div>
+          {missing.length > 0 && (
+            <div className="text-[11px] text-danger mt-1.5">누락 {missing.length}건 — 주최에 보완 요청 후 승인 권장</div>
+          )}
+        </div>
+
+        {/* 중복 의심 */}
+        {dupSuspect.length > 0 && (
+          <div className="text-[12px]">
+            <span className="text-warning font-bold">⚠ 유사 행사 {dupSuspect.length}건</span>
+            <span className="text-text-secondary"> (중복 등록·기존 정보형 확인)</span>
+            <div className="mt-1 space-y-0.5">
+              {dupSuspect.slice(0, 3).map((s) => (
+                <div key={s.id} className="text-[11px] text-text-tertiary">
+                  · {s.name} <span className="opacity-70">[{s.kind === 'info' ? '정보형' : '신청형'} / {s.review_status ?? 'approved'}]</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2 mt-3 pt-3 border-t border-line-faint">
+        <button onClick={() => onApprove(e.id)} disabled={actionId === e.id} className="btn-primary flex-1">
+          {actionId === e.id ? '처리 중…' : missing.length > 0 ? '보완 확인 후 승인' : '승인하고 공개'}
+        </button>
+        <button onClick={() => onReject(e.id)} disabled={actionId === e.id} className="btn-secondary flex-1">반려</button>
+      </div>
+    </div>
   );
 }
 

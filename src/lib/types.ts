@@ -97,6 +97,9 @@ export interface EventRow {
   payment_method?: string | null;   // v12: 결제 방식 (등록값, 신청형만)
   demand_score?: number | null;     // v14: 입지 수요점수 (반경 1km 인근시설 기반, 0~100)
   demand_tags?: string[] | null;    // v14: 입지 태그 (역세권·대학가·주거밀집·상업지)
+  lat?: number | null;              // v5: 위도 (지오코딩)
+  lng?: number | null;              // v5: 경도 (지오코딩)
+  geocoded_at?: string | null;      // v5: 지오코딩 시각
   created_at: string;
   updated_at: string;
 }
