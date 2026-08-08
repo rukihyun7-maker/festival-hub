@@ -14,6 +14,30 @@ import type { Profile, Notification, Role, NotifKind } from '@/lib/types';
  */
 
 const ROLE_LABEL: Record<Role, string> = { seller: '입점 파트너', host: '행사 주최', admin: '관리자' };
+
+/** 모바일 상단바에 표시할 현재 페이지 이름 */
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': '홈',
+  '/events': '행사 찾기',
+  '/seller': '마이페이지',
+  '/seller/favorites': '찜한 행사',
+  '/seller/applications': '내 신청',
+  '/seller/simulator': '손익 시뮬레이터',
+  '/seller/documents': '서류 관리',
+  '/settings': '설정',
+  '/host': '홈',
+  '/host/events': '내 행사',
+  '/host/applicants': '신청자 관리',
+  '/host/ratings': '셀러 평가',
+  '/host/settlement': '정산',
+  '/host/create-event': '새 행사 등록',
+};
+function pageTitle(pathname: string): string {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+  if (pathname.startsWith('/host/events/')) return '행사 수정';
+  if (pathname.startsWith('/events/')) return '행사 상세';
+  return '';
+}
 const ROLE_LETTER: Record<Role, string> = { seller: 'S', host: 'H', admin: 'A' };
 
 function profileMenu(role: Role): { href: string; label: string }[] {
@@ -139,6 +163,10 @@ export default function AppNav({ role = 'seller' as Role }) {
             </div>
             <span className="font-extrabold text-[15px] tracking-[-0.02em] text-ink hidden sm:inline">Festival Hub</span>
           </Link>
+          {/* 모바일: 현재 페이지 이름 (하단 탭 역할) */}
+          {useBottomNav && (
+            <span className="sm:hidden text-[17px] font-extrabold text-ink tracking-[-0.02em] truncate">{pageTitle(pathname)}</span>
+          )}
           <nav className={`${useBottomNav ? 'hidden sm:flex' : 'flex'} items-center gap-1 overflow-x-auto min-w-0 no-scrollbar nav-fade px-1`} style={{ WebkitOverflowScrolling: 'touch' }}>
             {menu.map((m) => {
               const active = pathname === m.href || (m.href !== '/dashboard' && pathname.startsWith(m.href));
