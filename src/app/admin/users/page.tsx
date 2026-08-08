@@ -6,9 +6,9 @@ import AppNav from '@/components/AppNav';
 import {
   fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus,
   fetchMyDocumentSlots, fetchMyMenus, getSignedDocumentUrl, reviewDocument, countVerified,
-  fetchSellerHistory, fetchRatingSummary,
+  fetchSellerHistory, fetchRatingSummary, fetchMyHostEvents,
 } from '@/lib/supabase/queries';
-import type { Profile, SellerStatus, DocumentSlot, Menu, SellerHistory, RatingSummary } from '@/lib/types';
+import type { Profile, SellerStatus, DocumentSlot, Menu, SellerHistory, RatingSummary, EventRow } from '@/lib/types';
 
 /**
  * 사용자 관리 · Admin only
@@ -221,6 +221,13 @@ export default function AdminUsersPage() {
                         );
                       })()}
                     </>
+                  ) : p.role === 'host' ? (
+                    <button
+                      onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                      className="text-[12px] font-semibold text-text-secondary hover:text-ink px-2 py-1.5 rounded-input border border-line"
+                    >
+                      {expandedId === p.id ? '접기' : '정보 상세'}
+                    </button>
                   ) : (
                     <span className="text-[11px] text-text-tertiary">—</span>
                   )}
@@ -228,6 +235,9 @@ export default function AdminUsersPage() {
               </div>
               {expandedId === p.id && p.role === 'seller' && (
                 <SellerReviewDetail seller={p} adminId={me?.id ?? ''} />
+              )}
+              {expandedId === p.id && p.role === 'host' && (
+                <HostReviewDetail host={p} />
               )}
               </div>
             ))}
@@ -408,6 +418,63 @@ function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: str
       )}
     </div>
   );
+}
+
+/** 주최 정보 상세 — 명함 정보 + 등록 행사 (관리자 전체 열람) */
+function HostReviewDetail({ host }: { host: Profile }) {
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try { setEvents(await fetchMyHostEvents(host.id)); } catch { /* noop */ } finally { setLoading(false); }
+    })();
+  }, [host.id]);
+
+  return (
+    <div className="px-5 pb-5 pt-1 bg-surface-sunken border-t border-line-faint">
+      <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+        {/* 명함 정보 */}
+        <div>
+          <div className="text-[13px] font-extrabold text-ink mb-2">명함 정보</div>
+          <div className="text-[12px] text-text-secondary leading-[1.8] p-3 rounded-input bg-surface border border-line-faint">
+            <div><span className="text-text-tertiary">소속</span>  <b className="text-ink">{host.business_name ?? '—'}</b></div>
+            <div><span className="text-text-tertiary">담당자</span>  <b className="text-ink">{host.name}</b> {host.position ? `· ${host.position}` : ''}</div>
+            <div><span className="text-text-tertiary">연락처</span>  {host.phone ?? '—'}</div>
+            <div><span className="text-text-tertiary">이메일</span>  <span style={{ fontFamily: 'ui-monospace, monospace' }}>{host.email}</span></div>
+            <div><span className="text-text-tertiary">가입</span>  {new Date(host.created_at).toLocaleDateString('ko-KR')}</div>
+          </div>
+        </div>
+        {/* 등록 행사 */}
+        <div>
+          <div className="text-[13px] font-extrabold text-ink mb-2">등록 행사 <span className="text-text-tertiary font-semibold">{events.length}건</span></div>
+          {loading ? (
+            <div className="animate-pulse h-16 bg-muted rounded-card" />
+          ) : events.length === 0 ? (
+            <div className="text-[12px] text-text-tertiary p-3 rounded-input bg-surface border border-line-faint">등록한 행사가 없습니다.</div>
+          ) : (
+            <div className="rounded-input bg-surface border border-line-faint overflow-hidden">
+              {events.slice(0, 10).map((e, i) => (
+                <div key={e.id} className={`flex items-center justify-between gap-3 text-[12px] px-3 py-2 ${i !== Math.min(events.length, 10) - 1 ? 'border-b border-line-faint' : ''}`}>
+                  <span className="font-semibold text-ink truncate">{e.name}</span>
+                  <ReviewStatusPill status={e.review_status ?? 'approved'} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReviewStatusPill({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    approved: { label: '공개', cls: 'badge-success' },
+    pending: { label: '검수 대기', cls: 'badge-warning' },
+    rejected: { label: '반려', cls: 'badge-danger' },
+  };
+  const b = map[status] ?? map.approved;
+  return <span className={`badge ${b.cls} shrink-0`} style={{ fontSize: 10 }}>{b.label}</span>;
 }
 
 function DocStatusPill({ status }: { status: string }) {

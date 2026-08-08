@@ -52,6 +52,8 @@ export interface Profile {
   intro: string | null;
   affiliation: string | null;   // v3: 소속 단체/협동조합
   hygiene_gear: string | null;  // v3: 마스크/모자 등 착용 운영
+  position?: string | null;         // v17: 주최 담당자 직함/부서 (명함)
+  business_card_url?: string | null; // v17: 주최 명함 이미지 경로 (선택)
   vehicle?: string | null;      // v10: 차량·부스 규격
   power?: string | null;        // v10: 전기 사용량
   cooking?: string | null;      // v10: 조리 설비
