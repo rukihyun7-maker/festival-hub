@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
-import { fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus } from '@/lib/supabase/queries';
-import type { Profile, SellerStatus } from '@/lib/types';
+import {
+  fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus,
+  fetchMyDocumentSlots, fetchMyMenus, getSignedDocumentUrl, reviewDocument, countVerified,
+} from '@/lib/supabase/queries';
+import type { Profile, SellerStatus, DocumentSlot, Menu } from '@/lib/types';
 
 /**
  * 사용자 관리 · Admin only
@@ -21,6 +24,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -153,7 +157,8 @@ export default function AdminUsersPage() {
         ) : (
           <div className="card p-0 overflow-hidden">
             {profiles.map((p, i) => (
-              <div key={p.id} className={`grid gap-4 items-center p-5 ${i !== profiles.length - 1 ? 'border-b border-line-faint' : ''} hover:bg-surface-sunken transition-colors`} style={{ gridTemplateColumns: 'auto minmax(200px, 2fr) minmax(120px, 1fr) auto' }}>
+              <div key={p.id} className={i !== profiles.length - 1 ? 'border-b border-line-faint' : ''}>
+              <div className={`grid gap-4 items-center p-5 hover:bg-surface-sunken transition-colors`} style={{ gridTemplateColumns: 'auto minmax(200px, 2fr) minmax(120px, 1fr) auto' }}>
                 {/* 아바타 */}
                 <div className={`w-10 h-10 rounded-pill flex items-center justify-center font-extrabold text-[14px] ${
                   p.role === 'admin' ? 'bg-ink text-accent' : p.role === 'host' ? 'bg-info-bar text-white' : 'bg-accent text-ink'
@@ -195,22 +200,34 @@ export default function AdminUsersPage() {
                 {/* 상태 액션 (셀러 전용) */}
                 <div className="flex gap-2 shrink-0 items-center">
                   {p.role === 'seller' ? (
-                    (() => {
-                      const st = p.status ?? '정상';
-                      if (st === '가입 심사') return (
-                        <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상')} className="btn-primary text-[12px] py-1.5 px-3">가입 승인</button>
-                      );
-                      if (st === '정지') return (
-                        <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상', '정지를 해제하시겠어요?')} className="btn-secondary text-[12px] py-1.5 px-3">정지 해제</button>
-                      );
-                      return (
-                        <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정지', '이 파트너의 이용을 정지하시겠어요? 신규 신청이 차단됩니다.')} className="text-[12px] text-danger hover:underline font-semibold">이용 정지</button>
-                      );
-                    })()
+                    <>
+                      <button
+                        onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                        className="text-[12px] font-semibold text-text-secondary hover:text-ink px-2 py-1.5 rounded-input border border-line"
+                      >
+                        {expandedId === p.id ? '접기' : '심사 상세'}
+                      </button>
+                      {(() => {
+                        const st = p.status ?? '정상';
+                        if (st === '가입 심사') return (
+                          <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상', '서류·판매메뉴를 확인하셨나요? 승인하면 파트너가 행사 찾기·신청을 이용할 수 있습니다.')} className="btn-primary text-[12px] py-1.5 px-3">가입 승인</button>
+                        );
+                        if (st === '정지') return (
+                          <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상', '정지를 해제하시겠어요?')} className="btn-secondary text-[12px] py-1.5 px-3">정지 해제</button>
+                        );
+                        return (
+                          <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정지', '이 파트너의 이용을 정지하시겠어요? 신규 신청이 차단됩니다.')} className="text-[12px] text-danger hover:underline font-semibold">이용 정지</button>
+                        );
+                      })()}
+                    </>
                   ) : (
                     <span className="text-[11px] text-text-tertiary">—</span>
                   )}
                 </div>
+              </div>
+              {expandedId === p.id && p.role === 'seller' && (
+                <SellerReviewDetail seller={p} adminId={me?.id ?? ''} />
+              )}
               </div>
             ))}
           </div>
@@ -245,4 +262,129 @@ function SellerStatusBadge({ status }: { status: SellerStatus }) {
     '정지': { cls: 'badge-danger' },
   };
   return <span className={`badge ${map[status].cls}`}>{status}</span>;
+}
+
+/** 가입 심사 상세 — 필수 서류 열람·검증 + 판매 메뉴 */
+function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: string }) {
+  const [slots, setSlots] = useState<DocumentSlot[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = async () => {
+    try {
+      const [d, m] = await Promise.all([fetchMyDocumentSlots(seller.id), fetchMyMenus(seller.id).catch(() => [])]);
+      setSlots(d);
+      setMenus(m);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [seller.id]);
+
+  async function openFile(path: string | null | undefined) {
+    if (!path) { alert('업로드된 파일이 없습니다.'); return; }
+    try { window.open(await getSignedDocumentUrl(path), '_blank', 'noopener'); }
+    catch (e) { alert('열람 실패: ' + (e as Error).message); }
+  }
+  async function review(docId: string | undefined, status: 'verified' | 'rejected') {
+    if (!docId) return;
+    setBusy(docId);
+    try { await reviewDocument(docId, status, adminId); await load(); }
+    catch (e) { alert('검증 실패: ' + (e as Error).message); }
+    finally { setBusy(null); }
+  }
+
+  const done = countVerified(slots);
+  const total = slots.length;
+
+  return (
+    <div className="px-5 pb-5 pt-1 bg-surface-sunken border-t border-line-faint">
+      {loading ? (
+        <div className="animate-pulse h-20 bg-muted rounded-card" />
+      ) : (
+        <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+          {/* 필수 서류 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[13px] font-extrabold text-ink">필수 서류 검증</span>
+              <span className="text-[12px] font-bold" style={{ fontVariantNumeric: 'tabular-nums', color: done === total ? 'var(--success,#1D6B2A)' : 'var(--warning,#7A5B00)' }}>
+                {done}/{total} 확인
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {slots.map((s) => {
+                const st = s.doc?.status ?? 'missing';
+                const hasFile = !!s.doc?.file_url;
+                return (
+                  <div key={s.kind} className="flex items-center gap-2 p-2.5 rounded-input bg-surface border border-line-faint">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12.5px] font-bold text-ink truncate">
+                        {s.label}
+                        {s.kind === 'business_reg' && <span className="ml-1 text-[10px] font-bold text-accent-text">가입 필수</span>}
+                      </div>
+                      <div className="text-[11px] text-text-tertiary truncate">{s.doc?.file_name ?? '미제출'}</div>
+                    </div>
+                    <DocStatusPill status={st} />
+                    {hasFile && (
+                      <button onClick={() => openFile(s.doc?.file_url)} className="text-[11px] font-semibold text-info hover:underline shrink-0">열람</button>
+                    )}
+                    {hasFile && st !== 'verified' && (
+                      <button disabled={busy === s.doc?.id} onClick={() => review(s.doc?.id, 'verified')} className="text-[11px] font-bold text-success shrink-0 hover:underline">승인</button>
+                    )}
+                    {hasFile && st !== 'rejected' && (
+                      <button disabled={busy === s.doc?.id} onClick={() => review(s.doc?.id, 'rejected')} className="text-[11px] font-bold text-danger shrink-0 hover:underline">반려</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 판매 메뉴 */}
+          <div>
+            <div className="text-[13px] font-extrabold text-ink mb-2">판매 메뉴 <span className="text-text-tertiary font-semibold">{menus.length}개</span></div>
+            {menus.length === 0 ? (
+              <div className="text-[12px] text-text-tertiary p-3 rounded-input bg-surface border border-line-faint">등록된 판매 메뉴가 없습니다.</div>
+            ) : (
+              <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
+                {menus.map((m) => (
+                  <div key={m.id} className="rounded-input bg-surface border border-line-faint overflow-hidden">
+                    {m.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.image_url} alt={m.name} className="w-full h-20 object-cover" />
+                    ) : (
+                      <div className="w-full h-20 bg-muted-2 flex items-center justify-center text-[11px] text-text-tertiary">사진 없음</div>
+                    )}
+                    <div className="p-2">
+                      <div className="text-[12px] font-bold text-ink truncate">
+                        {m.signature && <span className="text-accent-text">★ </span>}{m.name}
+                      </div>
+                      <div className="text-[11px] text-text-secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>{m.price.toLocaleString()}원</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-3 text-[11px] text-text-secondary leading-[1.6] p-3 rounded-input bg-surface border border-line-faint">
+              <b>{seller.business_name ?? seller.name}</b> · {seller.category ?? '카테고리 미상'} · 사업자번호 {seller.business_no ?? '—'}
+              <br />연락처 {seller.phone ?? '—'} · {seller.region ?? '지역 미상'}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocStatusPill({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    verified: { label: '확인', cls: 'badge-success' },
+    pending: { label: '검토 대기', cls: 'badge-warning' },
+    rejected: { label: '반려', cls: 'badge-danger' },
+    expired: { label: '만료', cls: 'badge-danger' },
+    missing: { label: '미제출', cls: '' },
+  };
+  const b = map[status] ?? map.missing;
+  return <span className={`badge ${b.cls} shrink-0`} style={{ fontSize: 10 }}>{b.label}</span>;
 }
