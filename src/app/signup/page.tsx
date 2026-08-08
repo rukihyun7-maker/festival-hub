@@ -26,6 +26,7 @@ export default function SignupPage() {
   const [orgName, setOrgName] = useState('');
   const [position, setPosition] = useState('');
   const [phone, setPhone] = useState('');
+  const [cardFile, setCardFile] = useState<File | null>(null);
   // 입점 파트너 사업자등록증
   const [bizNo, setBizNo] = useState('');
   const [bizFile, setBizFile] = useState<File | null>(null);
@@ -63,7 +64,19 @@ export default function SignupPage() {
     // 주최: 명함 정보 저장 / 입점 파트너: 사업자등록증 업로드 + 사업자번호
     try {
       if (role === 'host') {
-        await supabase.from('profiles').update({ business_name: orgName, position, phone }).eq('id', uid);
+        let cardPath: string | null = null;
+        if (cardFile) {
+          try {
+            const safeC = cardFile.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
+            const cp = `${uid}/business_card/${Date.now()}_${safeC}`;
+            const { error: cErr } = await supabase.storage.from('documents').upload(cp, cardFile, { cacheControl: '3600', upsert: false });
+            if (!cErr) cardPath = cp;
+          } catch { /* 명함 이미지는 선택 · 실패해도 진행 */ }
+        }
+        await supabase
+          .from('profiles')
+          .update({ business_name: orgName, position, phone, ...(cardPath ? { business_card_url: cardPath } : {}) })
+          .eq('id', uid);
       } else if (role === 'seller' && bizFile) {
         const safe = bizFile.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
         const path = `${uid}/business_reg/${Date.now()}_${safe}`;
@@ -161,6 +174,16 @@ export default function SignupPage() {
                   <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className="input" placeholder="010-0000-0000" />
                 </label>
               </div>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-semibold text-ink-soft">명함 이미지 <span className="text-text-tertiary font-normal">(선택 · 신뢰도↑)</span></span>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setCardFile(e.target.files?.[0] ?? null)}
+                  className="text-[12px] file:mr-3 file:py-2 file:px-3 file:rounded-input file:border-0 file:bg-ink file:text-accent file:font-bold file:text-[12px] file:cursor-pointer"
+                />
+                {cardFile && <span className="text-[11px] text-success">첨부됨: {cardFile.name}</span>}
+              </label>
             </>
           )}
 

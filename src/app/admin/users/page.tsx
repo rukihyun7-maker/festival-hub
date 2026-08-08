@@ -443,6 +443,14 @@ function HostReviewDetail({ host }: { host: Profile }) {
             <div><span className="text-text-tertiary">이메일</span>  <span style={{ fontFamily: 'ui-monospace, monospace' }}>{host.email}</span></div>
             <div><span className="text-text-tertiary">가입</span>  {new Date(host.created_at).toLocaleDateString('ko-KR')}</div>
           </div>
+          {host.business_card_url && (
+            <button
+              onClick={async () => { try { window.open(await getSignedDocumentUrl(host.business_card_url!), '_blank', 'noopener'); } catch (e) { alert('열람 실패: ' + (e as Error).message); } }}
+              className="mt-2 text-[12px] font-bold text-info hover:underline"
+            >
+              📇 명함 이미지 열람
+            </button>
+          )}
         </div>
         {/* 등록 행사 */}
         <div>
