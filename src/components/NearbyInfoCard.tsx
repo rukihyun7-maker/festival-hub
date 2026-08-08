@@ -2,14 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import { fetchNearby } from '@/lib/supabase/queries';
-import type { NearbyRow, ApartmentData, UniversityData, FestivalData } from '@/lib/types';
+import type { NearbyRow, LocalInfoCategory } from '@/lib/types';
 
 /**
- * 인근지역 정보 카드 (반경 1km 잠재 수요)
+ * 인근지역 정보 카드 (반경 1km 상권·인구 시설)
  * 이벤트 상세에서 fetchNearby(eventId) 결과를 category별 요약.
- * 디자인: 인포 블루 톤, 옐로우 강조 X (DESIGN_SYSTEM v2.0)
- * 출처: 국토부 · 대학알리미 등 (실 데이터 연동 시 표기)
+ * 데이터: 카카오 로컬(장소·위치·거리) — 개수/거리 기반. 세대수·재학생수 등 상세 수치는 미표기(실측 없음).
+ * 디자인: 인포 블루 톤 (DESIGN_SYSTEM v2.0)
  */
+
+const CAT_META: Record<string, { label: string; icon: string; order: number }> = {
+  apartment: { label: '아파트 단지', icon: '🏢', order: 1 },
+  university: { label: '대학교', icon: '🎓', order: 2 },
+  transit: { label: '지하철역', icon: '🚇', order: 3 },
+  commercial: { label: '대형마트', icon: '🛒', order: 4 },
+  festival: { label: '인근 축제', icon: '🎪', order: 5 },
+};
+
+function fmtDist(m: number): string {
+  if (!m && m !== 0) return '';
+  return m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)}km`;
+}
+
 export default function NearbyInfoCard({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<NearbyRow[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,78 +54,63 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
     );
   }
 
-  // 위경도 미지정이거나 인근 정보 없음
+  // 위경도 미지정이거나 인근 정보 없음 → 카드 숨김
   if (!rows || rows.length === 0) return null;
 
-  const apts = rows.filter((r) => r.category === 'apartment');
-  const unis = rows.filter((r) => r.category === 'university');
-  const fests = rows.filter((r) => r.category === 'festival');
-  const transits = rows.filter((r) => r.category === 'transit');
-
-  const totalHouseholds = apts.reduce((s, a) => s + ((a.data as unknown as ApartmentData).households ?? 0), 0);
-  const totalStudents = unis.reduce((s, u) => s + ((u.data as unknown as UniversityData).enrolled ?? 0), 0);
+  // category별 그룹 (거리순은 이미 find_nearby가 정렬)
+  const groups = new Map<LocalInfoCategory, NearbyRow[]>();
+  for (const r of rows) {
+    if (!groups.has(r.category)) groups.set(r.category, []);
+    groups.get(r.category)!.push(r);
+  }
+  const ordered = [...groups.entries()].sort(
+    (a, b) => (CAT_META[a[0]]?.order ?? 9) - (CAT_META[b[0]]?.order ?? 9)
+  );
 
   return (
     <div className="card" style={{ borderColor: 'var(--info-bar, #8FA6DE)' }}>
       <div className="flex items-baseline justify-between mb-1">
-        <div className="t-section">반경 1km 내 잠재 수요</div>
-        <span className="text-[11px] text-text-tertiary">출처: 공공데이터</span>
+        <div className="t-section">반경 1km 주변 시설</div>
+        <span className="text-[11px] text-text-tertiary">출처: 카카오맵</span>
       </div>
       <div className="t-sub mb-4">행사 자리의 주변 유동인구를 가늠하는 참고 지표입니다.</div>
 
       <div className="space-y-3">
-        {apts.length > 0 && (
-          <NearbyRowView
-            label="아파트"
-            head={`${apts.length}단지 · 총 ${totalHouseholds.toLocaleString()}세대`}
-            items={apts.slice(0, 3).map((a) => `${a.name} ${((a.data as unknown as ApartmentData).households ?? 0).toLocaleString()}세대`)}
-          />
-        )}
-        {unis.length > 0 && (
-          <NearbyRowView
-            label="대학교"
-            head={`${unis.length}개 · 재학생 ${totalStudents.toLocaleString()}명`}
-            items={unis.map((u) => `${u.name} ${((u.data as unknown as UniversityData).enrolled ?? 0).toLocaleString()}명`)}
-          />
-        )}
-        {fests.length > 0 && (
-          <NearbyRowView
-            label="대학축제"
-            head={`${fests.length}건`}
-            items={fests.map((f) => {
-              const d = f.data as unknown as FestivalData;
-              return `${f.name} ${fmtDate(d.start_date)}~${fmtDate(d.end_date)}`;
-            })}
-          />
-        )}
-        {transits.length > 0 && (
-          <NearbyRowView
-            label="지하철역"
-            head={`${transits.length}개`}
-            items={[transits.map((t) => t.name).join(' · ')]}
-          />
-        )}
+        {ordered.map(([cat, items]) => {
+          const meta = CAT_META[cat] ?? { label: cat, icon: '📍' };
+          const top = items.slice(0, 4);
+          return (
+            <div
+              key={cat}
+              className="p-3 rounded-input"
+              style={{ background: 'var(--info-soft, #F4F7FE)' }}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13px] font-bold" style={{ color: 'var(--info, #2B4B9B)' }}>
+                  {meta.icon} {meta.label}
+                </span>
+                <span
+                  className="text-[13px] font-extrabold text-ink"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {items.length}곳
+                </span>
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-text-secondary leading-relaxed">
+                {top.map((it) => (
+                  <span key={it.id} className="whitespace-nowrap">
+                    {it.name}
+                    <span className="text-text-tertiary"> {fmtDist(it.distance_m)}</span>
+                  </span>
+                ))}
+                {items.length > top.length && (
+                  <span className="text-text-tertiary">외 {items.length - top.length}곳</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-}
-
-function NearbyRowView({ label, head, items }: { label: string; head: string; items: string[] }) {
-  return (
-    <div className="p-3 rounded-input bg-info-soft" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[13px] font-bold" style={{ color: 'var(--info, #2B4B9B)' }}>{label}</span>
-        <span className="text-[13px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{head}</span>
-      </div>
-      {items.length > 0 && (
-        <div className="mt-1.5 text-[12px] text-text-secondary leading-relaxed">
-          {items.join(' / ')}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function fmtDate(d: string): string {
-  return d ? d.slice(5).replace('-', '.') : '';
 }
