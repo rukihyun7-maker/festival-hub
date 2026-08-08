@@ -15,6 +15,7 @@ import {
   type ActivityRow,
 } from '@/lib/supabase/queries';
 import type { Profile } from '@/lib/types';
+import { wonCompact } from '@/lib/types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 /**
@@ -129,14 +130,14 @@ export default function AdminInsightsPage() {
         <div className="grid gap-3 mb-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
           <BigKpi
             label="누적 GMV"
-            value={`₩${overview.sales.totalGmv.toLocaleString()}`}
-            delta={`최근 30일 ₩${overview.sales.recentGmv.toLocaleString()}`}
+            value={wonCompact(overview.sales.totalGmv)}
+            delta={`최근 30일 ${wonCompact(overview.sales.recentGmv)}`}
             highlight
           />
           <BigKpi
             label="플랫폼 수수료"
-            value={`₩${platformFee.toLocaleString()}`}
-            delta={`5% 기준 · 연환산 ₩${Math.round(monthlyRun * 0.05).toLocaleString()}`}
+            value={wonCompact(platformFee)}
+            delta={`5% 기준 · 연환산 ${wonCompact(Math.round(monthlyRun * 0.05))}`}
           />
           <BigKpi
             label="사용자"

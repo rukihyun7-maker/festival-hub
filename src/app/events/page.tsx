@@ -177,25 +177,28 @@ export default function EventsListPage() {
 }
 
 function EventCard({ event: e }: { event: EventRow }) {
-  const t = eventType(e);
+  const t = e.kind ?? eventType(e);
   const d = daysUntil(e.deadline);
-  const urgent = d !== null && d <= 3;
+  const urgent = t === 'apply' && d !== null && d >= 0 && d <= 3;
   return (
     <Link href={`/events/${e.id}`} className={`card card-hover ${t === 'apply' ? 'card-apply' : 'card-info'} block`}>
       <div className="flex items-start justify-between gap-2 mb-3">
         <span className={`badge ${t === 'apply' ? 'badge-warning' : 'badge-info'}`}>
           {t === 'apply' ? '신청형' : '정보형'}
         </span>
-        <span className={`text-[11px] font-bold ${urgent ? 'text-danger' : t === 'apply' ? 'text-warning' : 'text-info'}`}>
+        <span className={`text-[12px] font-extrabold ${urgent ? 'text-danger' : t === 'apply' ? 'text-warning' : 'text-info'}`}>
           {deadlineLabel(e.deadline)}
         </span>
       </div>
-      <div className="t-card mb-3">{e.name}</div>
+      <div className="t-card mb-3 line-clamp-1">{e.name}</div>
       <div className="space-y-1.5 text-[13px] text-text-secondary">
         <Row label="일정" value={periodLabel(e.start_date, e.end_date)} />
         <Row label="장소" value={`${e.region} ${e.address.split(' ').slice(1, 3).join(' ')}`} />
         <Row label="자리" value={e.capacity ?? '공고 예정'} />
-        <Row label="참가비" value={feeLabel(e.fee, e.fee_rate)} />
+      </div>
+      <div className="flex items-baseline justify-between mt-3 pt-3 border-t border-line-faint">
+        <span className="text-[11px] text-text-tertiary">참가비</span>
+        <span className="text-[15px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{feeLabel(e.fee, e.fee_rate)}</span>
       </div>
     </Link>
   );

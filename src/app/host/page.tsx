@@ -9,7 +9,7 @@ import {
   fetchMyProfile,
   updateApplicationStatus,
 } from '@/lib/supabase/queries';
-import { deadlineLabel, periodLabel, daysUntil } from '@/lib/types';
+import { deadlineLabel, periodLabel, daysUntil, wonCompact } from '@/lib/types';
 import type { ApplicationWithRelations, EventRow, Profile } from '@/lib/types';
 
 /**
@@ -145,42 +145,22 @@ export default function HostDashboardPage() {
       <AppNav role="host" />
 
       <div className="container-app py-8 md:py-12">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="text-[13px] font-semibold uppercase tracking-[0.05em] text-accent-warm mb-2">
-              행사 주최 · {profile.business_name ?? profile.name}
-            </div>
-            <h1 className="t-title">{selectedEvent?.name ?? '행사를 선택하세요'}</h1>
-            {selectedEvent && (
-              <p className="t-sub mt-1">
-                {periodLabel(selectedEvent.start_date, selectedEvent.end_date)} · {days}일간 · {dday !== null && dday > 0 ? `D-${dday}` : dday === 0 ? '오늘' : '종료'}
-              </p>
-            )}
-          </div>
-          <div className="hidden md:flex gap-2">
-            {selectedEvent && (
-              <Link href={`/host/events/${selectedEvent.id}/edit`} className="btn-secondary">행사 수정</Link>
-            )}
-            <Link href="/host/create-event" className="btn-primary">+ 새 행사 등록</Link>
-          </div>
+        {/* 인사 */}
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-[22px] font-extrabold text-ink tracking-[-0.02em]">
+            안녕하세요, {profile.business_name ?? profile.name}님
+          </h1>
+          <Link href="/host/create-event" className="btn-primary hidden sm:inline-flex">+ 새 행사</Link>
         </div>
 
         {/* 행사 선택 */}
-        <div className="card mb-8">
-          <label className="flex flex-col gap-2">
-            <span className="text-[12px] font-bold uppercase tracking-[0.05em] text-text-tertiary">
-              내 행사 ({events.length}개)
-            </span>
-            <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="input">
-              {events.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name} · {periodLabel(e.start_date, e.end_date)} · {deadlineLabel(e.deadline)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="input mb-3">
+          {events.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name} · {periodLabel(e.start_date, e.end_date)} · {deadlineLabel(e.deadline)}
+            </option>
+          ))}
+        </select>
 
         {error && (
           <div className="card mb-6" style={{ borderColor: '#E0DACB' }}>
@@ -189,12 +169,27 @@ export default function HostDashboardPage() {
           </div>
         )}
 
-        {/* KPI 4 */}
-        <div className="grid gap-3 mb-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-          <KpiCard label="신청 파트너" value={String(applications.length)} total={selectedEvent?.capacity ? ` / ${selectedEvent.capacity}` : ''} delta={`${approvedCount}자리 확정`} />
-          <KpiCard label="승인 대기" value={String(pendingCount)} delta={pendingCount > 0 ? '검토 필요' : '없음'} tone={pendingCount > 0 ? 'warn' : undefined} />
-          <KpiCard label="예상 참가비 수익" value={`₩ ${expectedRevenue.toLocaleString()}`} delta={`확정 ${approvedCount}자리`} />
-          <KpiCard label="D-day" value={dday !== null && dday > 0 ? `${dday}일` : dday === 0 ? '오늘' : '종료'} delta={dday !== null && dday <= 7 && dday >= 0 ? '임박' : ''} tone={dday !== null && dday <= 7 && dday >= 0 ? 'warn' : undefined} />
+        {/* 선택 행사 상태 카드 */}
+        <div className="card mb-8">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="min-w-0">
+              <div className="text-[16px] font-extrabold text-ink truncate">{selectedEvent?.name ?? '행사를 선택하세요'}</div>
+              {selectedEvent && (
+                <div className="text-[12px] text-text-secondary mt-0.5">
+                  {periodLabel(selectedEvent.start_date, selectedEvent.end_date)} · {days}일간 · {dday !== null && dday > 0 ? `D-${dday}` : dday === 0 ? '오늘' : '종료'}
+                </div>
+              )}
+            </div>
+            {selectedEvent && (
+              <Link href={`/host/events/${selectedEvent.id}/edit`} className="text-[12px] font-bold text-text-tertiary hover:text-ink shrink-0">수정</Link>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <HostMetric label="신청 파트너" value={`${applications.length}${selectedEvent?.capacity ? `/${selectedEvent.capacity}` : ''}`} sub={`${approvedCount}자리 확정`} />
+            <HostMetric label="승인 대기" value={String(pendingCount)} sub={pendingCount > 0 ? '검토 필요' : '없음'} warn={pendingCount > 0} />
+            <HostMetric label="예상 수익" value={wonCompact(expectedRevenue)} sub={`확정 ${approvedCount}자리`} />
+            <HostMetric label="D-day" value={dday !== null && dday > 0 ? `${dday}일` : dday === 0 ? '오늘' : '종료'} sub={dday !== null && dday <= 7 && dday >= 0 ? '임박' : ''} warn={dday !== null && dday <= 7 && dday >= 0} />
+          </div>
         </div>
 
         {/* 신청자 관리 */}
@@ -376,15 +371,12 @@ function ApplicantRow({
   );
 }
 
-function KpiCard({ label, value, total, delta, tone }: { label: string; value: string; total?: string; delta: string; tone?: 'warn' }) {
+function HostMetric({ label, value, sub, warn }: { label: string; value: string; sub?: string; warn?: boolean }) {
   return (
-    <div className="card">
-      <div className="t-sub mb-2">{label}</div>
-      <div className="flex items-baseline gap-1 mb-1">
-        <div className="text-[26px] font-extrabold text-ink tracking-[-0.03em]" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-        {total && <div className="text-[14px] font-semibold text-text-tertiary">{total}</div>}
-      </div>
-      <div className={`text-[12px] font-semibold ${tone === 'warn' ? 'text-warning' : 'text-success'}`}>{delta}</div>
+    <div className="rounded-input p-3" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+      <div className="text-[11px] text-text-tertiary mb-1 truncate">{label}</div>
+      <div className="text-[17px] font-extrabold text-ink leading-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      {sub && <div className={`text-[10.5px] mt-0.5 truncate ${warn ? 'text-warning font-semibold' : 'text-text-secondary'}`}>{sub}</div>}
     </div>
   );
 }

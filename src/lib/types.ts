@@ -468,6 +468,16 @@ export function periodLabel(start: string, end: string): string {
   return start === end ? s : `${s} - ${e}`;
 }
 
+/** 금액 축약: 1만 이상은 '만' 단위(₩234만), 미만은 전체(₩8,000) · 스캔용 */
+export function wonCompact(v: number): string {
+  if (!v) return '₩0';
+  if (v >= 10000) {
+    const man = v / 10000;
+    return `₩${(Number.isInteger(man) ? man : Math.round(man)).toLocaleString()}만`;
+  }
+  return `₩${v.toLocaleString()}`;
+}
+
 /** 참가비 표시 */
 export function feeLabel(fee: number, feeRate: number): string {
   if (fee === 0 && feeRate === 0) return '무료';
