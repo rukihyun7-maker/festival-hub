@@ -116,7 +116,7 @@ export default function DashboardPage() {
               <span className="text-[16px] text-text-tertiary">→</span>
             </div>
             <div className="text-[19px] font-extrabold leading-snug text-ink mb-2">
-              서류 5종 검증 = 신청 자동 첨부
+              서류·부스 사진 검증 = 신청 자동 첨부
             </div>
             <div className="text-[13px] text-text-secondary leading-relaxed mb-4">
               검증된 파트너만 주최에게 우선 노출됩니다. 한 번 등록하면 행사마다 자동으로 붙습니다.
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                 <div className="h-full rounded-pill" style={{ width: `${docsPercent}%`, background: docsPercent === 100 ? 'var(--success, #1D6B2A)' : 'var(--accent, #FFC800)' }} />
               </div>
               <span className="text-[12px] font-extrabold text-ink shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {loading ? '—' : `${verifiedDocsCount}/${docSlots.length || 5}`}
+                {loading ? '—' : `${verifiedDocsCount}/${docSlots.length || 7}`}
               </span>
             </div>
           </Link>
