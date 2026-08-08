@@ -28,6 +28,7 @@ import type {
   VerifyQrResult,
   LocalInfo,
   NearbyRow,
+  NearbyEvent,
   Favorite,
   FavoriteWithEvent,
   ApiSource,
@@ -1235,6 +1236,17 @@ export async function fetchNearby(eventId: string, radiusM = 1000): Promise<Near
   });
   if (error) throw error;
   return (data ?? []) as NearbyRow[];
+}
+
+/** 이벤트 인근(반경 내) 다른 승인 행사 — 인근 축제 표시용 (v14) */
+export async function fetchNearbyEvents(eventId: string, radiusM = 20000): Promise<NearbyEvent[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc('find_nearby_events', {
+    src_id: eventId,
+    radius_m: radiusM,
+  });
+  if (error) return []; // 함수 미배포 등 비차단
+  return (data ?? []) as NearbyEvent[];
 }
 
 /** admin: 지역 정보 수동 등록/수정 */

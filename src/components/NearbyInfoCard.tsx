@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { fetchNearby } from '@/lib/supabase/queries';
-import type { NearbyRow, LocalInfoCategory } from '@/lib/types';
+import Link from 'next/link';
+import { fetchNearby, fetchNearbyEvents } from '@/lib/supabase/queries';
+import type { NearbyRow, LocalInfoCategory, NearbyEvent } from '@/lib/types';
 
 /**
  * 인근지역 정보 카드 (반경 1km 상권·인구 시설)
@@ -28,12 +29,17 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<NearbyRow[] | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [fests, setFests] = useState<NearbyEvent[]>([]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetchNearby(eventId, 1000);
-        if (!cancelled) setRows(r);
+        const [r, ev] = await Promise.all([
+          fetchNearby(eventId, 1000),
+          fetchNearbyEvents(eventId, 20000),
+        ]);
+        if (!cancelled) { setRows(r); setFests(ev); }
       } catch {
         if (!cancelled) setRows([]);
       } finally {
@@ -54,15 +60,16 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
     );
   }
 
-  // 위경도 미지정이거나 인근 정보 없음 → 카드 숨김
-  if (!rows || rows.length === 0) return null;
+  // 위경도 미지정이거나 인근 정보 없음(시설·행사 모두) → 카드 숨김
+  if ((!rows || rows.length === 0) && fests.length === 0) return null;
 
   // category별 그룹 (거리순은 이미 find_nearby가 정렬)
   const groups = new Map<LocalInfoCategory, NearbyRow[]>();
-  for (const r of rows) {
+  for (const r of rows ?? []) {
     if (!groups.has(r.category)) groups.set(r.category, []);
     groups.get(r.category)!.push(r);
   }
+  const hasFacilities = (rows?.length ?? 0) > 0;
   const ordered = [...groups.entries()].sort(
     (a, b) => (CAT_META[a[0]]?.order ?? 9) - (CAT_META[b[0]]?.order ?? 9)
   );
@@ -70,11 +77,12 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
   return (
     <div className="card" style={{ borderColor: 'var(--info-bar, #8FA6DE)' }}>
       <div className="flex items-baseline justify-between mb-1">
-        <div className="t-section">반경 1km 주변 시설</div>
+        <div className="t-section">{hasFacilities ? '반경 1km 주변 시설' : '주변 정보'}</div>
         <span className="text-[11px] text-text-tertiary">출처: 카카오맵</span>
       </div>
       <div className="t-sub mb-4">행사 자리의 주변 유동인구를 가늠하는 참고 지표입니다.</div>
 
+      {hasFacilities && (
       <div className="space-y-3">
         {ordered.map(([cat, items]) => {
           const meta = CAT_META[cat] ?? { label: cat, icon: '📍' };
@@ -111,6 +119,33 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
           );
         })}
       </div>
+      )}
+
+      {fests.length > 0 && (
+        <div className={hasFacilities ? 'mt-4 pt-4 border-t border-line-faint' : ''}>
+          <div className="text-[13px] font-bold mb-2" style={{ color: 'var(--info, #2B4B9B)' }}>
+            🎪 인근 축제·행사 {fests.length}건
+          </div>
+          <div className="space-y-1.5">
+            {fests.map((f) => (
+              <Link
+                key={f.id}
+                href={`/events/${f.id}`}
+                className="flex items-baseline justify-between gap-2 text-[12px] hover:opacity-70"
+              >
+                <span className="font-semibold text-ink line-clamp-1">{f.name}</span>
+                <span className="shrink-0 text-text-tertiary whitespace-nowrap">
+                  {fmtEventDate(f.start_date)} · {fmtDist(f.distance_m)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function fmtEventDate(d: string): string {
+  return d ? d.slice(5).replace('-', '.') : '';
 }

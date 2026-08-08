@@ -93,8 +93,28 @@ export interface EventRow {
   admin_note?: string | null;   // v8: 반려 사유
   settlement_cycle?: string | null; // v12: 정산 주기 (등록값, 신청형만)
   payment_method?: string | null;   // v12: 결제 방식 (등록값, 신청형만)
+  demand_score?: number | null;     // v14: 입지 수요점수 (반경 1km 인근시설 기반, 0~100)
+  demand_tags?: string[] | null;    // v14: 입지 태그 (역세권·대학가·주거밀집·상업지)
   created_at: string;
   updated_at: string;
+}
+
+// v14: 인근 행사(축제)
+export interface NearbyEvent {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  kind: EventType | null;
+  distance_m: number;
+}
+
+/** 입지 수요점수 → 등급 라벨/톤 (v14) */
+export function demandLevel(score: number | null | undefined): { label: string; tone: 'high' | 'mid' | 'low' } | null {
+  if (score == null) return null;
+  if (score >= 60) return { label: '상권 우수', tone: 'high' };
+  if (score >= 30) return { label: '상권 양호', tone: 'mid' };
+  return { label: '한적한 입지', tone: 'low' };
 }
 
 export interface EventWithCounts extends EventRow {

@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import { fetchEvents } from '@/lib/supabase/queries';
-import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil } from '@/lib/types';
+import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, demandLevel } from '@/lib/types';
 import type { EventRow } from '@/lib/types';
 
 /**
@@ -21,6 +21,7 @@ const TYPES = [
 ];
 const SORTS = [
   { key: 'deadline' as const, label: '마감 임박순' },
+  { key: 'demand' as const, label: '입지 좋은순' },
   { key: 'recent' as const, label: '최신 등록순' },
   { key: 'fee' as const, label: '참가비 낮은순' },
 ];
@@ -40,7 +41,7 @@ const MOCK_FALLBACK: EventRow[] = [
 export default function EventsListPage() {
   const [region, setRegion] = useState('전체');
   const [type, setType] = useState<'all' | 'apply' | 'info'>('all');
-  const [sort, setSort] = useState<'deadline' | 'recent' | 'fee'>('deadline');
+  const [sort, setSort] = useState<'deadline' | 'demand' | 'recent' | 'fee'>('deadline');
   const [q, setQ] = useState('');
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,7 @@ export default function EventsListPage() {
     if (region !== '전체') list = list.filter((e) => e.region === region);
     if (type !== 'all') list = list.filter((e) => eventType(e) === type);
     if (sort === 'deadline') list = [...list].sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'));
+    if (sort === 'demand') list = [...list].sort((a, b) => (b.demand_score ?? -1) - (a.demand_score ?? -1));
     if (sort === 'fee') list = [...list].sort((a, b) => a.fee - b.fee);
     if (sort === 'recent') list = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
     return list;
@@ -190,7 +192,8 @@ function EventCard({ event: e }: { event: EventRow }) {
           {deadlineLabel(e.deadline)}
         </span>
       </div>
-      <div className="t-card mb-3 line-clamp-1">{e.name}</div>
+      <div className="t-card mb-2 line-clamp-1">{e.name}</div>
+      <DemandBadge score={e.demand_score} tags={e.demand_tags} />
       <div className="space-y-1.5 text-[13px] text-text-secondary">
         <Row label="일정" value={periodLabel(e.start_date, e.end_date)} />
         <Row label="장소" value={`${e.region} ${e.address.split(' ').slice(1, 3).join(' ')}`} />
@@ -201,6 +204,32 @@ function EventCard({ event: e }: { event: EventRow }) {
         <span className="text-[15px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{feeLabel(e.fee, e.fee_rate)}</span>
       </div>
     </Link>
+  );
+}
+
+function DemandBadge({ score, tags }: { score?: number | null; tags?: string[] | null }) {
+  const level = demandLevel(score);
+  if (!level) return null; // 좌표 없어 미산출 → 표시 안 함
+  const tone =
+    level.tone === 'high'
+      ? { bg: '#EAF3EC', fg: '#2E7D46' }
+      : level.tone === 'mid'
+      ? { bg: '#F4F7FE', fg: '#2B4B9B' }
+      : { bg: '#F4F1EA', fg: '#8A8272' };
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mb-3">
+      <span
+        className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+        style={{ background: tone.bg, color: tone.fg }}
+      >
+        입지 {level.label}
+      </span>
+      {(tags ?? []).slice(0, 3).map((t) => (
+        <span key={t} className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-text-secondary">
+          {t}
+        </span>
+      ))}
+    </div>
   );
 }
 
