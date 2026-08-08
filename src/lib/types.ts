@@ -91,6 +91,8 @@ export interface EventRow {
   source?: string | null;  // v3: 정보형 출처 (공공 API 등)
   review_status?: ReviewStatus; // v8: 등록 요청 심사 (없으면 approved)
   admin_note?: string | null;   // v8: 반려 사유
+  settlement_cycle?: string | null; // v12: 정산 주기 (등록값, 신청형만)
+  payment_method?: string | null;   // v12: 결제 방식 (등록값, 신청형만)
   created_at: string;
   updated_at: string;
 }

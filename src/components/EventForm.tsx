@@ -33,6 +33,8 @@ export interface EventFormValues {
   contact: string;
   phone: string;
   status: 'open' | 'upcoming' | 'close' | 'canceled';
+  settlement_cycle: string;
+  payment_method: string;
 }
 
 export function toFormValues(row: EventRow): EventFormValues {
@@ -57,6 +59,8 @@ export function toFormValues(row: EventRow): EventFormValues {
     contact: row.contact ?? '',
     phone: row.phone ?? '',
     status: row.status,
+    settlement_cycle: row.settlement_cycle ?? '',
+    payment_method: row.payment_method ?? '',
   };
 }
 
@@ -82,6 +86,8 @@ export function initialFormValues(profile: Profile | null): EventFormValues {
     contact: profile?.name ?? '',
     phone: profile?.phone ?? '',
     status: 'open',
+    settlement_cycle: '행사 종료 후 3영업일',
+    payment_method: '현금 · 카드',
   };
 }
 
@@ -174,6 +180,14 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             </Field>
             <Field label="매출 수수료율 (%)" hint="0 = 없음">
               <input type="number" min={0} max={30} step={0.5} value={v.fee_rate} onChange={(e) => set('fee_rate', Number(e.target.value))} className="input" />
+            </Field>
+          </div>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+            <Field label="정산 주기" hint="셀러에게 노출">
+              <input value={v.settlement_cycle} onChange={(e) => set('settlement_cycle', e.target.value)} className="input" placeholder="예: 행사 종료 후 3영업일" />
+            </Field>
+            <Field label="결제 방식" hint="QR 미적용 시 현금·카드 등">
+              <input value={v.payment_method} onChange={(e) => set('payment_method', e.target.value)} className="input" placeholder="예: 현금 · 카드 (QR 선택)" />
             </Field>
           </div>
           <div>

@@ -57,6 +57,8 @@ export default function CreateEventPage() {
         contact: v.contact.trim() || null,
         phone: v.phone.trim() || null,
         status: v.status,
+        settlement_cycle: v.settlement_cycle.trim() || null,
+        payment_method: v.payment_method.trim() || null,
         review_status: me.role === 'admin' ? 'approved' : 'pending', // 주최=승인 대기 / 관리자=즉시 공개
       });
       // 주최는 관리자 승인 후 공개 → 요청 현황으로, 관리자는 바로 상세로

@@ -62,6 +62,8 @@ export default function EditEventPage() {
         contact: v.contact.trim() || null,
         phone: v.phone.trim() || null,
         status: v.status,
+        settlement_cycle: v.settlement_cycle.trim() || null,
+        payment_method: v.payment_method.trim() || null,
       });
       router.push(`/events/${event.id}`);
     } catch (err) {

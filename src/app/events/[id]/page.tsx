@@ -115,7 +115,8 @@ export default function EventDetailPage() {
     );
   }
 
-  const t = event.fee > 0 && event.deadline ? 'apply' : 'info';
+  // 신청형/정보형은 kind 기준 (없으면 fee·deadline 추론). 정보형=공개정보, 신청 대상 아님
+  const t = event.kind ?? (event.fee > 0 && event.deadline ? 'apply' : 'info');
   const d = daysUntil(event.deadline);
   const days = Math.max(1, Math.ceil((new Date(event.end_date).getTime() - new Date(event.start_date).getTime()) / 86400000) + 1);
   const totalFee = event.fee * days;
@@ -176,12 +177,13 @@ export default function EventDetailPage() {
             <NearbyInfoCard eventId={event.id} />
 
             <div className="card">
-              <div className="t-section mb-4">참가비 · 정산</div>
+              <div className="t-section mb-4">{t === 'apply' ? '참가비 · 정산' : '행사 정보'}</div>
               <div className="grid gap-3">
                 <InfoRow label="일 참가비" value={event.fee > 0 ? `${event.fee.toLocaleString()}원` : '무료'} strong />
-                <InfoRow label="매출 수수료" value={event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'} />
-                <InfoRow label="정산 주기" value="행사 종료 후 3영업일" />
-                <InfoRow label="결제 방식" value="QR결제 (자동 정산) · 현금 (신고 필수)" />
+                {t === 'apply' && <InfoRow label="매출 수수료" value={event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'} />}
+                {t === 'apply' && <InfoRow label="정산 주기" value={event.settlement_cycle || '주최 측 안내 예정'} />}
+                {t === 'apply' && <InfoRow label="결제 방식" value={event.payment_method || '주최 측 안내 예정'} />}
+                {t === 'info' && event.source && <InfoRow label="정보 출처" value={event.source} />}
               </div>
             </div>
 
@@ -209,8 +211,24 @@ export default function EventDetailPage() {
             )}
           </div>
 
-          {/* 우측 · 스티키 신청 카드 */}
+          {/* 우측 · 스티키 카드 */}
           <aside style={{ position: 'sticky', top: 88, alignSelf: 'start' }}>
+            {t === 'info' ? (
+              /* 정보형: 신청 대상 아님 · 정보만 */
+              <div className="card" style={{ borderColor: 'var(--info-bar, #8FA6DE)' }}>
+                <span className="badge badge-info mb-3 inline-flex">정보 제공 행사</span>
+                <div className="text-[15px] font-extrabold text-ink mb-2">신청 대상이 아닙니다</div>
+                <p className="t-sub leading-relaxed mb-4">
+                  이 행사는 공개 정보로 제공됩니다. 플랫폼을 통한 자리 신청 대상이 아니며, 참가·부스 문의는 주최 측에 직접 하세요.
+                </p>
+                {event.source && <div className="text-[12px] text-text-tertiary mb-4">출처 · {event.source}</div>}
+                {profile?.role === 'seller' && (
+                  <button onClick={toggleFav} disabled={favBusy} className="btn-secondary w-full">
+                    {fav ? '★ 관심 등록됨' : '☆ 관심 등록'}
+                  </button>
+                )}
+              </div>
+            ) : (
             <div className="card card-apply">
               <div className="text-center pb-5 mb-5 border-b border-line-faint">
                 <div className="text-[12px] font-semibold text-text-tertiary uppercase tracking-[0.05em] mb-2">참가비</div>
@@ -275,6 +293,7 @@ export default function EventDetailPage() {
                 </>
               )}
             </div>
+            )}
           </aside>
         </div>
       </div>
