@@ -25,6 +25,42 @@ function fmtDist(m: number): string {
   return m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)}km`;
 }
 
+function num(data: Record<string, unknown>, key: string): number | null {
+  const v = data?.[key];
+  return typeof v === 'number' ? v : null;
+}
+
+/** 사람수 축약: 10,000 이상 '만' 단위 */
+function fmtPeople(n: number): string {
+  return n >= 10000 ? `${(n / 10000).toFixed(1)}만명` : `${n.toLocaleString()}명`;
+}
+
+/** 각 시설의 부가 수치 (세대수·재학생수) — data에 있을 때만 */
+function itemExtra(cat: LocalInfoCategory, data: Record<string, unknown>): string | null {
+  if (cat === 'apartment') {
+    const h = num(data, 'households');
+    return h ? `${h.toLocaleString()}세대` : null;
+  }
+  if (cat === 'university') {
+    const e = num(data, 'enrolled');
+    return e ? `재학생 약 ${fmtPeople(e)}` : null;
+  }
+  return null;
+}
+
+/** 그룹 헤더 요약 — 합계 수치가 있으면 표기, 없으면 개수 */
+function headSummary(cat: LocalInfoCategory, items: NearbyRow[]): string {
+  if (cat === 'apartment') {
+    const total = items.reduce((s, it) => s + (num(it.data, 'households') ?? 0), 0);
+    return total > 0 ? `${items.length}단지 · 총 ${total.toLocaleString()}세대` : `${items.length}곳`;
+  }
+  if (cat === 'university') {
+    const total = items.reduce((s, it) => s + (num(it.data, 'enrolled') ?? 0), 0);
+    return total > 0 ? `${items.length}개 · 재학생 약 ${fmtPeople(total)}` : `${items.length}개`;
+  }
+  return `${items.length}곳`;
+}
+
 export default function NearbyInfoCard({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<NearbyRow[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,6 +123,7 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
         {ordered.map(([cat, items]) => {
           const meta = CAT_META[cat] ?? { label: cat, icon: '📍' };
           const top = items.slice(0, 4);
+          const head = headSummary(cat, items);
           return (
             <div
               key={cat}
@@ -101,16 +138,20 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
                   className="text-[13px] font-extrabold text-ink"
                   style={{ fontVariantNumeric: 'tabular-nums' }}
                 >
-                  {items.length}곳
+                  {head}
                 </span>
               </div>
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-text-secondary leading-relaxed">
-                {top.map((it) => (
-                  <span key={it.id} className="whitespace-nowrap">
-                    {it.name}
-                    <span className="text-text-tertiary"> {fmtDist(it.distance_m)}</span>
-                  </span>
-                ))}
+                {top.map((it) => {
+                  const extra = itemExtra(cat, it.data);
+                  return (
+                    <span key={it.id} className="whitespace-nowrap">
+                      {it.name}
+                      {extra && <span className="font-semibold text-ink"> {extra}</span>}
+                      <span className="text-text-tertiary"> {fmtDist(it.distance_m)}</span>
+                    </span>
+                  );
+                })}
                 {items.length > top.length && (
                   <span className="text-text-tertiary">외 {items.length - top.length}곳</span>
                 )}
