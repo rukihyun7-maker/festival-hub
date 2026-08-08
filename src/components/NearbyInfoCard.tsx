@@ -51,8 +51,11 @@ function itemExtra(cat: LocalInfoCategory, data: Record<string, unknown>): strin
 /** 그룹 헤더 요약 — 합계 수치가 있으면 표기, 없으면 개수 */
 function headSummary(cat: LocalInfoCategory, items: NearbyRow[]): string {
   if (cat === 'apartment') {
-    const total = items.reduce((s, it) => s + (num(it.data, 'households') ?? 0), 0);
-    return total > 0 ? `${items.length}단지 · 총 ${total.toLocaleString()}세대` : `${items.length}곳`;
+    const withHH = items.filter((it) => num(it.data, 'households'));
+    const total = withHH.reduce((s, it) => s + (num(it.data, 'households') ?? 0), 0);
+    if (withHH.length === items.length && total > 0) return `${items.length}단지 · 총 ${total.toLocaleString()}세대`;
+    if (withHH.length > 0) return `${items.length}곳 · 확인 ${total.toLocaleString()}세대`;
+    return `${items.length}곳`;
   }
   if (cat === 'university') {
     const total = items.reduce((s, it) => s + (num(it.data, 'enrolled') ?? 0), 0);
