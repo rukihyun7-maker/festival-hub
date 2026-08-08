@@ -54,30 +54,38 @@ export default function DashboardPage() {
   const approvedCount = applications.filter((a) => a.status === 'approved').length;
   const verifiedDocsCount = countVerified(docSlots);
   const docsPercent = docSlots.length > 0 ? Math.round((verifiedDocsCount / docSlots.length) * 100) : 0;
-  const expiringSoon = docSlots.filter((s) => s.urgency === 'expiring').length;
   const missingCount = docSlots.filter((s) => s.urgency === 'missing').length;
+  const deadlineThisWeek = deadlineEvents.filter((e) => (daysUntil(e.deadline) ?? 99) <= 7).length;
 
   return (
     <main className="min-h-screen bg-page">
       <AppNav role="seller" />
 
       <div className="container-app py-8 md:py-12">
-        {/* 히어로 */}
+        {/* 히어로 · 인사 + 상태 요약 카드 */}
         <section className="animate-fh-up">
-          {profile && (
-            <div className="text-[13px] font-semibold tracking-[0.05em] uppercase text-accent-warm mb-3">
-              안녕하세요 · {profile.name}
-            </div>
-          )}
-          <h1 className="t-hero mb-4">
-            이번 주 <span className="text-accent-deep">{deadlineEvents.filter((e) => (daysUntil(e.deadline) ?? 99) <= 7).length}개</span> 신청 마감 중.<br />
-            서류부터 챙기세요.
+          <h1 className="text-[22px] font-extrabold text-ink tracking-[-0.02em] mb-4">
+            안녕하세요, {profile?.name ?? '게스트'}님
           </h1>
-          <p className="t-body text-text-secondary max-w-[560px]">
-            검증된 파트너만 우선 노출됩니다. 필수 서류 5종을 등록해두면 신청 시 자동으로 첨부됩니다.
-          </p>
-          <div className="flex flex-wrap gap-2 mt-6">
-            <Link href="/events" className="btn-primary">행사 찾기</Link>
+          <div className="card">
+            {/* 상태 한 줄 */}
+            <div className="flex items-center gap-2 mb-5 flex-wrap">
+              {deadlineThisWeek > 0 ? (
+                <>
+                  <span className="badge badge-warning">이번 주 {deadlineThisWeek}건 마감 임박</span>
+                  <span className="text-[12px] text-text-secondary">서류부터 챙기세요</span>
+                </>
+              ) : (
+                <span className="text-[12px] text-text-secondary">관심 지역 새 행사가 뜨면 알려드릴게요</span>
+              )}
+            </div>
+            {/* 핵심 지표 3 */}
+            <div className="grid grid-cols-3 mb-5">
+              <Metric label="진행 중 신청" value={loading ? '—' : `${applications.length}건`} sub={`대기 ${pendingCount} · 승인 ${approvedCount}`} />
+              <Metric label="누적 매출" value={loading ? '—' : fmtMoney(totalRevenue)} sub={sales.length > 0 ? `${sales.length}회 참여` : '이력 없음'} border />
+              <Metric label="서류 검증" value={loading ? '—' : `${verifiedDocsCount}/${docSlots.length || 7}`} sub={docsPercent === 100 ? '완료' : missingCount > 0 ? `${missingCount}건 남음` : '진행 중'} border />
+            </div>
+            <Link href="/events" className="btn-primary w-full">행사 찾기</Link>
           </div>
         </section>
 
@@ -132,33 +140,6 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
-
-        {/* 3 위젯 */}
-        <section className="grid gap-3 mt-10" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-          <StatCard
-            label="진행 중 신청"
-            value={loading ? '—' : `${applications.length}건`}
-            delta={`대기 ${pendingCount} · 승인 ${approvedCount}`}
-            trend={pendingCount > 0 ? 'up' : 'warn'}
-          />
-          <StatCard
-            label="누적 매출"
-            value={loading ? '—' : `₩ ${totalRevenue.toLocaleString()}`}
-            delta={sales.length > 0 ? `${sales.length}회 참여` : '이력 없음'}
-            trend="up"
-          />
-          <StatCard
-            label="서류 완료율"
-            value={loading ? '—' : `${docsPercent}%`}
-            delta={
-              docsPercent === 100 && expiringSoon === 0 ? '모두 검증됨'
-              : missingCount > 0 ? `${missingCount}건 미등록`
-              : expiringSoon > 0 ? `${expiringSoon}건 만료 임박`
-              : '검토 진행 중'
-            }
-            trend={docsPercent === 100 && expiringSoon === 0 ? 'up' : 'warn'}
-          />
-        </section>
 
         {/* 진행 중 행사 */}
         <section className="mt-12">
@@ -224,15 +205,21 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, delta, trend }: { label: string; value: string; delta: string; trend: 'up' | 'down' | 'warn' }) {
-  const deltaColor = trend === 'up' ? 'text-success' : trend === 'warn' ? 'text-warning' : 'text-danger';
+/** 상태 카드 내 핵심 지표 (큰 숫자 · 스캔용) */
+function Metric({ label, value, sub, border }: { label: string; value: string; sub?: string; border?: boolean }) {
   return (
-    <div className="card card-hover">
-      <div className="t-sub mb-2">{label}</div>
-      <div className="t-num mb-1">{value}</div>
-      <div className={`text-[12px] font-semibold ${deltaColor}`}>{delta}</div>
+    <div className={`px-2 text-center ${border ? 'border-l border-line-faint' : ''}`}>
+      <div className="text-[11px] text-text-tertiary mb-1 truncate">{label}</div>
+      <div className="text-[17px] font-extrabold text-ink leading-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      {sub && <div className="text-[10.5px] text-text-secondary mt-0.5 truncate">{sub}</div>}
     </div>
   );
+}
+
+/** 금액 축약 (₩234만) */
+function fmtMoney(v: number): string {
+  if (v >= 10000) return `₩${Math.round(v / 10000).toLocaleString()}만`;
+  return `₩${v.toLocaleString()}`;
 }
 
 function EventCard({ event: e }: { event: EventRow }) {
