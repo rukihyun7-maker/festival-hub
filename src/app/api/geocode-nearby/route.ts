@@ -8,19 +8,22 @@ import { NextResponse } from 'next/server';
 
 const RADIUS = 1000;
 
+let lastStatus = 0; // 진단용: 마지막 카카오 응답 상태
+
 async function kakao(key: string, path: string, params: Record<string, string>) {
   const qs = new URLSearchParams(params).toString();
   const r = await fetch(`https://dapi.kakao.com/v2/local/search/${path}.json?${qs}`, {
     headers: { Authorization: 'KakaoAK ' + key },
     cache: 'no-store',
   });
+  lastStatus = r.status;
   if (!r.ok) return [] as any[];
   const j = await r.json();
   return (j.documents ?? []) as any[];
 }
 
 export async function POST(req: Request) {
-  const key = process.env.KAKAO_REST_KEY;
+  const key = process.env.KAKAO_REST_KEY?.trim();
   if (!key) return NextResponse.json({ error: 'KAKAO_REST_KEY 미설정' }, { status: 500 });
 
   let body: { address?: string; region?: string; name?: string };
@@ -38,7 +41,9 @@ export async function POST(req: Request) {
     const d = docs[0];
     if (d?.x && d?.y) { lat = parseFloat(d.y); lng = parseFloat(d.x); break; }
   }
-  if (lat == null || lng == null) return NextResponse.json({ lat: null, lng: null, summary: null });
+  if (lat == null || lng == null) {
+    return NextResponse.json({ lat: null, lng: null, summary: null, _diag: { keyLen: key.length, lastStatus } });
+  }
 
   // 2) 반경 1km 상권 요약
   const base = { x: String(lng), y: String(lat), radius: String(RADIUS), sort: 'distance', size: '15' };
