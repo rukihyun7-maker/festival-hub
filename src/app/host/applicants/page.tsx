@@ -286,7 +286,7 @@ function ApplicantCard({
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={m.image_url} alt={m.name} className="w-full h-20 object-cover" />
                         ) : (
-                          <div className="w-full h-20 flex items-center justify-center text-[11px] text-text-tertiary" style={{ background: 'var(--bg-muted-2,#F3EFE5)' }}>사진 없음</div>
+                          <div className="w-full h-20 flex items-center justify-center text-[11px] font-semibold text-danger" style={{ background: 'var(--bg-muted-2,#F3EFE5)' }}>✕ 사진 미첨부</div>
                         )}
                         <div className="p-2">
                           <div className="text-[12px] font-bold text-ink truncate">{m.signature ? '★ ' : ''}{m.name}</div>
@@ -329,13 +329,14 @@ function ApplicantCard({
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {docs.filter((d) => !d.kind.startsWith('booth_')).map((d) => {
-                      const ok = d.urgency === 'verified' || d.urgency === 'expiring';
-                      const pending = d.urgency === 'pending';
                       const path = d.doc?.file_url;
+                      const hasFile = !!path;
+                      const ok = hasFile && (d.urgency === 'verified' || d.urgency === 'expiring');
+                      const pending = hasFile && d.urgency === 'pending';
                       return (
                         <span key={d.kind} className={`inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-[7px] font-semibold ${ok ? 'badge-success' : pending ? 'badge-info' : 'badge-danger'}`}>
-                          {ok ? '✓ ' : pending ? '· ' : '✕ '}{d.label}
-                          {docDownload && path && (
+                          {!hasFile ? `✕ ${d.label} 미첨부` : `${ok ? '✓ ' : '· '}${d.label}`}
+                          {docDownload && hasFile && (
                             <button onClick={() => openDoc(path, `${d.label}.pdf`)} className="underline hover:opacity-70">다운로드</button>
                           )}
                         </span>

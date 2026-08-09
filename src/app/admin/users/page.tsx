@@ -345,7 +345,9 @@ function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: str
                       </div>
                       <div className="text-[11px] text-text-tertiary truncate">{s.doc?.file_name ?? '미제출'}</div>
                     </div>
-                    <DocStatusPill status={st} />
+                    {hasFile
+                      ? <DocStatusPill status={st} />
+                      : <span className="badge badge-danger shrink-0" style={{ fontSize: 10 }}>미첨부</span>}
                     {hasFile && (
                       <button onClick={() => openFile(s.doc?.file_url)} className="text-[11px] font-semibold text-info hover:underline shrink-0">열람</button>
                     )}
@@ -377,7 +379,7 @@ function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: str
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={m.image_url} alt={m.name} className="w-full h-20 object-cover" />
                     ) : (
-                      <div className="w-full h-20 bg-muted-2 flex items-center justify-center text-[11px] text-text-tertiary">사진 없음</div>
+                      <div className="w-full h-20 bg-muted-2 flex items-center justify-center text-[11px] font-semibold text-danger">✕ 사진 미첨부</div>
                     )}
                     <div className="p-2">
                       <div className="text-[12px] font-bold text-ink truncate">
@@ -494,7 +496,7 @@ function DocStatusPill({ status }: { status: string }) {
     pending: { label: '검토 대기', cls: 'badge-warning' },
     rejected: { label: '반려', cls: 'badge-danger' },
     expired: { label: '만료', cls: 'badge-danger' },
-    missing: { label: '미제출', cls: '' },
+    missing: { label: '미첨부', cls: 'badge-danger' },
   };
   const b = map[status] ?? map.missing;
   return <span className={`badge ${b.cls} shrink-0`} style={{ fontSize: 10 }}>{b.label}</span>;
