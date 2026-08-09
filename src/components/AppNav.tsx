@@ -189,8 +189,22 @@ export default function AppNav({ role = 'seller' as Role }) {
           </nav>
         </div>
 
-        {/* 우측 · 설정 + 알림 + 프로필 */}
+        {/* 우측 · 일정 + 설정 + 알림 + 프로필 */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* 일정 (캘린더) */}
+          {(effectiveRole === 'seller' || effectiveRole === 'host') && (
+            <Link
+              href="/calendar"
+              aria-label="일정"
+              title="일정"
+              className="w-10 h-10 rounded-[10px] hover:bg-surface-sunken flex items-center justify-center transition-colors text-text-secondary hover:text-ink"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2.5" />
+                <path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+            </Link>
+          )}
           {/* 설정 (톱니) */}
           <Link
             href="/settings"

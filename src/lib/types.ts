@@ -104,6 +104,17 @@ export interface EventRow {
   updated_at: string;
 }
 
+// v23: 개인(수기) 일정
+export interface PersonalEvent {
+  id: string;
+  user_id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  memo: string | null;
+  created_at: string;
+}
+
 // v14: 인근 행사(축제)
 export interface NearbyEvent {
   id: string;

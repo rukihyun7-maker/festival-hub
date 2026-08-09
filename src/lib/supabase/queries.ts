@@ -29,6 +29,7 @@ import type {
   LocalInfo,
   NearbyRow,
   NearbyEvent,
+  PersonalEvent,
   Favorite,
   FavoriteWithEvent,
   ApiSource,
@@ -1256,6 +1257,29 @@ export async function fetchNearby(eventId: string, radiusM = 1000): Promise<Near
   });
   if (error) throw error;
   return (data ?? []) as NearbyRow[];
+}
+
+/** 개인(수기) 일정 조회 (v23) */
+export async function fetchMyPersonalEvents(userId: string): Promise<PersonalEvent[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('personal_events').select('*').eq('user_id', userId).order('start_date');
+  if (error) return [];
+  return (data ?? []) as PersonalEvent[];
+}
+
+/** 개인 일정 추가 (v23) */
+export async function addPersonalEvent(input: { user_id: string; title: string; start_date: string; end_date: string; memo?: string | null }): Promise<PersonalEvent> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('personal_events').insert(input).select().single();
+  if (error) throw error;
+  return data as PersonalEvent;
+}
+
+/** 개인 일정 삭제 (v23) */
+export async function deletePersonalEvent(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('personal_events').delete().eq('id', id);
+  if (error) throw error;
 }
 
 /** 이벤트 인근(반경 내) 다른 승인 행사 — 인근 축제 표시용 (v14) */
