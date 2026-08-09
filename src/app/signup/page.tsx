@@ -52,48 +52,40 @@ export default function SignupPage() {
       setError('이용약관과 개인정보 수집·이용에 동의해 주세요. (필수)');
       return;
     }
-    if (role === 'seller' && !bizFile) {
-      setError('사업자등록증 파일을 첨부해 주세요. (가입 필수)');
-      return;
-    }
     if (bizFile) { const fe = fileError(bizFile); if (fe) { setError(fe); return; } }
     if (cardFile) { const fe = fileError(cardFile); if (fe) { setError(fe); return; } }
     setLoading(true);
     const supabase = createClient();
+    // 프로필 필드는 메타데이터로 전달 → 트리거가 반영 (이메일 인증 ON에서도 안전)
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name, role } },
+      options: {
+        data: {
+          name, role,
+          ...(role === 'seller' ? { business_no: bizNo } : { business_name: orgName, position, phone }),
+        },
+      },
     });
     if (error) {
       setLoading(false);
       setError(error.message);
       return;
     }
-    // 이메일 확인이 켜져 있으면 세션이 없음 → 안내 표시
+    // 이메일 확인이 켜져 있으면 세션이 없음 → 파일은 로그인 후 등록, 안내 표시
     if (!data.session) {
       setLoading(false);
       setNeedConfirm(true);
       return;
     }
+    // 세션 있음(이메일 확인 OFF) → 파일 즉시 업로드
     const uid = data.session.user.id;
-
-    // 주최: 명함 정보 저장 / 입점 파트너: 사업자등록증 업로드 + 사업자번호
     try {
-      if (role === 'host') {
-        let cardPath: string | null = null;
-        if (cardFile) {
-          try {
-            const safeC = cardFile.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
-            const cp = `${uid}/business_card/${Date.now()}_${safeC}`;
-            const { error: cErr } = await supabase.storage.from('documents').upload(cp, cardFile, { cacheControl: '3600', upsert: false });
-            if (!cErr) cardPath = cp;
-          } catch { /* 명함 이미지는 선택 · 실패해도 진행 */ }
-        }
-        await supabase
-          .from('profiles')
-          .update({ business_name: orgName, position, phone, ...(cardPath ? { business_card_url: cardPath } : {}) })
-          .eq('id', uid);
+      if (role === 'host' && cardFile) {
+        const safeC = cardFile.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
+        const cp = `${uid}/business_card/${Date.now()}_${safeC}`;
+        const { error: cErr } = await supabase.storage.from('documents').upload(cp, cardFile, { cacheControl: '3600', upsert: false });
+        if (!cErr) await supabase.from('profiles').update({ business_card_url: cp }).eq('id', uid);
       } else if (role === 'seller' && bizFile) {
         const safe = bizFile.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
         const path = `${uid}/business_reg/${Date.now()}_${safe}`;
@@ -103,11 +95,11 @@ export default function SignupPage() {
           { seller_id: uid, kind: 'business_reg', file_name: bizFile.name, file_url: path, status: 'pending' },
           { onConflict: 'seller_id,kind' }
         );
-        if (bizNo) await supabase.from('profiles').update({ business_no: bizNo }).eq('id', uid);
       }
-    } catch (err) {
+    } catch {
+      // 파일 업로드 실패해도 계정은 생성됨 → 서류 페이지에서 등록
       setLoading(false);
-      setError('사업자등록증 업로드에 실패했습니다: ' + (err as Error).message + ' · 로그인 후 [필수 서류]에서 다시 등록해 주세요.');
+      router.push('/seller/documents');
       return;
     }
 
@@ -121,9 +113,14 @@ export default function SignupPage() {
         <div className="card w-full max-w-[440px] text-center">
           <div className="text-[40px] mb-3">✓</div>
           <div className="t-section mb-2">가입 신청 완료</div>
-          <div className="t-sub mb-5">
+          <div className="t-sub mb-4">
             <b>{email}</b> 로 인증 메일을 보냈습니다. 메일의 링크를 눌러 인증을 마치면 로그인할 수 있어요.
           </div>
+          {role === 'seller' && (
+            <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input mb-5" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
+              로그인 후 <b>[필수 서류]</b>에서 <b>사업자등록증</b>과 나머지 서류를 등록하세요. 서류 완료 + 관리자 승인 후 행사 찾기·신청을 이용할 수 있습니다.
+            </div>
+          )}
           <Link href="/login" className="btn-primary inline-flex">로그인으로 이동</Link>
         </div>
       </main>
@@ -213,7 +210,7 @@ export default function SignupPage() {
             <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="6자 이상" />
           </label>
 
-          {/* 입점 파트너 사업자등록증 (가입 필수) */}
+          {/* 입점 파트너 사업자등록번호 + 사업자등록증(선택 첨부) */}
           {role === 'seller' && (
             <>
               <label className="flex flex-col gap-1.5">
@@ -221,11 +218,10 @@ export default function SignupPage() {
                 <input type="text" value={bizNo} onChange={(e) => setBizNo(e.target.value)} className="input" placeholder="000-00-00000" />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-ink-soft">사업자등록증 첨부 <span className="text-danger">*</span></span>
+                <span className="text-[12px] font-semibold text-ink-soft">사업자등록증 첨부 <span className="text-text-tertiary font-normal">(가입 시 또는 로그인 후 등록)</span></span>
                 <input
                   type="file"
                   accept="image/*,application/pdf"
-                  required
                   onChange={(e) => setBizFile(e.target.files?.[0] ?? null)}
                   className="text-[12px] file:mr-3 file:py-2 file:px-3 file:rounded-input file:border-0 file:bg-ink file:text-accent file:font-bold file:text-[12px] file:cursor-pointer"
                 />
@@ -236,7 +232,7 @@ export default function SignupPage() {
 
           {role === 'seller' ? (
             <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
-              사업자등록증만 첨부하면 <b>바로 가입</b>됩니다. 가입 후 <b>필수 서류를 모두 등록·관리자 승인</b>을 마치면 행사 찾기·신청을 이용할 수 있습니다.
+              가입 후 <b>필수 서류(사업자등록증 포함)를 모두 등록</b>하고 <b>관리자 승인</b>을 마치면 행사 찾기·신청을 이용할 수 있습니다. 이메일 인증이 켜진 경우 인증 후 로그인해 서류를 등록하세요.
             </div>
           ) : (
             <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
