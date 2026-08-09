@@ -64,21 +64,28 @@ function headSummary(cat: LocalInfoCategory, items: NearbyRow[]): string {
   return `${items.length}곳`;
 }
 
+const RADII = [1000, 3000, 5000] as const;
+
 export default function NearbyInfoCard({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<NearbyRow[] | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const [radius, setRadius] = useState<number>(1000);
   const [fests, setFests] = useState<NearbyEvent[]>([]);
 
+  // 인근 축제는 1회만
+  useEffect(() => {
+    let cancelled = false;
+    fetchNearbyEvents(eventId, 20000).then((ev) => { if (!cancelled) setFests(ev); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [eventId]);
+
+  // 시설은 반경 변경 시 재조회
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [r, ev] = await Promise.all([
-          fetchNearby(eventId, 1000),
-          fetchNearbyEvents(eventId, 20000),
-        ]);
-        if (!cancelled) { setRows(r); setFests(ev); }
+        const r = await fetchNearby(eventId, radius);
+        if (!cancelled) setRows(r);
       } catch {
         if (!cancelled) setRows([]);
       } finally {
@@ -86,7 +93,7 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [eventId]);
+  }, [eventId, radius]);
 
   if (loading) {
     return (
@@ -115,11 +122,32 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
 
   return (
     <div className="card" style={{ borderColor: 'var(--info-bar, #8FA6DE)' }}>
-      <div className="flex items-baseline justify-between mb-1">
-        <div className="t-section">{hasFacilities ? '반경 1km 주변 시설' : '주변 정보'}</div>
+      <div className="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
+        <div className="t-section">반경 {radius / 1000}km 주변 시설</div>
         <span className="text-[11px] text-text-tertiary">출처: 카카오맵</span>
       </div>
+      {/* 반경 토글 */}
+      <div className="inline-flex rounded-input overflow-hidden border border-line mb-3" style={{ background: 'var(--bg-muted, #F0ECE1)' }}>
+        {RADII.map((r) => (
+          <button
+            key={r}
+            onClick={() => setRadius(r)}
+            className="text-[12px] font-bold px-3 py-1.5 transition-colors"
+            style={radius === r
+              ? { background: 'var(--ink, #14120E)', color: '#fff' }
+              : { background: 'transparent', color: 'var(--text-secondary, #6F675A)' }}
+          >
+            {r / 1000}km
+          </button>
+        ))}
+      </div>
       <div className="t-sub mb-4">행사 자리의 주변 유동인구를 가늠하는 참고 지표입니다.</div>
+
+      {!hasFacilities && (
+        <div className="text-[12px] text-text-tertiary p-3 rounded-input mb-3" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+          이 반경에는 등록된 시설이 없습니다. 반경을 넓혀보세요.
+        </div>
+      )}
 
       {hasFacilities && (
       <div className="space-y-3">
