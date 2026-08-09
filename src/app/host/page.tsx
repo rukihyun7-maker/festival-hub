@@ -7,7 +7,6 @@ import {
   fetchApplicationsForEvent,
   fetchMyHostEvents,
   fetchMyProfile,
-  updateApplicationStatus,
 } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, daysUntil, wonCompact } from '@/lib/types';
 import type { ApplicationWithRelations, EventRow, Profile } from '@/lib/types';
@@ -24,9 +23,7 @@ export default function HostDashboardPage() {
   const [applications, setApplications] = useState<ApplicationWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingApps, setLoadingApps] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [error, setError] = useState<string | null>(null);
-  const [actionOn, setActionOn] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -71,9 +68,9 @@ export default function HostDashboardPage() {
     [events, selectedEventId]
   );
 
-  const filtered = applications.filter((a) => statusFilter === 'all' || a.status === statusFilter);
   const pendingCount = applications.filter((a) => a.status === 'pending').length;
   const approvedCount = applications.filter((a) => a.status === 'approved').length;
+  const rejectedCount = applications.filter((a) => a.status === 'rejected').length;
 
   const days = selectedEvent
     ? Math.max(1, Math.ceil((new Date(selectedEvent.end_date).getTime() - new Date(selectedEvent.start_date).getTime()) / 86400000) + 1)
@@ -81,19 +78,6 @@ export default function HostDashboardPage() {
   const dday = selectedEvent ? daysUntil(selectedEvent.start_date) : null;
   const expectedRevenue = selectedEvent ? selectedEvent.fee * days * approvedCount : 0;
   const platformFee = Math.round(expectedRevenue * 0.05);
-
-  async function handleUpdate(appId: string, status: 'approved' | 'rejected') {
-    if (!profile) return;
-    setActionOn(appId);
-    try {
-      await updateApplicationStatus(appId, status, profile.id);
-      setApplications((prev) => prev.map((a) => (a.id === appId ? { ...a, status } : a)));
-    } catch (e) {
-      alert('상태 변경 실패: ' + (e as Error).message);
-    } finally {
-      setActionOn(null);
-    }
-  }
 
   if (loading) {
     return (
@@ -192,50 +176,62 @@ export default function HostDashboardPage() {
           </div>
         </div>
 
-        {/* 신청자 관리 */}
+        {/* 신청 파트너 요약 → 심사는 신청자 관리에서 */}
         <div className="mb-8">
           <div className="flex items-end justify-between mb-4">
             <div>
               <div className="t-section">신청 파트너</div>
-              <div className="t-sub mt-1">전체 {applications.length}건 · 대기 {pendingCount}건</div>
+              <div className="t-sub mt-1">이 행사 신청 {applications.length}건 · 심사는 신청자 관리에서</div>
             </div>
-            <div className="flex gap-1.5 flex-wrap">
-              <StatusChip active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>전체</StatusChip>
-              <StatusChip active={statusFilter === 'pending'} onClick={() => setStatusFilter('pending')}>대기</StatusChip>
-              <StatusChip active={statusFilter === 'approved'} onClick={() => setStatusFilter('approved')}>승인</StatusChip>
-              <StatusChip active={statusFilter === 'rejected'} onClick={() => setStatusFilter('rejected')}>거절</StatusChip>
-            </div>
+            <Link href="/host/applicants" className="btn-primary text-[13px] shrink-0">신청자 관리 →</Link>
           </div>
 
+          {/* 상태별 수 */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <StatTile label="승인 대기" n={pendingCount} tone="warning" />
+            <StatTile label="승인" n={approvedCount} tone="success" />
+            <StatTile label="거절" n={rejectedCount} tone="danger" />
+          </div>
+
+          {/* 읽기 전용 목록 (심사·정보열람은 신청자 관리 페이지) */}
           <div className="card p-0 overflow-hidden">
             {loadingApps ? (
               <div className="p-8">
                 <div className="animate-pulse space-y-3">
                   <div className="h-4 bg-muted rounded w-1/2" />
                   <div className="h-4 bg-muted rounded w-3/4" />
-                  <div className="h-4 bg-muted rounded w-2/3" />
                 </div>
               </div>
-            ) : filtered.length === 0 ? (
+            ) : applications.length === 0 ? (
               <div className="p-12 text-center">
-                <div className="text-[14px] font-semibold text-ink mb-1">
-                  {applications.length === 0 ? '아직 신청이 없습니다' : '해당 상태의 신청자가 없습니다'}
-                </div>
-                <div className="t-sub">
-                  {applications.length === 0 ? '공고를 공유하거나 마감일을 늘려보세요' : '필터를 조정해보세요'}
-                </div>
+                <div className="text-[14px] font-semibold text-ink mb-1">아직 신청이 없습니다</div>
+                <div className="t-sub">공고를 공유하거나 마감일을 늘려보세요</div>
               </div>
             ) : (
-              filtered.map((a, i) => (
-                <ApplicantRow
-                  key={a.id}
-                  application={a}
-                  isLast={i === filtered.length - 1}
-                  actionInProgress={actionOn === a.id}
-                  onApprove={() => handleUpdate(a.id, 'approved')}
-                  onReject={() => handleUpdate(a.id, 'rejected')}
-                />
-              ))
+              applications.map((a, i) => {
+                const seller = a.seller;
+                const name = seller?.business_name || seller?.name || '(익명 파트너)';
+                return (
+                  <Link
+                    key={a.id}
+                    href="/host/applicants"
+                    className={`flex items-center justify-between gap-3 p-4 ${i !== applications.length - 1 ? 'border-b border-line-faint' : ''} hover:bg-surface-sunken transition-colors`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[14px] font-bold text-ink truncate">{name}</span>
+                        {a.status === 'approved' && <span className="badge badge-success">승인</span>}
+                        {a.status === 'rejected' && <span className="badge badge-danger">거절</span>}
+                        {a.status === 'pending' && <span className="badge badge-warning">대기</span>}
+                      </div>
+                      <div className="text-[11px] text-text-tertiary mt-0.5 truncate">
+                        {seller?.category ?? '업종 미기재'}{seller?.region ? ` · ${seller.region}` : ''} · 신청 {new Date(a.applied_at).toLocaleDateString('ko-KR')}
+                      </div>
+                    </div>
+                    <span className="text-[12px] font-bold text-info shrink-0">세부정보 →</span>
+                  </Link>
+                );
+              })
             )}
           </div>
         </div>
@@ -317,56 +313,12 @@ function ApprovedQrList({ applications }: { applications: ApplicationWithRelatio
   );
 }
 
-function ApplicantRow({
-  application: a, isLast, actionInProgress, onApprove, onReject,
-}: {
-  application: ApplicationWithRelations;
-  isLast: boolean;
-  actionInProgress: boolean;
-  onApprove: () => void;
-  onReject: () => void;
-}) {
-  const seller = a.seller;
-  const name = seller?.business_name || seller?.name || '(익명 파트너)';
+function StatTile({ label, n, tone }: { label: string; n: number; tone: 'warning' | 'success' | 'danger' }) {
+  const color = tone === 'success' ? 'var(--success,#1D6B2A)' : tone === 'danger' ? 'var(--danger,#9B2C22)' : 'var(--warning,#7A5B00)';
   return (
-    <div className={`grid gap-4 items-center p-5 ${!isLast ? 'border-b border-line-faint' : ''} hover:bg-surface-sunken transition-colors`} style={{ gridTemplateColumns: 'minmax(220px, 2fr) auto' }}>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="t-card text-[15px] truncate">{name}</span>
-          {a.status === 'approved' && <span className="badge badge-success">승인</span>}
-          {a.status === 'rejected' && <span className="badge badge-danger">거절</span>}
-          {a.status === 'pending' && <span className="badge badge-warning">대기</span>}
-        </div>
-        {seller?.category && <div className="text-[12px] text-text-secondary mb-1.5 truncate">{seller.category}{seller.region && ` · ${seller.region}`}</div>}
-        <div className="flex items-center gap-3 text-[11px] text-text-tertiary flex-wrap">
-          <span>신청 {new Date(a.applied_at).toLocaleDateString('ko-KR')}</span>
-          {seller?.phone && <><span className="text-line">|</span><span>{seller.phone}</span></>}
-          {a.memo && <><span className="text-line">|</span><span className="italic">{a.memo}</span></>}
-        </div>
-      </div>
-
-      <div className="flex gap-2 shrink-0">
-        {a.status === 'pending' ? (
-          <>
-            <button
-              disabled={actionInProgress}
-              onClick={onReject}
-              className="btn-secondary text-[13px] py-2 px-3 disabled:opacity-50"
-            >
-              {actionInProgress ? '…' : '거절'}
-            </button>
-            <button
-              disabled={actionInProgress}
-              onClick={onApprove}
-              className="btn-primary text-[13px] py-2 px-3 disabled:opacity-50"
-            >
-              {actionInProgress ? '처리 중…' : '승인'}
-            </button>
-          </>
-        ) : (
-          <button className="btn-secondary text-[13px] py-2 px-3">상세</button>
-        )}
-      </div>
+    <div className="rounded-input p-3 text-center" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+      <div className="text-[22px] font-extrabold leading-none" style={{ color, fontVariantNumeric: 'tabular-nums' }}>{n}</div>
+      <div className="text-[11px] text-text-secondary mt-1">{label}</div>
     </div>
   );
 }
@@ -381,10 +333,3 @@ function HostMetric({ label, value, sub, warn }: { label: string; value: string;
   );
 }
 
-function StatusChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} className={`chip ${active ? 'selected' : ''}`}>
-      {children}
-    </button>
-  );
-}
