@@ -75,18 +75,20 @@ export default function LoginPage() {
           <div>
             <div className="text-[13px] font-semibold tracking-[0.06em] text-accent uppercase mb-6">Festival Hub</div>
             <h1 className="font-extrabold text-white leading-[1.24] tracking-[-0.035em]" style={{ fontSize: 'clamp(28px, 4.2vw, 44px)' }}>
-              배달앱이 닿지 않는<br />
-              야외 결제의 <span className="text-accent">첫 표준</span>
+              좋은 행사 자리와<br />
+              검증된 파트너를 <span className="text-accent">잇다</span>
             </h1>
-            <p className="mt-6 text-[15px] leading-[1.65] text-white/70 max-w-[380px]">
-              푸드트럭·음식부스 사업자에게 행사 자리를 찾아주고, 행사 주최에게 검증된 파트너를 연결합니다.
+            <p className="mt-6 text-[15px] leading-[1.65] text-white/70 max-w-[400px]">
+              푸드트럭·음식부스에게는 <b className="text-white/90">상권·예상 수익</b>까지 보이는 자리를,
+              행사 주최에게는 <b className="text-white/90">서류·이력이 검증된 파트너</b>를.
+              한 곳에서 빠르고 안전하게 연결합니다.
             </p>
           </div>
 
           <div className="grid grid-cols-3 gap-4 my-10">
-            <Stat label="야외 QR 점유율" value="49.9%" />
-            <Stat label="주최 재계약률" value="50%" />
-            <Stat label="필수 서류 검증" value="5종" />
+            <Stat label="입점 파트너" value="수익 자리" />
+            <Stat label="행사 주최" value="검증 파트너" />
+            <Stat label="신청·확인" value="간편·안전" />
           </div>
 
           <div className="overflow-hidden -mx-2">

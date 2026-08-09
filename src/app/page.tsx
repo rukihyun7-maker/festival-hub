@@ -32,11 +32,11 @@ export default function Home() {
         </h1>
         <p
           className="text-text-secondary leading-[1.65] mx-auto mb-9"
-          style={{ fontSize: 'clamp(15px, 2.2vw, 18px)', maxWidth: '520px' }}
+          style={{ fontSize: 'clamp(15px, 2.2vw, 18px)', maxWidth: '560px' }}
         >
-          푸드트럭·음식부스 사업자에게 행사 자리를 찾아주고,
-          행사 주최에게는 서류로 검증된 파트너를 연결합니다.
-          도입비 0원, 필요할 때만 씁니다.
+          푸드트럭·음식부스에게는 <b className="text-ink">상권·예상 수익</b>까지 보이는 행사 자리를,
+          행사 주최에게는 <b className="text-ink">서류·이력이 검증된 파트너</b>를 연결합니다.
+          도입비 0원, 필요할 때만.
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
           <Link href="/signup" className="btn-primary">무료로 시작하기</Link>
