@@ -342,6 +342,7 @@ export interface PlatformSettings {
   required_docs_count?: number;     // 승인 필수 서류 수
   platform_fee_pct?: number;        // 플랫폼 기본 수수료(%)
   default_settlement?: string | null; // 기본 정산 주기 안내
+  host_doc_download?: boolean;      // v19: 주최사 신청자 서류 다운로드 허용
   updated_at: string;
 }
 

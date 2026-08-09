@@ -436,10 +436,12 @@ export async function removeDocumentFile(path: string): Promise<void> {
   if (error) throw error;
 }
 
-/** 서명된 URL 발급 (1시간 유효) · 파일 열람용 */
-export async function getSignedDocumentUrl(path: string, expiresInSec = 3600): Promise<string> {
+/** 서명된 URL 발급 (1시간 유효) · 파일 열람/다운로드용
+ *  download=true 또는 파일명 문자열이면 강제 다운로드 */
+export async function getSignedDocumentUrl(path: string, expiresInSec = 3600, download?: boolean | string): Promise<string> {
   const supabase = createClient();
-  const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, expiresInSec);
+  const opts = download ? { download } : undefined;
+  const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, expiresInSec, opts);
   if (error) throw error;
   return data.signedUrl;
 }

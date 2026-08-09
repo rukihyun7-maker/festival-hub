@@ -147,6 +147,12 @@ export default function AdminSettingsPage() {
             on={s.seller_auto_approve ?? false}
             onChange={(v) => patch({ seller_auto_approve: v })}
           />
+          <Toggle
+            label="주최사 신청자 서류 다운로드 허용"
+            desc="켜면 주최사가 자기 행사 신청자의 제출 서류(사업자등록증 등)를 다운로드할 수 있습니다 (부스 사진은 항상 허용)"
+            on={s.host_doc_download ?? false}
+            onChange={(v) => patch({ host_doc_download: v })}
+          />
           <div className="pt-3">
             <div className="text-[13px] font-semibold text-ink mb-1">승인 필수 서류 수</div>
             <div className="text-[12px] text-text-tertiary mb-2">이 수 이상 서류가 확인돼야 승인을 권장합니다.</div>

@@ -13,6 +13,7 @@ import {
   fetchMyMenus,
   fetchMyDocumentSlots,
   getSignedDocumentUrl,
+  fetchPlatformSettings,
 } from '@/lib/supabase/queries';
 import type {
   Profile, EventRow, ApplicationWithRelations, ApplicationStatus,
@@ -45,6 +46,7 @@ export default function HostApplicantsPage() {
   const [eventFilter, setEventFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('pending');
   const [actionOn, setActionOn] = useState<string | null>(null);
+  const [docDownload, setDocDownload] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -52,9 +54,13 @@ export default function HostApplicantsPage() {
         const p = await fetchMyProfile();
         setProfile(p);
         if (p) {
-          const evs = await fetchMyHostEvents(p.id);
+          const [evs, settings] = await Promise.all([fetchMyHostEvents(p.id), fetchPlatformSettings().catch(() => null)]);
           setEvents(evs);
-          const lists = await Promise.all(evs.map((e) => fetchApplicationsForEvent(e.id)));
+          setDocDownload(settings?.host_doc_download ?? false);
+          // 신청에 행사 정보 연결 (어떤 행사에 신청했는지 표시)
+          const lists = await Promise.all(
+            evs.map(async (e) => (await fetchApplicationsForEvent(e.id)).map((a) => ({ ...a, event: e })))
+          );
           setApps(lists.flat());
         }
       } finally {
@@ -62,6 +68,12 @@ export default function HostApplicantsPage() {
       }
     })();
   }, []);
+
+  const statusCounts = useMemo(() => ({
+    pending: apps.filter((a) => a.status === 'pending').length,
+    approved: apps.filter((a) => a.status === 'approved').length,
+    rejected: apps.filter((a) => a.status === 'rejected').length,
+  }), [apps]);
 
   const filtered = useMemo(
     () =>
@@ -72,8 +84,6 @@ export default function HostApplicantsPage() {
       ),
     [apps, eventFilter, statusFilter]
   );
-  const pendingTotal = apps.filter((a) => a.status === 'pending').length;
-
   async function act(appId: string, status: 'approved' | 'rejected') {
     if (!profile) return;
     setActionOn(appId);
@@ -120,18 +130,28 @@ export default function HostApplicantsPage() {
     <main className="min-h-screen bg-page">
       <AppNav role="host" />
       <div className="container-app py-8 max-w-[860px]">
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="t-section text-[20px]">신청자 관리</div>
-          <div className="t-sub mt-1">대기 중 {pendingTotal}건 · 전체 {apps.length}건</div>
+          <div className="t-sub mt-1">전체 {apps.length}건 · 신청자 카드에서 [세부정보]로 매장·메뉴·부스사진·서류를 확인한 뒤 승인하세요.</div>
+        </div>
+
+        {/* 상태별 요약 */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <CountTile label="승인 대기" n={statusCounts.pending} tone="warning" />
+          <CountTile label="승인" n={statusCounts.approved} tone="success" />
+          <CountTile label="반려" n={statusCounts.rejected} tone="danger" />
         </div>
 
         {/* 필터 */}
         <div className="flex flex-wrap gap-2 mb-3">
-          {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => (
-            <button key={s} onClick={() => setStatusFilter(s)} className={`chip ${statusFilter === s ? 'selected' : ''}`}>
-              {s === 'all' ? '전체' : STATUS_META[s].label}
-            </button>
-          ))}
+          {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => {
+            const cnt = s === 'all' ? apps.length : statusCounts[s];
+            return (
+              <button key={s} onClick={() => setStatusFilter(s)} className={`chip ${statusFilter === s ? 'selected' : ''}`}>
+                {s === 'all' ? '전체' : STATUS_META[s].label} {cnt}
+              </button>
+            );
+          })}
         </div>
         {events.length > 1 && (
           <select value={eventFilter} onChange={(e) => setEventFilter(e.target.value)} className="input mb-5 max-w-[360px]">
@@ -150,7 +170,7 @@ export default function HostApplicantsPage() {
         ) : (
           <div className="space-y-3">
             {filtered.map((a) => (
-              <ApplicantCard key={a.id} app={a} actionOn={actionOn} onAct={act} />
+              <ApplicantCard key={a.id} app={a} actionOn={actionOn} onAct={act} docDownload={docDownload} />
             ))}
           </div>
         )}
@@ -160,11 +180,12 @@ export default function HostApplicantsPage() {
 }
 
 function ApplicantCard({
-  app: a, actionOn, onAct,
+  app: a, actionOn, onAct, docDownload,
 }: {
   app: ApplicationWithRelations;
   actionOn: string | null;
   onAct: (id: string, status: 'approved' | 'rejected') => void;
+  docDownload: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -178,10 +199,10 @@ function ApplicantCard({
   const meta = STATUS_META[a.status];
   const name = seller?.business_name || seller?.name || '(익명 파트너)';
 
-  async function openDoc(path: string | null | undefined) {
+  async function openDoc(path: string | null | undefined, download?: string) {
     if (!path) return;
-    try { window.open(await getSignedDocumentUrl(path), '_blank', 'noopener'); }
-    catch (e) { alert('사진을 열 수 없습니다: ' + (e as Error).message); }
+    try { window.open(await getSignedDocumentUrl(path, 3600, download), '_blank', 'noopener'); }
+    catch (e) { alert('파일을 열 수 없습니다: ' + (e as Error).message + ' (아직 업로드되지 않았을 수 있습니다)'); }
   }
 
   async function toggle() {
@@ -277,21 +298,19 @@ function ApplicantCard({
                 )}
               </div>
 
-              {/* 부스·트럭 사진 (외부·내부·재료보관) */}
+              {/* 부스·트럭 사진 (외부·내부·재료보관) — 열람/다운로드 */}
               <div>
                 <div className="text-[12px] font-bold text-ink-soft mb-2">부스·트럭 사진</div>
                 <div className="flex flex-wrap gap-1.5">
                   {BOOTH_KINDS.map(({ kind, label }) => {
                     const slot = docs.find((d) => d.kind === kind);
-                    const has = !!slot?.doc?.file_url;
-                    return has ? (
-                      <button
-                        key={kind}
-                        onClick={() => openDoc(slot?.doc?.file_url)}
-                        className="text-[12px] px-2.5 py-1.5 rounded-input font-semibold badge-success hover:opacity-80"
-                      >
-                        📷 {label} 열람
-                      </button>
+                    const path = slot?.doc?.file_url;
+                    return path ? (
+                      <span key={kind} className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-input badge-success">
+                        📷 {label}
+                        <button onClick={() => openDoc(path)} className="font-bold underline hover:opacity-70">열람</button>
+                        <button onClick={() => openDoc(path, `${label}.jpg`)} className="font-bold underline hover:opacity-70">다운로드</button>
+                      </span>
                     ) : (
                       <span key={kind} className="text-[12px] px-2.5 py-1.5 rounded-input font-semibold badge-danger">✕ {label} 미제출</span>
                     );
@@ -299,10 +318,11 @@ function ApplicantCard({
                 </div>
               </div>
 
-              {/* 제출 서류 상태 (열람은 관리자 검증 영역) */}
+              {/* 제출 서류 */}
               <div>
                 <div className="text-[12px] font-bold text-ink-soft mb-2">
                   제출 서류 {docs.length > 0 && `${docs.filter((d) => d.urgency === 'verified' || d.urgency === 'expiring').length}/${docs.length}`}
+                  {!docDownload && <span className="ml-1 font-normal text-text-tertiary">· 상태만 (관리자 검증)</span>}
                 </div>
                 {docs.length === 0 ? (
                   <div className="text-[12px] text-text-tertiary">서류 정보를 불러올 수 없습니다.</div>
@@ -311,12 +331,13 @@ function ApplicantCard({
                     {docs.filter((d) => !d.kind.startsWith('booth_')).map((d) => {
                       const ok = d.urgency === 'verified' || d.urgency === 'expiring';
                       const pending = d.urgency === 'pending';
+                      const path = d.doc?.file_url;
                       return (
-                        <span
-                          key={d.kind}
-                          className={`text-[12px] px-2 py-1 rounded-[7px] font-semibold ${ok ? 'badge-success' : pending ? 'badge-info' : 'badge-danger'}`}
-                        >
+                        <span key={d.kind} className={`inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-[7px] font-semibold ${ok ? 'badge-success' : pending ? 'badge-info' : 'badge-danger'}`}>
                           {ok ? '✓ ' : pending ? '· ' : '✕ '}{d.label}
+                          {docDownload && path && (
+                            <button onClick={() => openDoc(path, `${d.label}.pdf`)} className="underline hover:opacity-70">다운로드</button>
+                          )}
                         </span>
                       );
                     })}
@@ -361,6 +382,16 @@ function ApplicantCard({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function CountTile({ label, n, tone }: { label: string; n: number; tone: 'warning' | 'success' | 'danger' }) {
+  const color = tone === 'success' ? 'var(--success,#1D6B2A)' : tone === 'danger' ? 'var(--danger,#9B2C22)' : 'var(--warning,#7A5B00)';
+  return (
+    <div className="card py-3 text-center">
+      <div className="text-[22px] font-extrabold" style={{ color, fontVariantNumeric: 'tabular-nums' }}>{n}</div>
+      <div className="text-[12px] text-text-secondary mt-0.5">{label}</div>
     </div>
   );
 }

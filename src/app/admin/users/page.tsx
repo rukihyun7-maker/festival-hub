@@ -302,10 +302,10 @@ function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: str
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [seller.id]);
 
-  async function openFile(path: string | null | undefined) {
+  async function openFile(path: string | null | undefined, download?: string) {
     if (!path) { alert('업로드된 파일이 없습니다.'); return; }
-    try { window.open(await getSignedDocumentUrl(path), '_blank', 'noopener'); }
-    catch (e) { alert('열람 실패: ' + (e as Error).message); }
+    try { window.open(await getSignedDocumentUrl(path, 3600, download), '_blank', 'noopener'); }
+    catch (e) { alert('실패: ' + (e as Error).message + ' (아직 업로드되지 않았을 수 있습니다)'); }
   }
   async function review(docId: string | undefined, status: 'verified' | 'rejected') {
     if (!docId) return;
@@ -348,6 +348,9 @@ function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: str
                     <DocStatusPill status={st} />
                     {hasFile && (
                       <button onClick={() => openFile(s.doc?.file_url)} className="text-[11px] font-semibold text-info hover:underline shrink-0">열람</button>
+                    )}
+                    {hasFile && (
+                      <button onClick={() => openFile(s.doc?.file_url, `${s.label}.file`)} className="text-[11px] font-semibold text-text-secondary hover:underline shrink-0">다운로드</button>
                     )}
                     {hasFile && st !== 'verified' && (
                       <button disabled={busy === s.doc?.id} onClick={() => review(s.doc?.id, 'verified')} className="text-[11px] font-bold text-success shrink-0 hover:underline">승인</button>
