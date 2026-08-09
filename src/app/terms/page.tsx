@@ -16,7 +16,7 @@ export default function TermsPage() {
 
         <div className="card mb-6" style={{ borderColor: '#E0DACB', background: 'var(--warning-bg, #FFF3C4)' }}>
           <div className="text-[12px] text-ink leading-relaxed">
-            본 약관은 <b>표준 초안</b>입니다. 실제 서비스 개시 전 <b>법률 전문가 검토</b> 및 <b>사업자 정보(운영자·사업자등록번호·주소·연락처)</b> 확정이 필요합니다.
+            본 약관은 표준 양식을 기반으로 작성되었으며, 서비스 운영 과정에서 <b>법률 전문가 검토</b>를 통해 보완될 수 있습니다.
           </div>
         </div>
 
@@ -66,9 +66,10 @@ export default function TermsPage() {
             ① 본 약관은 대한민국 법령에 따라 규율·해석됩니다.<br />
             ② 서비스 이용과 관련한 분쟁에 대해서는 관계 법령 및 상관례에 따르며, 소송이 필요한 경우 민사소송법상 관할 법원을 제1심 관할로 합니다.
           </Section>
-          <Section n="부칙 · 사업자 정보 (실제 값으로 교체 필요)">
-            운영자: [운영자명] · 사업자등록번호: [000-00-00000] · 주소: [사업장 주소]<br />
-            문의: [support@festivalhub.co.kr] · 본 약관 시행일: 2026-08-09
+          <Section n="부칙 · 사업자 정보">
+            상호: 리윤하우스 (대표: 윤소연) · 사업자등록번호: 275-17-02275<br />
+            주소: 인천광역시 연수구 센트럴로 313, 비동 25층<br />
+            문의: leeyhome@naver.com · 본 약관 시행일: 2026-08-09
           </Section>
         </div>
 

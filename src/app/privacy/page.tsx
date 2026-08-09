@@ -16,7 +16,7 @@ export default function PrivacyPage() {
 
         <div className="card mb-6" style={{ borderColor: '#E0DACB', background: 'var(--warning-bg, #FFF3C4)' }}>
           <div className="text-[12px] text-ink leading-relaxed">
-            본 방침은 <b>표준 초안</b>입니다. 실제 서비스 개시 전 <b>법률 전문가 검토</b>가 필요하며, 위탁·국외이전·보유기간·개인정보 보호책임자 정보를 실제 운영에 맞게 확정해야 합니다.
+            본 방침은 표준 양식을 기반으로 작성되었으며, 서비스 운영 과정에서 <b>법률 전문가 검토</b>를 통해 보완될 수 있습니다.
           </div>
         </div>
 
@@ -63,8 +63,8 @@ export default function PrivacyPage() {
           <Section n="8. 개인정보의 안전성 확보 조치">
             비밀번호 암호화, 접근 권한 관리(RLS), 전송 구간 암호화(HTTPS), 서류·이미지 접근 제한(권한 기반 열람) 등 기술적·관리적 보호 조치를 시행합니다.
           </Section>
-          <Section n="9. 개인정보 보호책임자 (실제 값으로 교체 필요)">
-            성명: [담당자명] · 연락처: [support@festivalhub.co.kr]<br />
+          <Section n="9. 개인정보 보호책임자">
+            상호: 리윤하우스 · 성명: 윤소연 · 연락처: leeyhome@naver.com<br />
             개인정보 관련 문의·불만·피해 구제는 위 연락처로 접수하며, 개인정보분쟁조정위원회(kopico.go.kr) 등에 조정을 신청할 수 있습니다.
           </Section>
           <Section n="10. 고지의 의무">
