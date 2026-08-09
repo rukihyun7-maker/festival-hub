@@ -40,6 +40,10 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setLoading(false);
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('not confirmed') || (error as { code?: string }).code === 'email_not_confirmed') {
+        return setError('이메일 인증이 완료되지 않았습니다. 받은 인증 메일의 링크를 먼저 눌러 인증을 마쳐주세요.');
+      }
       return setError('이메일 또는 비밀번호가 일치하지 않습니다.');
     }
     // 로그인 성공 후 실제 프로필 role 조회해서 알맞은 진입점으로

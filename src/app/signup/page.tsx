@@ -80,6 +80,20 @@ export default function SignupPage() {
     if (cardFile) { const fe = fileError(cardFile); if (fe) { setError(fe); return; } }
     setLoading(true);
     const supabase = createClient();
+
+    // 입점 파트너: 사업자번호 정규화(숫자만) + 중복 가입 차단
+    const bizDigits = role === 'seller' ? bizNo.replace(/\D/g, '') : '';
+    if (role === 'seller' && bizDigits) {
+      try {
+        const { data: taken } = await supabase.rpc('business_no_taken', { p: bizDigits });
+        if (taken) {
+          setLoading(false);
+          setError('이미 등록된 사업자등록번호입니다. 한 사업자번호로는 하나의 계정만 가입할 수 있습니다.');
+          return;
+        }
+      } catch { /* 함수 미배포 시 통과 */ }
+    }
+
     // 프로필 필드는 메타데이터로 전달 → 트리거가 반영 (이메일 인증 ON에서도 안전)
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -87,7 +101,7 @@ export default function SignupPage() {
       options: {
         data: {
           name, role,
-          ...(role === 'seller' ? { business_no: bizNo } : { business_name: orgName, position, phone }),
+          ...(role === 'seller' ? { business_no: bizDigits } : { business_name: orgName, position, phone }),
         },
       },
     });
