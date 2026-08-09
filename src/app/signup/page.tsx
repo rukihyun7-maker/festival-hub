@@ -16,6 +16,14 @@ const ROLES = [
   { id: 'host', mark: '주', label: '행사 주최', desc: '축제·팝업·플리마켓 운영' },
 ] as const;
 
+const MAX_UPLOAD_MB = 10;
+/** 업로드 파일 검증 (용량·형식) · null이면 통과 */
+function fileError(f: File): string | null {
+  if (f.size > MAX_UPLOAD_MB * 1024 * 1024) return `파일이 너무 큽니다 (최대 ${MAX_UPLOAD_MB}MB)`;
+  if (!/^image\//.test(f.type) && f.type !== 'application/pdf') return '이미지 또는 PDF 파일만 업로드할 수 있습니다';
+  return null;
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -30,6 +38,9 @@ export default function SignupPage() {
   // 입점 파트너 사업자등록증
   const [bizNo, setBizNo] = useState('');
   const [bizFile, setBizFile] = useState<File | null>(null);
+  // 약관 동의
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [needConfirm, setNeedConfirm] = useState(false);
@@ -37,10 +48,16 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (!agreeTerms || !agreePrivacy) {
+      setError('이용약관과 개인정보 수집·이용에 동의해 주세요. (필수)');
+      return;
+    }
     if (role === 'seller' && !bizFile) {
       setError('사업자등록증 파일을 첨부해 주세요. (가입 필수)');
       return;
     }
+    if (bizFile) { const fe = fileError(bizFile); if (fe) { setError(fe); return; } }
+    if (cardFile) { const fe = fileError(cardFile); if (fe) { setError(fe); return; } }
     setLoading(true);
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
@@ -227,11 +244,29 @@ export default function SignupPage() {
             </div>
           )}
 
+          {/* 약관 동의 (필수) */}
+          <div className="flex flex-col gap-2 p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5 accent-[#14120E]" />
+              <span className="text-[12px] text-text-secondary leading-relaxed">
+                <span className="font-bold text-ink">[필수]</span>{' '}
+                <Link href="/terms" target="_blank" className="text-info font-semibold underline">이용약관</Link>에 동의합니다
+              </span>
+            </label>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} className="mt-0.5 accent-[#14120E]" />
+              <span className="text-[12px] text-text-secondary leading-relaxed">
+                <span className="font-bold text-ink">[필수]</span>{' '}
+                <Link href="/privacy" target="_blank" className="text-info font-semibold underline">개인정보 수집·이용</Link>에 동의합니다
+              </span>
+            </label>
+          </div>
+
           {error && (
             <div className="text-[12px] p-3 rounded-input badge-danger" style={{ display: 'block' }}>{error}</div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full">
+          <button type="submit" disabled={loading || !agreeTerms || !agreePrivacy} className="btn-primary w-full">
             {loading ? '가입 중…' : '무료로 시작하기'}
           </button>
         </form>

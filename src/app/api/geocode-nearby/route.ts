@@ -1,12 +1,27 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 /**
  * 행사 주소 → 좌표 + 반경 1km 상권 요약 (서버 · 카카오 로컬)
  * 키는 서버 env(KAKAO_REST_KEY)에만 보관 → 클라이언트 비노출.
+ * 보호: 로그인 사용자만 · 사용자당 레이트리밋(외부 남용/쿼터 소진 방지)
  * POST { address, region, name } → { lat, lng, summary: {apartment, university, transit, commercial} }
  */
 
 const RADIUS = 1000;
+
+// 사용자당 레이트리밋 (best-effort · 서버리스 인스턴스 단위)
+const RL_WINDOW_MS = 60_000;
+const RL_MAX = 20;
+const hits = new Map<string, number[]>();
+function rateLimited(userId: string): boolean {
+  const now = Date.now();
+  const arr = (hits.get(userId) ?? []).filter((t) => now - t < RL_WINDOW_MS);
+  if (arr.length >= RL_MAX) { hits.set(userId, arr); return true; }
+  arr.push(now);
+  hits.set(userId, arr);
+  return false;
+}
 
 async function kakao(key: string, path: string, params: Record<string, string>) {
   const qs = new URLSearchParams(params).toString();
@@ -20,6 +35,12 @@ async function kakao(key: string, path: string, params: Record<string, string>) 
 }
 
 export async function POST(req: Request) {
+  // 로그인 사용자만 (익명 남용 차단)
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 });
+  if (rateLimited(user.id)) return NextResponse.json({ error: '요청이 너무 잦습니다. 잠시 후 다시 시도하세요.' }, { status: 429 });
+
   const key = process.env.KAKAO_REST_KEY?.trim();
   if (!key) return NextResponse.json({ error: 'KAKAO_REST_KEY 미설정' }, { status: 500 });
 
