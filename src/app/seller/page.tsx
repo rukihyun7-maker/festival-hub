@@ -854,7 +854,7 @@ function fromProfile(p: Profile | null): StoreFields {
 const STORE_SHAREABLE: { key: string; label: string; field: keyof StoreFields; placeholder: string }[] = [
   { key: 'biz_no', label: '사업자등록번호', field: 'business_no', placeholder: '214-05-88931' },
   { key: 'phone', label: '연락처', field: 'phone', placeholder: '010-0000-0000' },
-  { key: 'affiliation', label: '소속', field: 'affiliation', placeholder: '예: 서울푸드트럭협동조합' },
+  { key: 'affiliation', label: '소속', field: 'affiliation', placeholder: '예: 전국음식사업자협회' },
   { key: 'vehicle', label: '차량·부스 규격', field: 'vehicle', placeholder: '예: 3.5t 개조 푸드트럭 · 5.2×2.1m' },
   { key: 'power', label: '전기 사용량', field: 'power', placeholder: '예: 3kW · 자체 발전기 보유' },
   { key: 'cooking', label: '조리 설비', field: 'cooking', placeholder: '예: 가스 2구 + 전기 튀김기 1대' },
