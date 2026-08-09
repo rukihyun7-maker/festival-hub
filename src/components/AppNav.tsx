@@ -24,6 +24,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/seller/applications': '내 신청',
   '/seller/simulator': '손익 시뮬레이터',
   '/seller/documents': '서류 관리',
+  '/calendar': '일정',
   '/settings': '설정',
   '/host': '홈',
   '/host/events': '내 행사',
@@ -106,6 +107,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/host', label: '대시보드' },
         { href: '/host/events', label: '내 행사' },
         { href: '/host/applicants', label: '신청자 관리' },
+        { href: '/calendar', label: '일정' },
         { href: '/host/ratings', label: '평가' },
         { href: '/host/settlement', label: '정산' },
       ]
@@ -125,6 +127,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/events', label: '행사 찾기' },
         { href: '/seller/favorites', label: '찜' },
         { href: '/seller/applications', label: '내 신청' },
+        { href: '/calendar', label: '일정' },
         { href: '/seller', label: '내 참여' },
         { href: '/seller/simulator', label: '손익 시뮬' },
       ];

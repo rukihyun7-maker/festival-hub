@@ -211,7 +211,13 @@ export default function AdminUsersPage() {
                       {(() => {
                         const st = p.status ?? '정상';
                         if (st === '가입 심사') return (
-                          <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상', '서류·판매메뉴를 확인하셨나요? 승인하면 파트너가 행사 찾기·신청을 이용할 수 있습니다.')} className="btn-primary text-[12px] py-1.5 px-3">가입 승인</button>
+                          <>
+                            <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '반려', '가입을 반려하시겠어요? 반려된 파트너는 서비스를 이용할 수 없습니다. (재심사 가능)')} className="text-[12px] text-danger hover:underline font-semibold px-1">반려</button>
+                            <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상', '서류·판매메뉴를 확인하셨나요? 승인하면 파트너가 행사 찾기·신청을 이용할 수 있습니다.')} className="btn-primary text-[12px] py-1.5 px-3">가입 승인</button>
+                          </>
+                        );
+                        if (st === '반려') return (
+                          <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '가입 심사', '재심사 대기 상태로 되돌리시겠어요?')} className="btn-secondary text-[12px] py-1.5 px-3">재심사</button>
                         );
                         if (st === '정지') return (
                           <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상', '정지를 해제하시겠어요?')} className="btn-secondary text-[12px] py-1.5 px-3">정지 해제</button>
@@ -271,6 +277,7 @@ function SellerStatusBadge({ status }: { status: SellerStatus }) {
     '정상': { cls: 'badge-success' },
     '가입 심사': { cls: 'badge-warning' },
     '정지': { cls: 'badge-danger' },
+    '반려': { cls: 'badge-danger' },
   };
   return <span className={`badge ${map[status].cls}`}>{status}</span>;
 }

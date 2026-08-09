@@ -6,7 +6,7 @@
 export type Role = 'seller' | 'host' | 'admin';
 
 /** v8: 셀러 가입 심사 상태 */
-export type SellerStatus = '정상' | '가입 심사' | '정지';
+export type SellerStatus = '정상' | '가입 심사' | '정지' | '반려';
 /** v8: 행사 등록 요청 심사 상태 */
 export type ReviewStatus = 'pending' | 'approved' | 'rejected';
 

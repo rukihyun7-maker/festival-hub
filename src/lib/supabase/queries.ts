@@ -790,7 +790,7 @@ export async function fetchMyHostRequests(ownerId: string): Promise<EventRow[]> 
 }
 
 /** 셀러 가입 심사/정지 상태 변경 (관리자) */
-export async function updateProfileStatus(id: string, status: '정상' | '가입 심사' | '정지'): Promise<void> {
+export async function updateProfileStatus(id: string, status: '정상' | '가입 심사' | '정지' | '반려'): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from('profiles').update({ status }).eq('id', id);
   if (error) throw error;
