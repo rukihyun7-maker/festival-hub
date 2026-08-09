@@ -14,12 +14,6 @@ export default function TermsPage() {
         <h1 className="t-title mt-3 mb-1">이용약관</h1>
         <p className="t-sub mb-4">시행일: 2026-08-09</p>
 
-        <div className="card mb-6" style={{ borderColor: '#E0DACB', background: 'var(--warning-bg, #FFF3C4)' }}>
-          <div className="text-[12px] text-ink leading-relaxed">
-            본 약관은 표준 양식을 기반으로 작성되었으며, 서비스 운영 과정에서 <b>법률 전문가 검토</b>를 통해 보완될 수 있습니다.
-          </div>
-        </div>
-
         <div className="card space-y-5 text-[13.5px] leading-[1.75] text-text-secondary">
           <Section n="제1조 (목적)">
             본 약관은 Festival Hub(이하 &ldquo;서비스&rdquo;)가 제공하는 푸드트럭·음식부스 사업자(입점 파트너)와 행사 주최자 간 행사 매칭 및 관련 제반 서비스의 이용조건과 절차, 이용자와 서비스의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.

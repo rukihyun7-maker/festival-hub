@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -45,6 +45,30 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [needConfirm, setNeedConfirm] = useState(false);
 
+  // 약관/개인정보 열람 후 돌아와도 입력값 유지 (파일 제외)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('fh_signup');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.name) setName(d.name);
+      if (d.email) setEmail(d.email);
+      if (d.password) setPassword(d.password);
+      if (d.role) setRole(d.role);
+      if (d.bizNo) setBizNo(d.bizNo);
+      if (d.orgName) setOrgName(d.orgName);
+      if (d.position) setPosition(d.position);
+      if (d.phone) setPhone(d.phone);
+      if (d.agreeTerms) setAgreeTerms(true);
+      if (d.agreePrivacy) setAgreePrivacy(true);
+    } catch { /* noop */ }
+  }, []);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('fh_signup', JSON.stringify({ name, email, password, role, bizNo, orgName, position, phone, agreeTerms, agreePrivacy }));
+    } catch { /* noop */ }
+  }, [name, email, password, role, bizNo, orgName, position, phone, agreeTerms, agreePrivacy]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -78,6 +102,8 @@ export default function SignupPage() {
       setError('이미 가입된 이메일입니다. 로그인 화면을 이용해 주세요.');
       return;
     }
+    // 가입 성공 → 임시 저장 입력값 정리
+    try { sessionStorage.removeItem('fh_signup'); } catch { /* noop */ }
     // 이메일 확인이 켜져 있으면 세션이 없음 → 파일은 로그인 후 등록, 안내 표시
     if (!data.session) {
       setLoading(false);

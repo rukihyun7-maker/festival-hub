@@ -14,12 +14,6 @@ export default function PrivacyPage() {
         <h1 className="t-title mt-3 mb-1">개인정보 처리방침</h1>
         <p className="t-sub mb-4">시행일: 2026-08-09</p>
 
-        <div className="card mb-6" style={{ borderColor: '#E0DACB', background: 'var(--warning-bg, #FFF3C4)' }}>
-          <div className="text-[12px] text-ink leading-relaxed">
-            본 방침은 표준 양식을 기반으로 작성되었으며, 서비스 운영 과정에서 <b>법률 전문가 검토</b>를 통해 보완될 수 있습니다.
-          </div>
-        </div>
-
         <div className="card space-y-5 text-[13.5px] leading-[1.75] text-text-secondary">
           <p>Festival Hub(이하 &ldquo;서비스&rdquo;)는 「개인정보 보호법」 등 관계 법령을 준수하며, 이용자의 개인정보를 보호하기 위해 다음과 같이 개인정보 처리방침을 수립·공개합니다.</p>
 
