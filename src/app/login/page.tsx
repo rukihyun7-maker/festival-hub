@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { fetchMyProfile } from '@/lib/supabase/queries';
@@ -25,11 +26,8 @@ const DEMO_ACCOUNTS = [
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'seller' | 'host'>('seller');
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -39,28 +37,15 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     const supabase = createClient();
-
-    if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { name, role } },
-      });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
       setLoading(false);
-      if (error) return setError(error.message);
-      // 신규 가입자는 프로필 완성을 위해 설정 페이지로
-      router.push(`/settings?welcome=1&role=${role}`);
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setLoading(false);
-        return setError('이메일 또는 비밀번호가 일치하지 않습니다.');
-      }
-      // 로그인 성공 후 실제 프로필 role 조회해서 알맞은 진입점으로
-      const p = await fetchMyProfile();
-      setLoading(false);
-      router.push(destForRole(p?.role));
+      return setError('이메일 또는 비밀번호가 일치하지 않습니다.');
     }
+    // 로그인 성공 후 실제 프로필 role 조회해서 알맞은 진입점으로
+    const p = await fetchMyProfile();
+    setLoading(false);
+    router.push(destForRole(p?.role));
     router.refresh();
   }
 
@@ -127,37 +112,16 @@ export default function LoginPage() {
         <section className="flex items-center justify-center" style={{ padding: 'clamp(32px, 5vw, 64px)' }}>
           <div className="w-full max-w-[420px]">
             <div className="inline-flex bg-muted rounded-input p-1 mb-8">
-              <button
-                type="button"
-                onClick={() => setMode('login')}
-                className={`px-4 py-2 rounded-[8px] text-[14px] font-bold transition-colors ${mode === 'login' ? 'bg-surface text-ink' : 'text-text-secondary'}`}
-              >
-                로그인
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('signup')}
-                className={`px-4 py-2 rounded-[8px] text-[14px] font-bold transition-colors ${mode === 'signup' ? 'bg-surface text-ink' : 'text-text-secondary'}`}
-              >
+              <span className="px-4 py-2 rounded-[8px] text-[14px] font-bold bg-surface text-ink">로그인</span>
+              <Link href="/signup" className="px-4 py-2 rounded-[8px] text-[14px] font-bold text-text-secondary hover:text-ink transition-colors">
                 회원가입
-              </button>
+              </Link>
             </div>
 
-            <h2 className="t-title mb-2">
-              {mode === 'login' ? '다시 만나서 반갑습니다' : '30초 안에 시작하세요'}
-            </h2>
-            <p className="t-sub mb-8">
-              {mode === 'login' ? '계정 정보로 계속하세요' : '이메일 인증 후 바로 이용 가능합니다'}
-            </p>
+            <h2 className="t-title mb-2">다시 만나서 반갑습니다</h2>
+            <p className="t-sub mb-8">계정 정보로 계속하세요</p>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {mode === 'signup' && (
-                <label className="flex flex-col gap-2">
-                  <span className="text-[13px] font-semibold text-ink-soft">이름</span>
-                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="홍길동" />
-                </label>
-              )}
-
               <label className="flex flex-col gap-2">
                 <span className="text-[13px] font-semibold text-ink-soft">이메일</span>
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="you@example.com" />
@@ -165,18 +129,8 @@ export default function LoginPage() {
 
               <label className="flex flex-col gap-2">
                 <span className="text-[13px] font-semibold text-ink-soft">비밀번호</span>
-                <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder={mode === 'signup' ? '8자 이상' : '비밀번호'} />
+                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="비밀번호" />
               </label>
-
-              {mode === 'signup' && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-[13px] font-semibold text-ink-soft">역할</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <RoleButton selected={role === 'seller'} onClick={() => setRole('seller')} name="입점 파트너" desc="푸드트럭·음식부스" />
-                    <RoleButton selected={role === 'host'} onClick={() => setRole('host')} name="행사 주최" desc="축제·팝업" />
-                  </div>
-                </div>
-              )}
 
               {error && (
                 <div className="text-[13px] text-danger bg-danger-bg rounded-input px-3 py-2.5 border border-danger/20">
@@ -185,9 +139,14 @@ export default function LoginPage() {
               )}
 
               <button type="submit" disabled={loading} className="btn-primary mt-2 py-3.5 text-[15px]">
-                {loading ? '처리 중…' : mode === 'login' ? '로그인' : '계정 만들기'}
+                {loading ? '처리 중…' : '로그인'}
               </button>
             </form>
+
+            <p className="text-center text-[13px] text-text-secondary mt-5">
+              계정이 없으신가요?{' '}
+              <Link href="/signup" className="text-ink font-bold hover:underline">회원가입 →</Link>
+            </p>
 
             {/* 데모 계정 3개 원클릭 */}
             <div className="mt-8 pt-6 border-t border-line">
@@ -236,17 +195,3 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RoleButton({ selected, onClick, name, desc }: { selected: boolean; onClick: () => void; name: string; desc: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`p-3.5 rounded-input border-2 text-left transition-all ${
-        selected ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink'
-      }`}
-    >
-      <div className="text-[14px] font-bold">{name}</div>
-      <div className={`text-[11px] mt-0.5 ${selected ? 'text-white/60' : 'text-text-tertiary'}`}>{desc}</div>
-    </button>
-  );
-}
