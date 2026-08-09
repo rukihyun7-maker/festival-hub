@@ -101,7 +101,7 @@ export default function HostRatingsPage() {
       <AppNav role="host" />
       <div className="container-app py-8 max-w-[760px]">
         <div className="mb-6">
-          <div className="t-section text-[20px]">셀러 평가</div>
+          <div className="t-section text-[20px]">입점 파트너 평가</div>
           <div className="t-sub mt-1">종료된 행사에 참여한 승인 파트너를 평가합니다. 평가는 파트너 신뢰도에 반영됩니다.</div>
         </div>
 

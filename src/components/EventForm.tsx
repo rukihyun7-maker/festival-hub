@@ -183,7 +183,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             </Field>
           </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-            <Field label="정산 주기" hint="셀러에게 노출">
+            <Field label="정산 주기" hint="입점 파트너에게 노출">
               <input value={v.settlement_cycle} onChange={(e) => set('settlement_cycle', e.target.value)} className="input" placeholder="예: 행사 종료 후 3영업일" />
             </Field>
             <Field label="결제 방식" hint="QR 미적용 시 현금·카드 등">

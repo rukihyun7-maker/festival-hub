@@ -102,7 +102,7 @@ export default function AdminSettingsPage() {
       <div className="container-app py-8 max-w-[640px]">
         <div className="mb-6">
           <div className="t-section text-[20px]">플랫폼 설정</div>
-          <div className="t-sub mt-1">평점 정책과 공개 범위를 관리합니다. 셀러·주최 화면에 즉시 반영됩니다.</div>
+          <div className="t-sub mt-1">평점 정책과 공개 범위를 관리합니다. 파트너·주최 화면에 즉시 반영됩니다.</div>
         </div>
 
         <section className="card mb-4">

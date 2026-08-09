@@ -131,7 +131,7 @@ export default function HostEventsPage() {
                       </div>
                       <div className="text-[15px] font-extrabold text-ink truncate">{e.name}</div>
                       {e.review_status === 'pending' && (
-                        <div className="text-[12px] text-warning mt-1">관리자 승인 후 셀러에게 공개됩니다.</div>
+                        <div className="text-[12px] text-warning mt-1">관리자 승인 후 입점 파트너에게 공개됩니다.</div>
                       )}
                       {e.review_status === 'rejected' && e.admin_note && (
                         <div className="text-[12px] text-danger mt-1">반려 사유: {e.admin_note}</div>

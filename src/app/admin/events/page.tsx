@@ -139,7 +139,7 @@ export default function AdminEventsPage() {
         <div className="flex items-end justify-between mb-6">
           <div>
             <h1 className="t-title mb-1">행사 등록 심사</h1>
-            <p className="t-sub">주최사가 올린 등록 요청을 승인하면 셀러의 자리 찾기 목록에 노출됩니다.</p>
+            <p className="t-sub">주최사가 올린 등록 요청을 승인하면 입점 파트너의 행사 찾기 목록에 노출됩니다.</p>
           </div>
         </div>
 
@@ -153,7 +153,7 @@ export default function AdminEventsPage() {
             <div className="min-w-0">
               <div className="text-[12px] font-extrabold tracking-[0.04em] mb-1.5" style={{ color: 'var(--accent, #FFC800)' }}>관리자 직접 등록</div>
               <div className="text-[17px] font-extrabold" style={{ color: '#fff' }}>주최사 요청 없이 바로 등록</div>
-              <div className="text-[13px] mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>관리자가 올리면 승인 없이 즉시 셀러에게 공개됩니다.</div>
+              <div className="text-[13px] mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>관리자가 올리면 승인 없이 즉시 입점 파트너에게 공개됩니다.</div>
             </div>
             <span className="text-[22px] shrink-0 ml-3" style={{ color: 'var(--accent, #FFC800)' }}>+</span>
           </div>

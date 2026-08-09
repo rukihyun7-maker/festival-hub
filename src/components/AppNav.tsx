@@ -28,7 +28,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/host': '홈',
   '/host/events': '내 행사',
   '/host/applicants': '신청자 관리',
-  '/host/ratings': '셀러 평가',
+  '/host/ratings': '파트너 평가',
   '/host/settlement': '정산',
   '/host/create-event': '새 행사 등록',
 };

@@ -248,7 +248,7 @@ export default function AdminUsersPage() {
         <div className="mt-6 p-4 rounded-card bg-surface-sunken border border-line-faint">
           <div className="text-[12px] font-bold text-ink mb-1">참고</div>
           <div className="text-[11px] text-text-secondary leading-[1.6]">
-            셀러 상태: <b>가입 심사</b>는 신규 가입 대기(승인 시 활동 가능), <b>정지</b>는 신규 신청 차단. 계정 완전 삭제는 Supabase Auth Admin API(server-side)가 필요합니다.
+            파트너 상태: <b>가입 심사</b>는 신규 가입 대기(승인 시 활동 가능), <b>정지</b>는 신규 신청 차단. 계정 완전 삭제는 Supabase Auth Admin API(server-side)가 필요합니다.
           </div>
         </div>
       </div>
