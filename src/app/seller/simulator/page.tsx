@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
-import { fetchEvents, fetchMyProfile, saveSimulation } from '@/lib/supabase/queries';
+import { fetchEvents, fetchMyProfile, saveSimulation, fetchMyDocumentSlots, countVerified } from '@/lib/supabase/queries';
 import type { EventRow, Profile } from '@/lib/types';
 
 /**
@@ -22,6 +22,8 @@ export default function SimulatorPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [docReady, setDocReady] = useState(true); // 서류 80% 이상 → 등록 행사 선택 가능
+  const [docPct, setDocPct] = useState(100);
 
   const [days, setDays] = useState(3);
   const [avgOrder, setAvgOrder] = useState(7500);
@@ -41,6 +43,14 @@ export default function SimulatorPage() {
         const [p, e] = await Promise.all([fetchMyProfile(), fetchEvents()]);
         setProfile(p);
         setEvents(e);
+        // 입점 파트너: 필수 서류 80% 이상이어야 등록 행사 선택 가능
+        if (p?.role === 'seller') {
+          const slots = await fetchMyDocumentSlots(p.id);
+          const total = slots.length || 1;
+          const pct = Math.round((countVerified(slots) / total) * 100);
+          setDocPct(pct);
+          setDocReady(pct >= 80);
+        }
       } catch {
         // silent — 로그인 안 되어 있어도 시뮬은 사용 가능
       }
@@ -126,15 +136,21 @@ export default function SimulatorPage() {
               value={selectedEventId}
               onChange={(e) => applyEvent(e.target.value)}
               className="input"
+              disabled={!docReady}
             >
               <option value="">직접 입력</option>
-              {events.map((e) => (
+              {docReady && events.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name} · 일 {e.fee > 0 ? `${(e.fee / 10000).toFixed(0)}만원` : '무료'}{e.fee_rate > 0 ? ` + ${e.fee_rate}%` : ''}
                 </option>
               ))}
             </select>
-            {selectedEvent && (
+            {!docReady ? (
+              <div className="text-[12px] text-warning mt-1 leading-relaxed">
+                🔒 등록 행사 선택은 <b>필수 서류 80% 이상</b>부터 가능합니다 (현재 {docPct}%). 지금은 <b>직접 입력(임의 시뮬레이션)</b>만 가능합니다.{' '}
+                <Link href="/seller/documents" className="text-info font-semibold underline">서류 등록 →</Link>
+              </div>
+            ) : selectedEvent && (
               <div className="text-[12px] text-success mt-1">
                 ✓ 참가비 · 수수료 · 일수 자동 입력됨
               </div>

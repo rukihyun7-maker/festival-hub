@@ -72,6 +72,12 @@ export default function SignupPage() {
       setError(error.message);
       return;
     }
+    // 이미 가입된 이메일 (Supabase 보안상 identities가 빈 배열로 옴)
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      setLoading(false);
+      setError('이미 가입된 이메일입니다. 로그인 화면을 이용해 주세요.');
+      return;
+    }
     // 이메일 확인이 켜져 있으면 세션이 없음 → 파일은 로그인 후 등록, 안내 표시
     if (!data.session) {
       setLoading(false);

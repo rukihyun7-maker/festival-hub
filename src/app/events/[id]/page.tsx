@@ -53,6 +53,8 @@ export default function EventDetailPage() {
   const verifiedCount = countVerified(docSlots);
   const totalDocs = docSlots.length;
   const canApply = totalDocs > 0 && verifiedCount === totalDocs && !!profile && profile.role === 'seller';
+  // 서류 미완 입점 파트너 → 참가비·정산/시설/문의 블라인드 (승인 유도)
+  const blind = profile?.role === 'seller' && (profile.status ?? '정상') !== '정상';
 
   async function handleApply() {
     if (!event || !profile) return;
@@ -178,29 +180,42 @@ export default function EventDetailPage() {
 
             <div className="card">
               <div className="t-section mb-4">{t === 'apply' ? '참가비 · 정산' : '행사 정보'}</div>
-              <div className="grid gap-3">
-                <InfoRow label="일 참가비" value={event.fee > 0 ? `${event.fee.toLocaleString()}원` : '무료'} strong />
-                {t === 'apply' && <InfoRow label="매출 수수료" value={event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'} />}
-                {t === 'apply' && <InfoRow label="정산 주기" value={event.settlement_cycle || '주최 측 안내 예정'} />}
-                {t === 'apply' && <InfoRow label="결제 방식" value={event.payment_method || '주최 측 안내 예정'} />}
-                {t === 'info' && event.source && <InfoRow label="정보 출처" value={event.source} />}
-              </div>
+              {t === 'apply' && blind ? (
+                <LockedBox />
+              ) : (
+                <div className="grid gap-3">
+                  <InfoRow label="일 참가비" value={event.fee > 0 ? `${event.fee.toLocaleString()}원` : '무료'} strong />
+                  {t === 'apply' && <InfoRow label="매출 수수료" value={event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'} />}
+                  {t === 'apply' && <InfoRow label="정산 주기" value={event.settlement_cycle || '주최 측 안내 예정'} />}
+                  {t === 'apply' && <InfoRow label="결제 방식" value={event.payment_method || '주최 측 안내 예정'} />}
+                  {t === 'info' && event.source && <InfoRow label="정보 출처" value={event.source} />}
+                </div>
+              )}
             </div>
 
             <div className="card">
               <div className="t-section mb-4">시설 · 옵션</div>
-              <div className="flex flex-wrap gap-2">
-                {event.electric && <span className="badge badge-success">전기</span>}
-                {event.water && <span className="badge badge-success">상수도</span>}
-                {event.gas && <span className="badge badge-success">가스</span>}
-                {event.parking && <span className="badge badge-success">주차</span>}
-                {!event.electric && !event.water && !event.gas && !event.parking && (
-                  <span className="text-[13px] text-text-tertiary">제공 시설 정보 없음</span>
-                )}
-              </div>
+              {blind ? (
+                <LockedBox />
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {event.electric && <span className="badge badge-success">전기</span>}
+                  {event.water && <span className="badge badge-success">상수도</span>}
+                  {event.gas && <span className="badge badge-success">가스</span>}
+                  {event.parking && <span className="badge badge-success">주차</span>}
+                  {!event.electric && !event.water && !event.gas && !event.parking && (
+                    <span className="text-[13px] text-text-tertiary">제공 시설 정보 없음</span>
+                  )}
+                </div>
+              )}
             </div>
 
-            {(event.contact || event.phone) && (
+            {blind ? (
+              <div className="card">
+                <div className="t-section mb-4">문의</div>
+                <LockedBox />
+              </div>
+            ) : (event.contact || event.phone) && (
               <div className="card">
                 <div className="t-section mb-4">문의</div>
                 <div className="grid gap-3">
@@ -309,6 +324,19 @@ export default function EventDetailPage() {
         />
       )}
     </main>
+  );
+}
+
+function LockedBox() {
+  return (
+    <div className="rounded-input p-4 text-center" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+      <div className="text-[20px] mb-1">🔒</div>
+      <div className="text-[13px] font-bold text-ink mb-0.5">가입 승인 후 열람 가능</div>
+      <div className="text-[12px] text-text-secondary">
+        필수 서류 등록·관리자 승인을 마치면 이 정보를 볼 수 있습니다.{' '}
+        <Link href="/seller/documents" className="text-info font-semibold underline">서류 등록 →</Link>
+      </div>
+    </div>
   );
 }
 
