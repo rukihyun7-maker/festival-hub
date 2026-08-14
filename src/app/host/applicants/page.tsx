@@ -194,7 +194,6 @@ function ApplicantCard({
   const [rating, setRating] = useState<RatingSummary | null>(null);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [docs, setDocs] = useState<DocumentSlot[]>([]);
-  const [menuView, setMenuView] = useState<'grid' | 'list'>('grid');
 
   const seller = a.seller;
   const meta = STATUS_META[a.status];
@@ -274,82 +273,57 @@ function ApplicantCard({
                 {seller?.intro && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{seller.intro}</div>}
               </div>
 
-              {/* 판매 메뉴 (필수 확인) · 대표메뉴 별도 노출 + 그리드/리스트 토글 */}
+              {/* 판매 메뉴 · 대표메뉴=이미지 포함, 나머지=텍스트 */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[12px] font-bold text-ink-soft">판매 메뉴 <span className="text-text-tertiary">{menus.length}개</span></div>
-                  {menus.length > 0 && (
-                    <div className="flex items-center gap-1 text-[11px] font-semibold">
-                      <button onClick={() => setMenuView('grid')} className={menuView === 'grid' ? 'text-ink font-bold' : 'text-text-tertiary hover:text-ink'}>그리드</button>
-                      <span className="text-line-strong">·</span>
-                      <button onClick={() => setMenuView('list')} className={menuView === 'list' ? 'text-ink font-bold' : 'text-text-tertiary hover:text-ink'}>리스트</button>
-                    </div>
-                  )}
-                </div>
-
+                <div className="text-[12px] font-bold text-ink-soft mb-2">판매 메뉴 <span className="text-text-tertiary">{menus.length}개</span></div>
                 {menus.length === 0 ? (
                   <div className="text-[12px] text-text-tertiary p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>등록된 판매 메뉴가 없습니다.</div>
-                ) : (
-                  <>
-                    {/* 대표 메뉴 (입점 파트너가 지정한 대표메뉴) 별도 강조 */}
-                    {(() => {
-                      const sig = menus.filter((m) => m.signature);
-                      if (sig.length === 0) return null;
-                      return (
-                        <div className="mb-2.5 p-2.5 rounded-input" style={{ background: 'var(--warning-bg,#FFF9E6)', border: '1px solid #E7DCA8' }}>
+                ) : (() => {
+                  const sig = menus.filter((m) => m.signature);
+                  const rest = menus.filter((m) => !m.signature);
+                  return (
+                    <>
+                      {/* 대표 메뉴 — 이미지 포함 */}
+                      {sig.length > 0 && (
+                        <div className="mb-3">
                           <div className="text-[11px] font-extrabold text-ink mb-1.5">★ 대표 메뉴</div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}>
                             {sig.map((m) => (
-                              <span key={m.id} className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink bg-surface px-2 py-1 rounded-input border border-line-faint">
-                                {m.image_url && (
+                              <div key={m.id} className="rounded-input overflow-hidden border" style={{ borderColor: '#E7DCA8', background: 'var(--warning-bg,#FFF9E6)' }}>
+                                {m.image_url ? (
                                   // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={m.image_url} alt={m.name} className="w-6 h-6 rounded object-cover" />
+                                  <img src={m.image_url} alt={m.name} className="w-full h-24 object-cover" />
+                                ) : (
+                                  <div className="w-full h-24 flex items-center justify-center text-[11px] font-semibold text-danger" style={{ background: 'var(--bg-muted-2,#F3EFE5)' }}>✕ 사진 미첨부</div>
                                 )}
-                                {m.name} <span className="text-text-secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</span>
-                              </span>
+                                <div className="p-2">
+                                  <div className="text-[12px] font-bold text-ink truncate">★ {m.name}</div>
+                                  <div className="text-[11px] text-text-secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</div>
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </div>
-                      );
-                    })()}
+                      )}
 
-                    {/* 전체 메뉴 */}
-                    {menuView === 'grid' ? (
-                      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
-                        {menus.map((m) => (
-                          <div key={m.id} className="rounded-input overflow-hidden border border-line-faint" style={{ background: 'var(--bg-surface,#fff)' }}>
-                            {m.image_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={m.image_url} alt={m.name} className="w-full h-20 object-cover" />
-                            ) : (
-                              <div className="w-full h-20 flex items-center justify-center text-[11px] font-semibold text-danger" style={{ background: 'var(--bg-muted-2,#F3EFE5)' }}>✕ 사진 미첨부</div>
-                            )}
-                            <div className="p-2">
-                              <div className="text-[12px] font-bold text-ink truncate">{m.signature ? '★ ' : ''}{m.name}</div>
-                              <div className="text-[11px] text-text-secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</div>
-                            </div>
+                      {/* 그 외 메뉴 — 텍스트 */}
+                      {rest.length > 0 && (
+                        <div>
+                          {sig.length > 0 && <div className="text-[11px] font-bold text-text-tertiary mb-1.5">그 외 메뉴</div>}
+                          <div className="rounded-input border border-line-faint overflow-hidden" style={{ background: 'var(--bg-surface,#fff)' }}>
+                            {rest.map((m, i) => (
+                              <div key={m.id} className={`flex items-center gap-2.5 p-2 ${i !== 0 ? 'border-t border-line-faint' : ''}`}>
+                                <span className="text-[12.5px] font-bold text-ink flex-1 truncate">{m.name}</span>
+                                <span className="text-[11px] text-text-tertiary shrink-0">{m.category}</span>
+                                <span className="text-[12px] font-semibold text-ink shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="rounded-input border border-line-faint overflow-hidden" style={{ background: 'var(--bg-surface,#fff)' }}>
-                        {menus.map((m, i) => (
-                          <div key={m.id} className={`flex items-center gap-2.5 p-2 ${i !== 0 ? 'border-t border-line-faint' : ''}`}>
-                            {m.image_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={m.image_url} alt={m.name} className="w-9 h-9 rounded object-cover shrink-0" />
-                            ) : (
-                              <div className="w-9 h-9 rounded shrink-0 flex items-center justify-center text-[9px] font-bold text-danger" style={{ background: 'var(--bg-muted-2,#F3EFE5)' }}>✕</div>
-                            )}
-                            <span className="text-[12.5px] font-bold text-ink flex-1 truncate">{m.signature ? '★ ' : ''}{m.name}</span>
-                            <span className="text-[11px] text-text-tertiary shrink-0">{m.category}</span>
-                            <span className="text-[12px] font-semibold text-ink shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* 부스·트럭 사진 (외부·내부·재료보관) — 열람/다운로드 */}

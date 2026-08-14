@@ -723,14 +723,6 @@ function MenuCard({
     return (
       <div className="card p-3">
         <div className="flex items-center gap-3">
-          <div className="relative w-14 h-14 rounded-input overflow-hidden bg-muted-2 shrink-0 flex items-center justify-center">
-            {m.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={m.image_url} alt={m.name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-[22px]">{emoji}</span>
-            )}
-          </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               {m.signature && <span className="badge badge-warning shrink-0">★ 대표</span>}
