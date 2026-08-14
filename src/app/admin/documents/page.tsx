@@ -212,7 +212,7 @@ export default function AdminDocumentsPage() {
                 <div key={d.id} className={`card p-0 overflow-hidden ${urgency === 'rejected' || urgency === 'expired' ? 'border-danger/40' : ''}`}>
                   <div className="p-5">
                     <div className="grid gap-4 items-start" style={{ gridTemplateColumns: 'minmax(220px, 2fr) minmax(160px, 1fr) auto' }}>
-                      {/* 셀러 + 서류 정보 */}
+                      {/* 입점 파트너 + 서류 정보 */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <span className="text-[15px] font-extrabold text-ink truncate">

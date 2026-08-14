@@ -284,9 +284,9 @@ export default function AdminInsightsPage() {
           </div>
         </div>
 
-        {/* Top 셀러 · 최근 활동 */}
+        {/* Top 입점 파트너 · 최근 활동 */}
         <div className="grid gap-6 mt-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' }}>
-          {/* Top 셀러 */}
+          {/* Top 입점 파트너 */}
           <div className="card">
             <div className="flex items-end justify-between mb-4">
               <div className="t-section">Top 파트너 (누적 매출)</div>

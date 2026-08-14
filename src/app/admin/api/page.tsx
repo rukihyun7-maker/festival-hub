@@ -18,7 +18,7 @@ import type { Profile, ApiSource, CategoryRule } from '@/lib/types';
 /**
  * 축제 API·카테고리 (관리자 · 설계 16)
  * 공공 API 소스 연동 on/off·동기화 + 카테고리 운영(추가/노출/삭제)
- * 수집분은 정보형(kind='info') 행사로 셀러에게 노출됩니다.
+ * 수집분은 정보형(kind='info') 행사로 입점 파트너에게 노출됩니다.
  */
 export default function AdminApiPage() {
   const [profile, setProfile] = useState<Profile | null>(null);

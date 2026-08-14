@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import { fetchEvents, fetchMyProfile, fetchMyDocumentSlots, countVerified } from '@/lib/supabase/queries';
-import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, demandLevel, DOC_KINDS } from '@/lib/types';
+import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, demandLevel, requiredDocsVerified, REQUIRED_DOC_KINDS } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
 
 /**
@@ -46,21 +46,30 @@ export default function EventsListPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [gate, setGate] = useState<{ status: string; docsDone: number; docsTotal: number } | null>(null);
+  const [gate, setGate] = useState<{ role: string | null; status: string; docsDone: number; docsVerified: boolean } | null>(null);
   const [gateChecked, setGateChecked] = useState(false);
 
-  // 입점 파트너 활성화 게이트: 가입 심사 승인(정상) 전에는 행사찾기 잠금
+  // 신청형 열람 자격: 주최·관리자 OR (정상 계정 + 필수 서류 6종 검증 완료). 그 외는 정보형만.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const p: Profile | null = await fetchMyProfile();
-        if (!cancelled && p && p.role === 'seller' && (p.status ?? '정상') !== '정상') {
-          let done = 0;
-          try { done = countVerified(await fetchMyDocumentSlots(p.id)); } catch { /* noop */ }
-          if (!cancelled) setGate({ status: p.status ?? '정상', docsDone: done, docsTotal: DOC_KINDS.length });
+        if (cancelled) return;
+        if (!p) {
+          setGate({ role: null, status: '', docsDone: 0, docsVerified: false });
+        } else if (p.role === 'seller') {
+          let slots: Awaited<ReturnType<typeof fetchMyDocumentSlots>> = [];
+          try { slots = await fetchMyDocumentSlots(p.id); } catch { /* noop */ }
+          const done = REQUIRED_DOC_KINDS.filter((k) => {
+            const u = slots.find((s) => s.kind === k)?.urgency;
+            return u === 'verified' || u === 'expiring';
+          }).length;
+          if (!cancelled) setGate({ role: 'seller', status: p.status ?? '정상', docsDone: done, docsVerified: requiredDocsVerified(slots) });
+        } else {
+          setGate({ role: p.role, status: '정상', docsDone: 0, docsVerified: true }); // 주최·관리자
         }
-      } catch { /* 비로그인/오류 시 게이트 없음 */ }
+      } catch { /* 오류 시 게이트 없음 */ }
       finally { if (!cancelled) setGateChecked(true); }
     })();
     return () => { cancelled = true; };
@@ -86,8 +95,14 @@ export default function EventsListPage() {
     return () => { cancelled = true; };
   }, [q]);
 
+  // 자격 미충족(서류 미검증)·비로그인 → 정보형 행사만. 정지·반려는 완전 잠금(아래).
+  const qualified = !!gate && (gate.role === 'host' || gate.role === 'admin' || (gate.role === 'seller' && gate.status === '정상' && gate.docsVerified));
+  const suspended = gate?.role === 'seller' && (gate.status === '정지' || gate.status === '반려');
+  const restrictInfo = gateChecked && !!gate && !qualified && !suspended;
+
   const filtered = useMemo(() => {
     let list = events;
+    if (restrictInfo) list = list.filter((e) => eventType(e) === 'info');
     if (region !== '전체') list = list.filter((e) => e.region === region);
     if (type !== 'all') list = list.filter((e) => eventType(e) === type);
     if (sort === 'deadline') list = [...list].sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'));
@@ -95,43 +110,21 @@ export default function EventsListPage() {
     if (sort === 'fee') list = [...list].sort((a, b) => a.fee - b.fee);
     if (sort === 'recent') list = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
     return list;
-  }, [events, region, type, sort]);
+  }, [events, region, type, sort, restrictInfo]);
 
-  // 게이트 걸린 입점 파트너 → 잠금 화면
-  if (gateChecked && gate) {
-    const suspended = gate.status === '정지';
-    const rejected = gate.status === '반려';
+  // 정지·반려 계정만 완전 잠금. 그 외 미검증은 정보형 열람 허용(아래 배너)
+  if (gateChecked && suspended) {
+    const rejected = gate?.status === '반려';
     return (
       <main className="min-h-screen bg-page">
         <AppNav role="seller" />
         <div className="container-app py-8 md:py-12">
           <h1 className="t-title mb-6">행사 찾기</h1>
           <div className="card max-w-xl mx-auto text-center py-12">
-            <div className="w-14 h-14 rounded-pill bg-muted mx-auto mb-4 flex items-center justify-center text-[24px]">
-              {suspended || rejected ? '🚫' : '🔒'}
-            </div>
-            {suspended || rejected ? (
-              <>
-                <div className="text-[17px] font-extrabold text-ink mb-2">{rejected ? '가입이 반려되었습니다' : '이용이 정지된 계정입니다'}</div>
-                <p className="t-sub mb-6">행사 찾기·신청이 제한되었습니다. 문의가 필요하면 운영팀(leeyhome@naver.com)에 연락해 주세요.</p>
-              </>
-            ) : (
-              <>
-                <div className="text-[17px] font-extrabold text-ink mb-2">가입 심사 중입니다</div>
-                <p className="t-sub mb-1">필수 서류 등록을 마치면 관리자 승인 후 행사 찾기·신청을 이용할 수 있습니다.</p>
-                <p className="text-[13px] font-bold text-ink mb-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  서류 등록 {gate.docsDone}/{gate.docsTotal}
-                </p>
-                <div className="flex gap-2 justify-center">
-                  <Link href="/seller/documents" className="btn-primary">필수 서류 등록하기 →</Link>
-                  <Link href="/dashboard" className="btn-secondary">내 페이지</Link>
-                </div>
-              </>
-            )}
+            <div className="w-14 h-14 rounded-pill bg-muted mx-auto mb-4 flex items-center justify-center text-[24px]">🚫</div>
+            <div className="text-[17px] font-extrabold text-ink mb-2">{rejected ? '가입이 반려되었습니다' : '이용이 정지된 계정입니다'}</div>
+            <p className="t-sub mb-6">행사 찾기·신청이 제한되었습니다. 문의가 필요하면 운영팀(leeyhome@naver.com)에 연락해 주세요.</p>
           </div>
-          <p className="text-center text-[12px] text-text-tertiary mt-4">
-            검증된 파트너만 노출해 주최 신뢰도를 지킵니다.
-          </p>
         </div>
       </main>
     );
@@ -192,6 +185,18 @@ export default function EventsListPage() {
             </div>
           </div>
         </div>
+
+        {/* 자격 미충족 → 정보형만 열람 안내 */}
+        {restrictInfo && (
+          <div className="card mb-6" style={{ background: 'var(--warning-bg, #FFF9E6)', borderColor: '#E7DCA8' }}>
+            <div className="text-[13px] font-bold text-ink mb-1">🔒 정보형 행사만 열람 중</div>
+            <div className="text-[12px] text-text-secondary">
+              {gate?.role === 'seller'
+                ? <>필수 서류 6종을 관리자 검증까지 마치면 <b>신청형 행사</b> 상세와 신청이 열립니다. 서류 검증 {gate.docsDone}/{REQUIRED_DOC_KINDS.length} · <Link href="/seller/documents" className="text-info font-semibold underline">서류 등록 →</Link></>
+                : <>신청형 행사는 검증된 입점 파트너만 열람할 수 있습니다. <Link href="/signup" className="text-info font-semibold underline">입점 파트너 가입 →</Link></>}
+            </div>
+          </div>
+        )}
 
         {/* 에러 알림 */}
         {error && (

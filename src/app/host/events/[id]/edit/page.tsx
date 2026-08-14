@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import EventForm, { toFormValues, type EventFormValues } from '@/components/EventForm';
-import { deleteEvent, fetchEventById, fetchMyProfile, updateEvent } from '@/lib/supabase/queries';
+import { deleteEvent, fetchEventById, fetchEventContact, fetchMyProfile, updateEvent } from '@/lib/supabase/queries';
+import { compactSiteDetails } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
 
 /**
@@ -21,6 +22,7 @@ export default function EditEventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [contact, setContact] = useState<{ contact: string | null; phone: string | null } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -28,6 +30,7 @@ export default function EditEventPage() {
         const [p, e] = await Promise.all([fetchMyProfile(), fetchEventById(params.id)]);
         setMe(p);
         setEvent(e);
+        try { setContact(await fetchEventContact(params.id)); } catch { /* 권한 없음 → null */ }
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -64,6 +67,7 @@ export default function EditEventPage() {
         status: v.status,
         settlement_cycle: v.settlement_cycle.trim() || null,
         payment_method: v.payment_method.trim() || null,
+        site_details: compactSiteDetails(v.site),
       });
       router.push(`/events/${event.id}`);
     } catch (err) {
@@ -165,7 +169,7 @@ export default function EditEventPage() {
 
         <EventForm
           mode="edit"
-          initial={toFormValues(event)}
+          initial={{ ...toFormValues(event), contact: contact?.contact ?? '', phone: contact?.phone ?? '' }}
           submitting={submitting || deleting}
           error={error}
           cancelHref={`/events/${event.id}`}

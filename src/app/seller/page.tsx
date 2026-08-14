@@ -25,7 +25,7 @@ import { periodLabel } from '@/lib/types';
 import type { ApplicationWithRelations, Menu, Profile, SaleWithEvent, SellerHistory, RatingWithRelations, RatingSummary, ShareFlags } from '@/lib/types';
 
 /**
- * 셀러 마이페이지 · Supabase 연동
+ * 입점 파트너 마이페이지 · Supabase 연동
  * 3 탭: 참여 이력(applications+sales) · 매출 요약 · 메뉴 관리(CRUD)
  */
 
@@ -484,7 +484,7 @@ function SalesTab({ loading, sales }: { loading: boolean; sales: SaleWithEvent[]
     );
   }
 
-  // 월별 집계 (셀러가 직접 기록한 매출·비용 기반)
+  // 월별 집계 (입점 파트너가 직접 기록한 매출·비용 기반)
   const byMonth: Record<string, { revenue: number; cost: number; count: number }> = {};
   sales.forEach((s) => {
     const m = s.recorded_at.slice(0, 7); // YYYY-MM
@@ -812,10 +812,10 @@ function StoreTab({
       </div>
       <div className="t-sub mb-5">항목별로 신청서에 넣을지 직접 고르세요. 끈 항목은 주최에게 &lsquo;비공개&rsquo;로 표시됩니다.</div>
 
-      {/* 항상 공개 */}
-      <StoreField label="상호" value={f.business_name} onChange={(v) => set('business_name', v)} always placeholder="예: 민지네 분식차" />
-      <StoreField label="대표자" value={f.name} onChange={(v) => set('name', v)} always placeholder="예: 김민지" />
-      <StoreField label="활동 지역" value={f.region} onChange={(v) => set('region', v)} always placeholder="예: 서울 성동구" />
+      {/* 항상 공개 (필수) */}
+      <StoreField label="상호" value={f.business_name} onChange={(v) => set('business_name', v)} always required placeholder="예: 민지네 분식차" />
+      <StoreField label="대표자" value={f.name} onChange={(v) => set('name', v)} always required placeholder="예: 김민지" />
+      <StoreField label="활동 지역" value={f.region} onChange={(v) => set('region', v)} always required placeholder="예: 서울 성동구" />
 
       {/* 공개 토글 */}
       {STORE_SHAREABLE.map((s) => (
@@ -825,6 +825,7 @@ function StoreTab({
           placeholder={s.placeholder}
           value={f[s.field]}
           onChange={(v) => set(s.field, v)}
+          required={s.required}
           shareOn={share[s.key] !== false}
           onToggle={() => toggleShare(s.key)}
           textarea={s.field === 'intro'}
@@ -851,29 +852,36 @@ function fromProfile(p: Profile | null): StoreFields {
     hygiene_gear: p?.hygiene_gear ?? '', crew: p?.crew ?? '', sns: p?.sns ?? '', intro: p?.intro ?? '',
   };
 }
-const STORE_SHAREABLE: { key: string; label: string; field: keyof StoreFields; placeholder: string }[] = [
-  { key: 'biz_no', label: '사업자등록번호', field: 'business_no', placeholder: '214-05-88931' },
-  { key: 'phone', label: '연락처', field: 'phone', placeholder: '010-0000-0000' },
+const STORE_SHAREABLE: { key: string; label: string; field: keyof StoreFields; placeholder: string; required?: boolean }[] = [
+  { key: 'biz_no', label: '사업자등록번호', field: 'business_no', placeholder: '214-05-88931', required: true },
+  { key: 'phone', label: '연락처', field: 'phone', placeholder: '010-0000-0000', required: true },
   { key: 'affiliation', label: '소속', field: 'affiliation', placeholder: '예: 전국음식사업자협회' },
-  { key: 'vehicle', label: '차량·부스 규격', field: 'vehicle', placeholder: '예: 3.5t 개조 푸드트럭 · 5.2×2.1m' },
-  { key: 'power', label: '전기 사용량', field: 'power', placeholder: '예: 3kW · 자체 발전기 보유' },
-  { key: 'cooking', label: '조리 설비', field: 'cooking', placeholder: '예: 가스 2구 + 전기 튀김기 1대' },
-  { key: 'hygiene_gear', label: '위생 관리', field: 'hygiene_gear', placeholder: '예: 마스크·모자·장갑 상시 착용' },
+  { key: 'vehicle', label: '차량·부스 규격', field: 'vehicle', placeholder: '예: 3.5t 개조 푸드트럭 · 5.2×2.1m', required: true },
+  { key: 'power', label: '전기 사용량', field: 'power', placeholder: '예: 3kW · 자체 발전기 보유', required: true },
+  { key: 'cooking', label: '조리 설비', field: 'cooking', placeholder: '예: 가스 2구 + 전기 튀김기 1대', required: true },
+  { key: 'hygiene_gear', label: '위생 관리', field: 'hygiene_gear', placeholder: '예: 마스크·모자·장갑 상시 착용', required: true },
   { key: 'crew', label: '운영 인원', field: 'crew', placeholder: '예: 상시 2명 (주말 3명)' },
   { key: 'sns', label: 'SNS', field: 'sns', placeholder: '예: @minji_bunsik · 팔로워 8,400' },
   { key: 'intro', label: '매장 소개', field: 'intro', placeholder: '어떤 매장인지 짧게 소개해주세요' },
 ];
 
 function StoreField({
-  label, value, onChange, placeholder, always, shareOn, onToggle, textarea,
+  label, value, onChange, placeholder, always, shareOn, onToggle, textarea, required,
 }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
-  always?: boolean; shareOn?: boolean; onToggle?: () => void; textarea?: boolean;
+  always?: boolean; shareOn?: boolean; onToggle?: () => void; textarea?: boolean; required?: boolean;
 }) {
+  const missing = required && !value.trim();
   return (
     <div className="py-3 border-b border-line-faint last:border-0">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[12px] font-semibold text-ink-soft">{label}</span>
+        <span className="text-[12px] font-semibold text-ink-soft">
+          {label}
+          {required
+            ? <span className="text-danger ml-0.5">*</span>
+            : <span className="text-text-tertiary font-normal ml-1.5">· 선택</span>}
+          {missing && <span className="text-[11px] font-bold text-danger ml-2">미입력</span>}
+        </span>
         {always ? (
           <span className="badge">항상 공개</span>
         ) : (
@@ -887,9 +895,9 @@ function StoreField({
         )}
       </div>
       {textarea ? (
-        <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} className="input resize-none text-[14px]" placeholder={placeholder} />
+        <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} className="input resize-none text-[14px]" placeholder={placeholder} style={missing ? { borderColor: '#C7503E' } : undefined} />
       ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} className="input text-[14px]" placeholder={placeholder} />
+        <input value={value} onChange={(e) => onChange(e.target.value)} className="input text-[14px]" placeholder={placeholder} style={missing ? { borderColor: '#C7503E' } : undefined} />
       )}
     </div>
   );

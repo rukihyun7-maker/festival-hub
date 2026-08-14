@@ -8,7 +8,7 @@ import type { VerifyQrResult } from '@/lib/types';
 
 /**
  * 입점 승인 확인 · 공개 페이지 (/verify/[token])
- * 승인된 셀러 QR 스캔 시 이 페이지로 이동, verify_qr RPC로 입점 자격 확인.
+ * 승인된 입점 파트너 QR 스캔 시 이 페이지로 이동, verify_qr RPC로 입점 자격 확인.
  * 결제 아님 · 현장/주최사 확인용.
  */
 export default function VerifyPage() {

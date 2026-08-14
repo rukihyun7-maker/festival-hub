@@ -92,7 +92,7 @@ export default function AppNav({ role = 'seller' as Role }) {
 
   const effectiveRole: Role = profile?.role ?? role;
   const unread = notifs.filter((n) => !n.read).length;
-  // 셀러·주최는 앱형 → 모바일 하단 탭바, 관리자는 웹 → 상단 유지
+  // 입점 파트너·주최는 앱형 → 모바일 하단 탭바, 관리자는 웹 → 상단 유지
   const useBottomNav = effectiveRole === 'seller' || effectiveRole === 'host';
 
   // 하단 탭바가 있으면 본문 하단 여백 확보 (모바일)
@@ -284,7 +284,7 @@ export default function AppNav({ role = 'seller' as Role }) {
   );
 }
 
-// 모바일 하단 탭바 (셀러·주최 · 앱형)
+// 모바일 하단 탭바 (입점 파트너·주최 · 앱형)
 const BOTTOM_TABS: Record<'seller' | 'host', { href: string; label: string; icon: IconKey }[]> = {
   seller: [
     { href: '/dashboard', label: '홈', icon: 'home' },

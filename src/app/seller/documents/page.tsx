@@ -13,6 +13,7 @@ import {
   upsertDocument,
   uploadDocumentFile,
 } from '@/lib/supabase/queries';
+import { REQUIRED_DOC_KINDS } from '@/lib/types';
 import type { DocKind, DocumentSlot, Profile } from '@/lib/types';
 
 /**
@@ -248,6 +249,9 @@ function DocCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-[15px] font-extrabold text-ink truncate">{slot.label}</span>
+            {REQUIRED_DOC_KINDS.includes(slot.kind)
+              ? <span className="badge" style={{ background: 'var(--bg-muted,#F0ECE1)', color: 'var(--text-secondary,#6B6555)' }}>필수</span>
+              : <span className="badge" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)', color: 'var(--text-tertiary,#B5AC98)' }}>선택</span>}
             <span className={`badge ${badge.cls}`}>{badge.text}</span>
           </div>
           <div className="text-[12px] text-text-secondary truncate">{slot.desc}</div>

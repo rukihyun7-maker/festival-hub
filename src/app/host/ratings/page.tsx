@@ -15,7 +15,7 @@ import { periodLabel } from '@/lib/types';
 import type { Profile, EventRow, ApplicationWithRelations, Rating } from '@/lib/types';
 
 /**
- * 셀러 평가 (행사 주최 · 설계 11)
+ * 입점 파트너 평가 (행사 주최 · 설계 11)
  * 종료 행사의 승인 파트너에게 위생/시간 준수/고객 응대 5점 + 코멘트.
  * 관리자가 평가 기능을 끄면(platform_settings.host_rating=false) 잠금 배너.
  */

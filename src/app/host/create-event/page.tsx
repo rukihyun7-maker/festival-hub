@@ -6,6 +6,7 @@ import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import EventForm, { initialFormValues, type EventFormValues } from '@/components/EventForm';
 import { createEvent, fetchMyProfile, updateEvent } from '@/lib/supabase/queries';
+import { compactSiteDetails } from '@/lib/types';
 import type { Profile } from '@/lib/types';
 
 type NearbySummary = { apartment: number; university: number; transit: number; commercial: number };
@@ -62,6 +63,7 @@ export default function CreateEventPage() {
         status: v.status,
         settlement_cycle: v.settlement_cycle.trim() || null,
         payment_method: v.payment_method.trim() || null,
+        site_details: compactSiteDetails(v.site),
         review_status: me.role === 'admin' ? 'approved' : 'pending', // 주최=승인 대기 / 관리자=즉시 공개
       });
 

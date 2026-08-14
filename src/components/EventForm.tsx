@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { EventRow, Profile } from '@/lib/types';
+import type { EventRow, Profile, SiteDetails } from '@/lib/types';
 
 /**
  * 행사 등록/수정 공용 폼
@@ -35,6 +35,7 @@ export interface EventFormValues {
   status: 'open' | 'upcoming' | 'close' | 'canceled';
   settlement_cycle: string;
   payment_method: string;
+  site: SiteDetails; // v24: 푸드트럭 현장 인프라 상세 (선택)
 }
 
 export function toFormValues(row: EventRow): EventFormValues {
@@ -61,6 +62,7 @@ export function toFormValues(row: EventRow): EventFormValues {
     status: row.status,
     settlement_cycle: row.settlement_cycle ?? '',
     payment_method: row.payment_method ?? '',
+    site: row.site_details ?? {},
   };
 }
 
@@ -88,6 +90,7 @@ export function initialFormValues(profile: Profile | null): EventFormValues {
     status: 'open',
     settlement_cycle: '행사 종료 후 3영업일',
     payment_method: '현금 · 카드',
+    site: {},
   };
 }
 
@@ -105,6 +108,7 @@ interface EventFormProps {
 export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, onSubmit, onDelete }: EventFormProps) {
   const [v, setV] = useState<EventFormValues>(initial);
   const set = <K extends keyof EventFormValues>(key: K, val: EventFormValues[K]) => setV((prev) => ({ ...prev, [key]: val }));
+  const setSite = (key: keyof SiteDetails, val: string) => setV((prev) => ({ ...prev, site: { ...prev.site, [key]: val } }));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -201,7 +205,42 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </div>
         </Section>
 
-        <Section title="4. 담당자 정보">
+        <Section title="4. 푸드트럭 현장 상세">
+          <p className="text-[12px] text-text-tertiary -mt-1 mb-1">
+            선택 항목입니다. 입력하면 검증된 입점 파트너에게 표로 노출되어, 전화 문의 없이 입점 여부를 판단할 수 있습니다.
+          </p>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+            <Field label="부스당 전기 용량" hint="발전기 사용 시 필수">
+              <input value={v.site.power ?? ''} onChange={(e) => setSite('power', e.target.value)} className="input" placeholder="예: 부스당 3kW / 220V 15A" />
+            </Field>
+            <Field label="발전기 반입">
+              <SiteSelect value={v.site.generator} onChange={(val) => setSite('generator', val)} options={['가능', '불가', '문의']} />
+            </Field>
+            <Field label="급수">
+              <SiteSelect value={v.site.water} onChange={(val) => setSite('water', val)} options={['가능', '불가', '문의']} />
+            </Field>
+            <Field label="배수" hint="배수구 거리">
+              <input value={v.site.drainage ?? ''} onChange={(e) => setSite('drainage', e.target.value)} className="input" placeholder="예: 가능 · 배수구 10m" />
+            </Field>
+            <Field label="LPG · 화기">
+              <SiteSelect value={v.site.lpg} onChange={(val) => setSite('lpg', val)} options={['가능', '제한적', '불가']} />
+            </Field>
+            <Field label="차량 진입 제원" hint="길이·폭·높이">
+              <input value={v.site.vehicle ?? ''} onChange={(e) => setSite('vehicle', e.target.value)} className="input" placeholder="예: 길이 6m · 폭 2.2m · 높이 3.2m" />
+            </Field>
+            <Field label="부스 사양" hint="면적·지면">
+              <input value={v.site.booth ?? ''} onChange={(e) => setSite('booth', e.target.value)} className="input" placeholder="예: 3x3m · 아스팔트 · 천막 포함" />
+            </Field>
+            <Field label="판매 품목 제한">
+              <input value={v.site.items ?? ''} onChange={(e) => setSite('items', e.target.value)} className="input" placeholder="예: 주류 불가 · 중복업종 조정" />
+            </Field>
+          </div>
+          <Field label="우천/폭염 · 취소 정책">
+            <input value={v.site.weather ?? ''} onChange={(e) => setSite('weather', e.target.value)} className="input" placeholder="예: 우천 시 순연 · 취소 시 참가비 환불" />
+          </Field>
+        </Section>
+
+        <Section title="5. 담당자 정보">
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
             <Field label="담당자명">
               <input value={v.contact} onChange={(e) => set('contact', e.target.value)} className="input" placeholder="예: 김주무관" />
@@ -314,6 +353,15 @@ function Field({ label, required, hint, children }: { label: string; required?: 
       </span>
       {children}
     </label>
+  );
+}
+
+function SiteSelect({ value, onChange, options }: { value?: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="input">
+      <option value="">선택 안 함</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
   );
 }
 

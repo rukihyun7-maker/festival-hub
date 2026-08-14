@@ -130,15 +130,34 @@ export async function fetchSimilarEvents(name: string, region: string, excludeId
   return (data ?? []) as EventRow[];
 }
 
-/** 행사 생성 (호스트) · kind/source는 DB 기본값(apply/null) 허용 */
+/** 행사 생성 (호스트) · kind/source는 DB 기본값(apply/null) 허용
+ *  연락처(contact/phone)는 events가 아닌 event_contacts(RLS 보호)에 저장 (v27) */
 export async function createEvent(
   input: Omit<EventRow, 'id' | 'created_at' | 'updated_at' | 'kind' | 'source'> &
     Partial<Pick<EventRow, 'kind' | 'source'>>
 ): Promise<EventRow> {
   const supabase = createClient();
-  const { data, error } = await supabase.from('events').insert(input).select().single();
+  const { contact, phone, ...rest } = input;
+  const { data, error } = await supabase.from('events').insert(rest).select().single();
   if (error) throw error;
-  return data as EventRow;
+  if (contact || phone) {
+    await supabase.from('event_contacts').upsert({ event_id: data.id, contact: contact ?? null, phone: phone ?? null });
+  }
+  return { ...(data as EventRow), contact: contact ?? null, phone: phone ?? null };
+}
+
+/** 행사 연락처 조회 (event_contacts · RLS: 주최·관리자·승인 신청자만) */
+export async function fetchEventContact(eventId: string): Promise<{ contact: string | null; phone: string | null } | null> {
+  const supabase = createClient();
+  const { data } = await supabase.from('event_contacts').select('contact, phone').eq('event_id', eventId).maybeSingle();
+  return data ?? null;
+}
+
+/** 행사 연락처 저장 (주최·관리자) */
+export async function upsertEventContact(eventId: string, contact: string | null, phone: string | null): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('event_contacts').upsert({ event_id: eventId, contact, phone, updated_at: new Date().toISOString() });
+  if (error) throw error;
 }
 
 /** 호스트 소유 행사 */
@@ -157,7 +176,7 @@ export async function fetchMyHostEvents(ownerId: string): Promise<EventRow[]> {
 // Applications
 // ============================================
 
-/** 내 신청 목록 (셀러 마이페이지·홈) */
+/** 내 신청 목록 (입점 파트너 마이페이지·홈) */
 export async function fetchMyApplications(sellerId: string): Promise<ApplicationWithRelations[]> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -258,7 +277,7 @@ export async function updateMenu(
   return data as Menu;
 }
 
-/** 대표 메뉴는 셀러당 최대 2개 · 나머지 해제 후 지정 */
+/** 대표 메뉴는 입점 파트너당 최대 2개 · 나머지 해제 후 지정 */
 export async function setMenuSignature(sellerId: string, menuId: string, signature: boolean): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from('menus').update({ signature }).eq('id', menuId).eq('seller_id', sellerId);
@@ -349,7 +368,7 @@ export function profileCompleteness(profile: Profile | null): { pct: number; mis
 // Documents (v2)
 // ============================================
 
-/** 내 서류 5종 슬롯 (없으면 null) · 셀러 마이페이지·홈·상세용 공통 */
+/** 내 서류 5종 슬롯 (없으면 null) · 입점 파트너 마이페이지·홈·상세용 공통 */
 export async function fetchMyDocumentSlots(sellerId: string): Promise<DocumentSlot[]> {
   const supabase = createClient();
   const { data, error } = await supabase.from('documents').select('*').eq('seller_id', sellerId);
@@ -512,9 +531,14 @@ export async function reviewDocument(
 
 export async function updateEvent(id: string, patch: Partial<Omit<EventRow, 'id' | 'owner_id' | 'created_at' | 'updated_at'>>): Promise<EventRow> {
   const supabase = createClient();
-  const { data, error } = await supabase.from('events').update(patch).eq('id', id).select().single();
+  // 연락처는 event_contacts로 분리 저장 (v27) · events에는 쓰지 않음
+  const { contact, phone, ...rest } = patch;
+  const { data, error } = await supabase.from('events').update(rest).eq('id', id).select().single();
   if (error) throw error;
-  return data as EventRow;
+  if (contact !== undefined || phone !== undefined) {
+    await supabase.from('event_contacts').upsert({ event_id: id, contact: contact ?? null, phone: phone ?? null, updated_at: new Date().toISOString() });
+  }
+  return { ...(data as EventRow), contact: contact ?? null, phone: phone ?? null };
 }
 
 export async function saveSimulation(
@@ -743,7 +767,7 @@ export async function deleteEvent(id: string): Promise<void> {
 }
 
 // ============================================
-// v8 · 행사 등록 요청 승인 (관리자) / 셀러 가입 심사
+// v8 · 행사 등록 요청 승인 (관리자) / 입점 파트너 가입 심사
 // ============================================
 
 /** 승인 대기 중인 등록 요청 (주최사 제출분) */
@@ -790,7 +814,7 @@ export async function fetchMyHostRequests(ownerId: string): Promise<EventRow[]> 
   return (data ?? []) as EventRow[];
 }
 
-/** 셀러 가입 심사/정지 상태 변경 (관리자) */
+/** 입점 파트너 가입 심사/정지 상태 변경 (관리자) */
 export async function updateProfileStatus(id: string, status: '정상' | '가입 심사' | '정지' | '반려'): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from('profiles').update({ status }).eq('id', id);
@@ -943,10 +967,10 @@ export async function fetchRecentActivity(limit = 12): Promise<ActivityRow[]> {
 }
 
 // ============================================
-// v3 · Ratings (주최사 -> 셀러 평가)
+// v3 · Ratings (주최사 -> 입점 파트너 평가)
 // ============================================
 
-/** 셀러가 받은 평가 목록 (마이페이지 · 심사 열람) */
+/** 입점 파트너가 받은 평가 목록 (마이페이지 · 심사 열람) */
 export async function fetchSellerRatings(sellerId: string): Promise<RatingWithRelations[]> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -958,7 +982,7 @@ export async function fetchSellerRatings(sellerId: string): Promise<RatingWithRe
   return (data ?? []) as unknown as RatingWithRelations[];
 }
 
-/** 셀러 평점 요약 (뷰) · 노출 여부는 platform_settings.min_reviews와 함께 앱단 판단 */
+/** 입점 파트너 평점 요약 (뷰) · 노출 여부는 platform_settings.min_reviews와 함께 앱단 판단 */
 export async function fetchRatingSummary(sellerId: string): Promise<RatingSummary | null> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -1073,7 +1097,7 @@ export async function fetchHostSettlements(hostId: string): Promise<SettlementWi
   return (data ?? []) as unknown as SettlementWithRelations[];
 }
 
-/** 정산 레코드 생성 (셀러 매출 확인 후 지급 대상 등록) */
+/** 정산 레코드 생성 (입점 파트너 매출 확인 후 지급 대상 등록) */
 export async function createSettlement(input: {
   host_id: string;
   seller_id: string;
@@ -1141,10 +1165,10 @@ export async function updatePlatformSettings(
 }
 
 // ============================================
-// v4 · 셀러 수기 참여이력 (seller_history)
+// v4 · 입점 파트너 수기 참여이력 (seller_history)
 // ============================================
 
-/** 셀러 수기·외부 참여이력 목록 (본인 + 주최사/관리자 열람) */
+/** 입점 파트너 수기·외부 참여이력 목록 (본인 + 주최사/관리자 열람) */
 export async function fetchSellerHistory(sellerId: string): Promise<SellerHistory[]> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -1195,7 +1219,7 @@ export async function deleteSellerHistory(id: string): Promise<void> {
 // v4 · 매출 기록 (sales) · 참여이력 자동 반영
 // ============================================
 
-/** 행사 참여 후 매출/판매건수 기록 (셀러) */
+/** 행사 참여 후 매출/판매건수 기록 (입점 파트너) */
 export async function recordSale(input: {
   seller_id: string;
   event_id: string;
@@ -1311,7 +1335,7 @@ export async function upsertLocalInfo(
 // v3 · Ratings (관리자 · 전체 평가 로그)
 // ============================================
 
-/** 주최가 매긴 평가 목록 (셀러 평가 화면 · 중복 방지 표시) */
+/** 주최가 매긴 평가 목록 (입점 파트너 평가 화면 · 중복 방지 표시) */
 export async function fetchHostGivenRatings(hostId: string): Promise<Rating[]> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -1336,7 +1360,7 @@ export async function fetchAllRatings(): Promise<RatingWithRelations[]> {
 }
 
 // ============================================
-// v6 · Favorites (셀러 찜한 행사)
+// v6 · Favorites (입점 파트너 찜한 행사)
 // ============================================
 
 /** 내 찜 목록 (행사 정보 포함, D-day 정렬은 앱단) */

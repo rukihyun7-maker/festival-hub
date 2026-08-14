@@ -194,6 +194,7 @@ function ApplicantCard({
   const [rating, setRating] = useState<RatingSummary | null>(null);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [docs, setDocs] = useState<DocumentSlot[]>([]);
+  const [menuView, setMenuView] = useState<'grid' | 'list'>('grid');
 
   const seller = a.seller;
   const meta = STATUS_META[a.status];
@@ -255,8 +256,8 @@ function ApplicantCard({
                 <div className="text-[12px] font-bold text-ink-soft mb-2">입점 파트너 정보</div>
                 <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
                   <DetailRow label="대표자" value={seller?.name} />
-                  <DetailRow label="사업자번호" value={seller?.business_no} />
-                  <DetailRow label="연락처" value={seller?.phone} />
+                  <DetailRow label="사업자번호" value={a.status === 'approved' ? seller?.business_no : null} locked={a.status !== 'approved'} />
+                  <DetailRow label="연락처" value={a.status === 'approved' ? seller?.phone : null} locked={a.status !== 'approved'} />
                   <DetailRow label="평점" value={rating ? `${rating.avg_score} (${rating.review_count}건)` : '평가 없음'} />
                   {(() => {
                     const rev = history.filter((h) => (h.revenue ?? 0) > 0);
@@ -273,28 +274,81 @@ function ApplicantCard({
                 {seller?.intro && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{seller.intro}</div>}
               </div>
 
-              {/* 판매 메뉴 (필수 확인) */}
+              {/* 판매 메뉴 (필수 확인) · 대표메뉴 별도 노출 + 그리드/리스트 토글 */}
               <div>
-                <div className="text-[12px] font-bold text-ink-soft mb-2">판매 메뉴 <span className="text-text-tertiary">{menus.length}개</span></div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[12px] font-bold text-ink-soft">판매 메뉴 <span className="text-text-tertiary">{menus.length}개</span></div>
+                  {menus.length > 0 && (
+                    <div className="flex items-center gap-1 text-[11px] font-semibold">
+                      <button onClick={() => setMenuView('grid')} className={menuView === 'grid' ? 'text-ink font-bold' : 'text-text-tertiary hover:text-ink'}>그리드</button>
+                      <span className="text-line-strong">·</span>
+                      <button onClick={() => setMenuView('list')} className={menuView === 'list' ? 'text-ink font-bold' : 'text-text-tertiary hover:text-ink'}>리스트</button>
+                    </div>
+                  )}
+                </div>
+
                 {menus.length === 0 ? (
                   <div className="text-[12px] text-text-tertiary p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>등록된 판매 메뉴가 없습니다.</div>
                 ) : (
-                  <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
-                    {menus.map((m) => (
-                      <div key={m.id} className="rounded-input overflow-hidden border border-line-faint" style={{ background: 'var(--bg-surface,#fff)' }}>
-                        {m.image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.image_url} alt={m.name} className="w-full h-20 object-cover" />
-                        ) : (
-                          <div className="w-full h-20 flex items-center justify-center text-[11px] font-semibold text-danger" style={{ background: 'var(--bg-muted-2,#F3EFE5)' }}>✕ 사진 미첨부</div>
-                        )}
-                        <div className="p-2">
-                          <div className="text-[12px] font-bold text-ink truncate">{m.signature ? '★ ' : ''}{m.name}</div>
-                          <div className="text-[11px] text-text-secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</div>
+                  <>
+                    {/* 대표 메뉴 (입점 파트너가 지정한 대표메뉴) 별도 강조 */}
+                    {(() => {
+                      const sig = menus.filter((m) => m.signature);
+                      if (sig.length === 0) return null;
+                      return (
+                        <div className="mb-2.5 p-2.5 rounded-input" style={{ background: 'var(--warning-bg,#FFF9E6)', border: '1px solid #E7DCA8' }}>
+                          <div className="text-[11px] font-extrabold text-ink mb-1.5">★ 대표 메뉴</div>
+                          <div className="flex flex-wrap gap-2">
+                            {sig.map((m) => (
+                              <span key={m.id} className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink bg-surface px-2 py-1 rounded-input border border-line-faint">
+                                {m.image_url && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={m.image_url} alt={m.name} className="w-6 h-6 rounded object-cover" />
+                                )}
+                                {m.name} <span className="text-text-secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</span>
+                              </span>
+                            ))}
+                          </div>
                         </div>
+                      );
+                    })()}
+
+                    {/* 전체 메뉴 */}
+                    {menuView === 'grid' ? (
+                      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
+                        {menus.map((m) => (
+                          <div key={m.id} className="rounded-input overflow-hidden border border-line-faint" style={{ background: 'var(--bg-surface,#fff)' }}>
+                            {m.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={m.image_url} alt={m.name} className="w-full h-20 object-cover" />
+                            ) : (
+                              <div className="w-full h-20 flex items-center justify-center text-[11px] font-semibold text-danger" style={{ background: 'var(--bg-muted-2,#F3EFE5)' }}>✕ 사진 미첨부</div>
+                            )}
+                            <div className="p-2">
+                              <div className="text-[12px] font-bold text-ink truncate">{m.signature ? '★ ' : ''}{m.name}</div>
+                              <div className="text-[11px] text-text-secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    ) : (
+                      <div className="rounded-input border border-line-faint overflow-hidden" style={{ background: 'var(--bg-surface,#fff)' }}>
+                        {menus.map((m, i) => (
+                          <div key={m.id} className={`flex items-center gap-2.5 p-2 ${i !== 0 ? 'border-t border-line-faint' : ''}`}>
+                            {m.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={m.image_url} alt={m.name} className="w-9 h-9 rounded object-cover shrink-0" />
+                            ) : (
+                              <div className="w-9 h-9 rounded shrink-0 flex items-center justify-center text-[9px] font-bold text-danger" style={{ background: 'var(--bg-muted-2,#F3EFE5)' }}>✕</div>
+                            )}
+                            <span className="text-[12.5px] font-bold text-ink flex-1 truncate">{m.signature ? '★ ' : ''}{m.name}</span>
+                            <span className="text-[11px] text-text-tertiary shrink-0">{m.category}</span>
+                            <span className="text-[12px] font-semibold text-ink shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{m.price.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -397,11 +451,15 @@ function CountTile({ label, n, tone }: { label: string; n: number; tone: 'warnin
   );
 }
 
-function DetailRow({ label, value }: { label: string; value?: string | null }) {
+function DetailRow({ label, value, locked }: { label: string; value?: string | null; locked?: boolean }) {
   return (
     <div className="p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
       <div className="text-[10.5px] text-text-tertiary mb-0.5">{label}</div>
-      <div className="text-[13px] font-semibold text-ink break-words">{value || '—'}</div>
+      {locked ? (
+        <div className="text-[12px] font-semibold text-text-tertiary break-words">🔒 승인 후 공개</div>
+      ) : (
+        <div className="text-[13px] font-semibold text-ink break-words">{value || '—'}</div>
+      )}
     </div>
   );
 }

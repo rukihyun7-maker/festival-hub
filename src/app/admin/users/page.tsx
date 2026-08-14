@@ -198,7 +198,7 @@ export default function AdminUsersPage() {
                   </select>
                 </div>
 
-                {/* 상태 액션 (셀러 전용) */}
+                {/* 상태 액션 (입점 파트너 전용) */}
                 <div className="flex gap-2 shrink-0 items-center">
                   {p.role === 'seller' ? (
                     <>

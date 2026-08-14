@@ -5,7 +5,7 @@
 
 export type Role = 'seller' | 'host' | 'admin';
 
-/** v8: 셀러 가입 심사 상태 */
+/** v8: 입점 파트너 가입 심사 상태 */
 export type SellerStatus = '정상' | '가입 심사' | '정지' | '반려';
 /** v8: 행사 등록 요청 심사 상태 */
 export type ReviewStatus = 'pending' | 'approved' | 'rejected';
@@ -16,6 +16,87 @@ export type EventType = 'apply' | 'info'; // 파생: fee > 0 이거나 deadline 
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'canceled';
 
 export type MenuCategory = 'MAIN' | 'SIDE' | 'DRINK' | 'SET';
+
+/** v24: 푸드트럭 현장 인프라 상세 (events.site_details jsonb) · 모든 항목 선택 */
+export interface SiteDetails {
+  power?: string;     // 부스당 전기 용량 (예: 부스당 3kW / 220V 15A)
+  generator?: string; // 발전기 반입 (가능 / 불가 / 문의)
+  water?: string;     // 급수 (가능 / 불가 / 문의)
+  drainage?: string;  // 배수 (예: 가능 · 배수구 10m)
+  lpg?: string;       // LPG · 화기 (가능 / 제한적 / 불가)
+  vehicle?: string;   // 차량 진입 제원 (예: 길이 6m · 폭 2.2m · 높이 3.2m)
+  booth?: string;     // 부스 사양 (예: 3x3m · 아스팔트 · 천막 포함)
+  items?: string;     // 판매 품목 제한 (예: 주류 불가 · 중복업종 조정)
+  weather?: string;   // 우천/폭염 · 취소 정책
+}
+
+/** v24: 현장 상세 표시용 메타(라벨·순서) */
+export const SITE_DETAIL_META: { key: keyof SiteDetails; label: string }[] = [
+  { key: 'power', label: '전기 용량' },
+  { key: 'generator', label: '발전기 반입' },
+  { key: 'water', label: '급수' },
+  { key: 'drainage', label: '배수' },
+  { key: 'lpg', label: 'LPG · 화기' },
+  { key: 'vehicle', label: '차량 진입' },
+  { key: 'booth', label: '부스 사양' },
+  { key: 'items', label: '품목 제한' },
+  { key: 'weather', label: '우천/취소' },
+];
+
+/** 저장용: 빈 값 제거 후 객체 반환(모두 비면 null) */
+export function compactSiteDetails(s: SiteDetails | null | undefined): SiteDetails | null {
+  if (!s) return null;
+  const out: SiteDetails = {};
+  for (const { key } of SITE_DETAIL_META) {
+    const val = (s[key] ?? '').trim();
+    if (val) out[key] = val;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** v24: 자리 적합도 체크 — 현장 상세(site_details) vs 파트너 등록 스펙 */
+export interface FitInput {
+  power?: string | null;   // profile.power (전기 사용량)
+  vehicle?: string | null; // profile.vehicle (차량·부스 규격)
+  cooking?: string | null; // profile.cooking (조리 설비)
+}
+export interface FitResult {
+  rows: { label: string; site: string; mine: string }[];
+  warnings: string[];
+  hasMine: boolean; // 파트너가 스펙을 하나라도 등록했는지
+}
+/** 문자열에서 kW 수치 추출 (예: "부스당 3kW" → 3) */
+function parseKw(s?: string | null): number | null {
+  if (!s) return null;
+  const m = s.match(/(\d+(?:\.\d+)?)\s*kw/i);
+  return m ? parseFloat(m[1]) : null;
+}
+export function fitCheck(site: SiteDetails | null | undefined, mine: FitInput): FitResult {
+  const rows: { label: string; site: string; mine: string }[] = [];
+  const warnings: string[] = [];
+  const hasMine = !!(mine.power || mine.vehicle || mine.cooking);
+
+  if (site?.power || mine.power) rows.push({ label: '전기', site: site?.power ?? '자리 정보 없음', mine: mine.power ?? '미등록' });
+  if (site?.generator) rows.push({ label: '발전기', site: site.generator, mine: '—' });
+  if (site?.vehicle || mine.vehicle) rows.push({ label: '차량 진입', site: site?.vehicle ?? '자리 정보 없음', mine: mine.vehicle ?? '미등록' });
+  if (site?.lpg || mine.cooking) rows.push({ label: 'LPG · 조리', site: site?.lpg ?? '자리 정보 없음', mine: mine.cooking ?? '미등록' });
+
+  // 휴리스틱 경고
+  const sk = parseKw(site?.power), mk = parseKw(mine.power);
+  if (sk != null && mk != null && mk > sk) warnings.push(`전기 부족 우려 — 자리 ${sk}kW < 내 트럭 ${mk}kW. 발전기/증설을 확인하세요.`);
+  if (site?.generator && /불가/.test(site.generator) && sk != null && mk != null && mk > sk) warnings.push('이 자리는 발전기 반입 불가입니다. 전원 부족 시 대안이 없습니다.');
+  if (site?.lpg && /불가/.test(site.lpg) && mine.cooking && /(가스|lpg|화구|버너|튀김|화기)/i.test(mine.cooking)) warnings.push('LPG · 화기 사용 불가 자리입니다. 조리 설비를 확인하세요.');
+
+  return { rows, warnings, hasMine };
+}
+
+/** 값이 채워진 현장 상세 항목만 추림 */
+export function filledSiteDetails(s: SiteDetails | null | undefined): { label: string; value: string }[] {
+  if (!s) return [];
+  return SITE_DETAIL_META
+    .map(({ key, label }) => ({ label, value: (s[key] ?? '').trim() }))
+    .filter((r) => r.value.length > 0);
+}
 
 /** v3: 항목별 주최사 공개 설정 (없으면 기본 공개로 간주) */
 export interface ShareFlags {
@@ -95,6 +176,7 @@ export interface EventRow {
   admin_note?: string | null;   // v8: 반려 사유
   settlement_cycle?: string | null; // v12: 정산 주기 (등록값, 신청형만)
   payment_method?: string | null;   // v12: 결제 방식 (등록값, 신청형만)
+  site_details?: SiteDetails | null; // v24: 푸드트럭 현장 인프라 상세 (jsonb)
   demand_score?: number | null;     // v14: 입지 수요점수 (반경 1km 인근시설 기반, 0~100)
   demand_tags?: string[] | null;    // v14: 입지 태그 (역세권·대학가·주거밀집·상업지)
   lat?: number | null;              // v5: 위도 (지오코딩)
@@ -230,6 +312,65 @@ export const DOC_META: Record<DocKind, { label: string; desc: string; requiresEx
 
 export const DOC_KINDS: DocKind[] = ['business_reg', 'food_hygiene', 'insurance', 'hygiene_edu', 'booth_exterior', 'booth_interior', 'booth_storage'];
 
+// ============================================
+// 신청 자격 기준 (80% 대체) · 명시적 필수 항목
+//  · 매장정보 필수(선택: 운영인원·SNS·매장소개)
+//  · 필수 서류 6종(영업배상책임보험은 선택)
+//  · 판매 메뉴 1개 이상
+// ============================================
+// 소속(affiliation)·운영인원(crew)·SNS(sns)·매장소개(intro)는 선택 항목
+export const REQUIRED_STORE_FIELDS: { key: keyof Profile; label: string }[] = [
+  { key: 'business_name', label: '상호' },
+  { key: 'name', label: '대표자' },
+  { key: 'region', label: '활동 지역' },
+  { key: 'business_no', label: '사업자등록번호' },
+  { key: 'phone', label: '연락처' },
+  { key: 'vehicle', label: '차량·부스 규격' },
+  { key: 'power', label: '전기 사용량' },
+  { key: 'cooking', label: '조리 설비' },
+  { key: 'hygiene_gear', label: '위생 관리' },
+];
+/** 신청에 필수인 서류 6종 (insurance=영업배상책임보험은 선택) */
+export const REQUIRED_DOC_KINDS: DocKind[] = ['business_reg', 'food_hygiene', 'hygiene_edu', 'booth_exterior', 'booth_interior', 'booth_storage'];
+
+export interface ApplyChecklist {
+  storeMissing: string[]; // 미입력 필수 매장정보
+  docsMissing: string[];  // 미제출 필수 서류
+  menuOk: boolean;        // 판매 메뉴 1개 이상
+  storeOk: boolean;
+  docsOk: boolean;
+  ready: boolean;         // 3영역 모두 충족 → 신청 가능
+}
+
+/** 필수 서류 6종이 모두 관리자 검증(만료 안 됨) 완료됐는지 · 신청형 열람 자격 */
+export function requiredDocsVerified(docSlots: DocumentSlot[]): boolean {
+  return REQUIRED_DOC_KINDS.every((k) => {
+    const u = docSlots.find((s) => s.kind === k)?.urgency;
+    return u === 'verified' || u === 'expiring';
+  });
+}
+
+/** 신청 자격 체크리스트 계산 (서류는 관리자 '검증 완료'(verified) 기준) */
+export function applyChecklist(
+  profile: Profile | null,
+  docSlots: DocumentSlot[],
+  menuCount: number,
+): ApplyChecklist {
+  const storeMissing = REQUIRED_STORE_FIELDS
+    .filter(({ key }) => !String(profile?.[key] ?? '').trim())
+    .map((f) => f.label);
+  const docsMissing = REQUIRED_DOC_KINDS
+    .filter((k) => {
+      const u = docSlots.find((s) => s.kind === k)?.urgency;
+      return !(u === 'verified' || u === 'expiring'); // 검증 완료(만료임박 포함)만 충족
+    })
+    .map((k) => DOC_META[k].label);
+  const menuOk = menuCount >= 1;
+  const storeOk = storeMissing.length === 0;
+  const docsOk = docsMissing.length === 0;
+  return { storeMissing, docsMissing, menuOk, storeOk, docsOk, ready: storeOk && docsOk && menuOk };
+}
+
 /** 문서 상태에서 UI urgency 계산 (view가 없을 때 클라측 폴백) */
 export function computeUrgency(doc: DocumentRow | null): DocUrgency {
   if (!doc) return 'missing';
@@ -280,7 +421,7 @@ export interface ScenarioResult {
 // v3: 평가 / 알림 / 정산 / 플랫폼 정책
 // ============================================
 
-/** 주최사 -> 셀러 평가 */
+/** 주최사 -> 입점 파트너 평가 */
 export interface Rating {
   id: string;
   seller_id: string;
@@ -325,7 +466,7 @@ export interface Settlement {
   seller_id: string;
   event_id: string;
   sales_id: string | null;
-  sales_amount: number; // 셀러 신고 매출
+  sales_amount: number; // 입점 파트너 신고 매출
   payout: number;       // 주최사 지급 예정액
   status: SettlementStatus;
   paid_at: string | null;
@@ -361,7 +502,7 @@ export interface PlatformSettings {
 // v4: 수기 참여이력 / QR 검증
 // ============================================
 
-/** 셀러 수기·외부 참여이력 (가입 시 과거 실적 직접 등록) */
+/** 입점 파트너 수기·외부 참여이력 (가입 시 과거 실적 직접 등록) */
 export interface SellerHistory {
   id: string;
   seller_id: string;
@@ -441,7 +582,7 @@ export interface FestivalData {
 // v6: 찜 / 축제 API·카테고리 (관리자 운영)
 // ============================================
 
-/** 찜한 행사 (셀러) · notify=마감 알림 on/off */
+/** 찜한 행사 (입점 파트너) · notify=마감 알림 on/off */
 export interface Favorite {
   id: string;
   seller_id: string;
@@ -471,7 +612,7 @@ export interface CategoryRule {
   id: string;
   name: string;        // 플리마켓 | 지역축제 ...
   keywords: string[];  // 원천 분류 매핑 키워드
-  visible: boolean;    // 셀러 노출 여부
+  visible: boolean;    // 입점 파트너 노출 여부
   count: number;       // 매핑된 행사 수
   created_at: string;
 }

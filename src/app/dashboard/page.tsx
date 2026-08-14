@@ -56,6 +56,14 @@ export default function DashboardPage() {
   const docsPercent = docSlots.length > 0 ? Math.round((verifiedDocsCount / docSlots.length) * 100) : 0;
   const missingCount = docSlots.filter((s) => s.urgency === 'missing').length;
   const deadlineThisWeek = deadlineEvents.filter((e) => (daysUntil(e.deadline) ?? 99) <= 7).length;
+  // 서류 만료 알림: 만료됨/임박(≤14일) 서류
+  const expiryAlerts = docSlots
+    .filter((s) => s.urgency === 'expired' || s.urgency === 'expiring')
+    .map((s) => ({
+      label: s.label,
+      expired: s.urgency === 'expired',
+      daysLeft: s.doc?.expires_at ? Math.ceil((new Date(s.doc.expires_at).getTime() - Date.now()) / 86400000) : null,
+    }));
 
   return (
     <main className="min-h-screen bg-page">
@@ -88,6 +96,31 @@ export default function DashboardPage() {
             <Link href="/events" className="btn-primary w-full">행사 찾기</Link>
           </div>
         </section>
+
+        {/* 서류 만료 알림 (만료·임박 시에만) */}
+        {!loading && expiryAlerts.length > 0 && (
+          <section className="mt-6">
+            <div className="card" style={{ background: 'var(--danger-bg, #FBEDEA)', borderColor: '#E5B8AE' }}>
+              <div className="flex items-start gap-3">
+                <span className="text-[20px] leading-none mt-0.5">🔔</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[14px] font-extrabold text-danger mb-1">서류 만료 알림 · {expiryAlerts.length}건</div>
+                  <div className="text-[12.5px] text-text-secondary mb-3">
+                    만료된 서류가 있으면 신청 자격이 풀립니다. 갱신 후 다시 검증받으세요.
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {expiryAlerts.map((a) => (
+                      <span key={a.label} className={`inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-input font-semibold ${a.expired ? 'badge-danger' : 'badge-warning'}`}>
+                        {a.label} · {a.expired ? '만료됨' : a.daysLeft != null ? `D-${a.daysLeft}` : '임박'}
+                      </span>
+                    ))}
+                  </div>
+                  <Link href="/seller/documents" className="btn-primary text-[13px] py-2 px-4 inline-flex">서류 갱신하기 →</Link>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* 핵심 도구 · 파트너 USP (손익 시뮬 · 서류 관리) */}
         <section className="grid gap-3 mt-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
