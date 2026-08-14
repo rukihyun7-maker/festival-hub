@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import { fetchDeadlineSoon, fetchMyApplications, fetchMyDocumentSlots, fetchMyProfile, fetchMySales, countVerified } from '@/lib/supabase/queries';
-import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil } from '@/lib/types';
+import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, requiredDocsVerified } from '@/lib/types';
 import type { EventRow, ApplicationWithRelations, Profile, SaleWithEvent, DocumentSlot } from '@/lib/types';
 
 /**
@@ -56,6 +56,9 @@ export default function DashboardPage() {
   const docsPercent = docSlots.length > 0 ? Math.round((verifiedDocsCount / docSlots.length) * 100) : 0;
   const missingCount = docSlots.filter((s) => s.urgency === 'missing').length;
   const deadlineThisWeek = deadlineEvents.filter((e) => (daysUntil(e.deadline) ?? 99) <= 7).length;
+  // 신청형 열람 자격: 필수 서류 6종 검증 완료 (미충족이면 신청형은 잠금 → 정보형만)
+  const docsVerified = requiredDocsVerified(docSlots);
+  const applyEvents = docsVerified ? deadlineEvents : []; // 미검증엔 신청형 노출 안 함
   // 서류 만료 알림: 만료됨/임박(≤14일) 서류
   const expiryAlerts = docSlots
     .filter((s) => s.urgency === 'expired' || s.urgency === 'expiring')
@@ -195,14 +198,27 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          ) : deadlineEvents.length === 0 ? (
+          ) : applyEvents.length === 0 ? (
             <div className="card text-center py-12">
-              <div className="text-[14px] font-semibold text-ink mb-1">현재 신청받는 행사가 없습니다</div>
-              <div className="t-sub">알림을 켜두면 새 공고가 뜰 때 안내드립니다</div>
+              {!docsVerified ? (
+                <>
+                  <div className="text-[15px] font-extrabold text-ink mb-1">신청 가능한 행사는 서류 검증 후 열립니다</div>
+                  <div className="t-sub mb-4">필수 서류 6종을 관리자 검증까지 마치면 <b>신청형 행사</b>가 표시됩니다.<br />지금도 <b>정보형 행사</b>는 자유롭게 둘러볼 수 있어요.</div>
+                  <div className="flex gap-2 justify-center">
+                    <Link href="/seller/documents" className="btn-primary text-[13px]">필수 서류 등록 →</Link>
+                    <Link href="/events" className="btn-secondary text-[13px]">정보형 행사 보기</Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-[14px] font-semibold text-ink mb-1">현재 신청받는 행사가 없습니다</div>
+                  <div className="t-sub">알림을 켜두면 새 공고가 뜰 때 안내드립니다</div>
+                </>
+              )}
             </div>
           ) : (
             <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-              {deadlineEvents.map((e) => <EventCard key={e.id} event={e} />)}
+              {applyEvents.map((e) => <EventCard key={e.id} event={e} />)}
             </div>
           )}
         </section>
