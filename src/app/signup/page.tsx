@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import Turnstile, { captchaEnabled } from '@/components/Turnstile';
 
 /**
  * 회원가입 · 디자인 시스템 v2.0
@@ -44,6 +45,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [needConfirm, setNeedConfirm] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   // 약관/개인정보 열람 후 돌아와도 입력값 유지 (파일 제외)
   useEffect(() => {
@@ -76,6 +78,7 @@ export default function SignupPage() {
       setError('이용약관과 개인정보 수집·이용에 동의해 주세요. (필수)');
       return;
     }
+    if (captchaEnabled && !captchaToken) { setError('사람인지 확인(보안 인증)을 완료해주세요.'); return; }
     if (bizFile) { const fe = fileError(bizFile); if (fe) { setError(fe); return; } }
     if (cardFile) { const fe = fileError(cardFile); if (fe) { setError(fe); return; } }
     setLoading(true);
@@ -103,6 +106,7 @@ export default function SignupPage() {
           name, role,
           ...(role === 'seller' ? { business_no: bizDigits } : { business_name: orgName, position, phone }),
         },
+        ...(captchaToken ? { captchaToken } : {}),
       },
     });
     if (error) {
@@ -303,6 +307,8 @@ export default function SignupPage() {
               </span>
             </label>
           </div>
+
+          <Turnstile onToken={setCaptchaToken} />
 
           {error && (
             <div className="text-[12px] p-3 rounded-input badge-danger" style={{ display: 'block' }}>{error}</div>

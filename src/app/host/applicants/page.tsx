@@ -6,7 +6,7 @@ import AppNav from '@/components/AppNav';
 import {
   fetchMyProfile,
   fetchMyHostEvents,
-  fetchApplicationsForEvent,
+  fetchApplicationsForHost,
   updateApplicationStatus,
   fetchSellerHistory,
   fetchRatingSummary,
@@ -54,14 +54,14 @@ export default function HostApplicantsPage() {
         const p = await fetchMyProfile();
         setProfile(p);
         if (p) {
-          const [evs, settings] = await Promise.all([fetchMyHostEvents(p.id), fetchPlatformSettings().catch(() => null)]);
+          const [evs, settings, apps] = await Promise.all([
+            fetchMyHostEvents(p.id),
+            fetchPlatformSettings().catch(() => null),
+            fetchApplicationsForHost(p.id), // N+1 방지: 한 번에 조회(event/seller 임베드)
+          ]);
           setEvents(evs);
           setDocDownload(settings?.host_doc_download ?? false);
-          // 신청에 행사 정보 연결 (어떤 행사에 신청했는지 표시)
-          const lists = await Promise.all(
-            evs.map(async (e) => (await fetchApplicationsForEvent(e.id)).map((a) => ({ ...a, event: e })))
-          );
-          setApps(lists.flat());
+          setApps(apps);
         }
       } finally {
         setLoading(false);

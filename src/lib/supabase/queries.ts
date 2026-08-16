@@ -200,6 +200,18 @@ export async function fetchApplicationsForEvent(eventId: string): Promise<Applic
   return (data ?? []) as ApplicationWithRelations[];
 }
 
+/** 호스트의 모든 행사 신청을 한 번에 (N+1 방지) · event/seller 임베드 */
+export async function fetchApplicationsForHost(hostId: string): Promise<ApplicationWithRelations[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('applications')
+    .select('*, seller:profiles!applications_seller_id_fkey(*), event:events!inner(*)')
+    .eq('event.owner_id', hostId)
+    .order('applied_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as ApplicationWithRelations[];
+}
+
 /** 신청 생성 */
 export async function createApplication(eventId: string, sellerId: string): Promise<Application> {
   const supabase = createClient();

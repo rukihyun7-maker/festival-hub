@@ -25,6 +25,7 @@ const SORTS = [
   { key: 'recent' as const, label: '최신 등록순' },
   { key: 'fee' as const, label: '참가비 낮은순' },
 ];
+const PAGE_SIZE = 12; // 목록 페이지네이션(더 보기)
 
 const MOCK_FALLBACK: EventRow[] = [
   {
@@ -48,6 +49,7 @@ export default function EventsListPage() {
   const [error, setError] = useState<string | null>(null);
   const [gate, setGate] = useState<{ role: string | null; status: string; docsDone: number; docsVerified: boolean } | null>(null);
   const [gateChecked, setGateChecked] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // 신청형 열람 자격: 주최·관리자 OR (정상 계정 + 필수 서류 6종 검증 완료). 그 외는 정보형만.
   useEffect(() => {
@@ -99,6 +101,9 @@ export default function EventsListPage() {
   const qualified = !!gate && (gate.role === 'host' || gate.role === 'admin' || (gate.role === 'seller' && gate.status === '정상' && gate.docsVerified));
   const suspended = gate?.role === 'seller' && (gate.status === '정지' || gate.status === '반려');
   const restrictInfo = gateChecked && !!gate && !qualified && !suspended;
+
+  // 필터/검색 변경 시 페이지 리셋
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [region, type, sort, q, restrictInfo]);
 
   const filtered = useMemo(() => {
     let list = events;
@@ -211,7 +216,7 @@ export default function EventsListPage() {
         {/* 결과 */}
         <div className="flex items-center justify-between mb-4">
           <span className="text-[13px] font-semibold text-text-secondary">
-            {loading ? '' : `${filtered.length}건 표시 중`}
+            {loading ? '' : `총 ${filtered.length}건${filtered.length > visibleCount ? ` · ${Math.min(visibleCount, filtered.length)}건 표시` : ''}`}
           </span>
           {filtered.length !== events.length && (
             <button
@@ -233,9 +238,18 @@ export default function EventsListPage() {
             <div className="t-sub">필터를 조정하거나 알림 신청을 등록해두세요</div>
           </div>
         ) : (
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-            {filtered.map((e) => <EventCard key={e.id} event={e} />)}
-          </div>
+          <>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+              {filtered.slice(0, visibleCount).map((e) => <EventCard key={e.id} event={e} />)}
+            </div>
+            {filtered.length > visibleCount && (
+              <div className="text-center mt-6">
+                <button onClick={() => setVisibleCount((n) => n + PAGE_SIZE)} className="btn-secondary">
+                  더 보기 ({filtered.length - visibleCount}건 남음)
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>

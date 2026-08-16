@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { fetchMyProfile } from '@/lib/supabase/queries';
+import Turnstile, { captchaEnabled } from '@/components/Turnstile';
 import type { Role } from '@/lib/types';
 
 function destForRole(role: Role | undefined): string {
@@ -31,13 +32,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (captchaEnabled && !captchaToken) { setError('사람인지 확인(보안 인증)을 완료해주세요.'); return; }
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email, password,
+      options: captchaToken ? { captchaToken } : undefined,
+    });
     if (error) {
       setLoading(false);
       const msg = (error.message || '').toLowerCase();
@@ -143,6 +149,8 @@ export default function LoginPage() {
                   {error}
                 </div>
               )}
+
+              <Turnstile onToken={setCaptchaToken} />
 
               <button type="submit" disabled={loading} className="btn-primary mt-2 py-3.5 text-[15px]">
                 {loading ? '처리 중…' : '로그인'}
