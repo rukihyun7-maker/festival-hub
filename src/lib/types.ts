@@ -495,6 +495,9 @@ export interface PlatformSettings {
   platform_fee_pct?: number;        // 플랫폼 기본 수수료(%)
   default_settlement?: string | null; // 기본 정산 주기 안내
   host_doc_download?: boolean;      // v19: 주최사 신청자 서류 다운로드 허용
+  landing_partners?: number;        // v28: 로그인 노출 — 입점 파트너 수(관리자 수기)
+  landing_events?: number;          // v28: 로그인 노출 — 등록 행사 수(관리자 수기)
+  landing_recruiting?: number;      // v28: 로그인 노출 — 모집 중 수(관리자 수기)
   updated_at: string;
 }
 

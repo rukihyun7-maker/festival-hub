@@ -190,6 +190,25 @@ export default function AdminSettingsPage() {
           </label>
         </section>
 
+        <section className="card mb-4">
+          <div className="t-section mb-1">로그인 화면 노출 지표</div>
+          <div className="t-sub mb-4">로그인·회원가입 화면에 노출되는 홍보 수치입니다. 실제 현황에 맞춰 직접 조정하세요.</div>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-ink-soft">입점 파트너 수 (팀)</span>
+              <input type="number" min={0} value={s.landing_partners ?? 0} onChange={(e) => patch({ landing_partners: Number(e.target.value) })} className="input" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-ink-soft">등록 행사 수 (건)</span>
+              <input type="number" min={0} value={s.landing_events ?? 0} onChange={(e) => patch({ landing_events: Number(e.target.value) })} className="input" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold text-ink-soft">지금 모집 중 (건)</span>
+              <input type="number" min={0} value={s.landing_recruiting ?? 0} onChange={(e) => patch({ landing_recruiting: Number(e.target.value) })} className="input" />
+            </label>
+          </div>
+        </section>
+
         <div className="flex items-center gap-3 sticky bottom-0 bg-page/90 backdrop-blur py-3">
           <button onClick={save} disabled={saving} className="btn-primary">
             {saving ? '저장 중…' : '정책 저장'}

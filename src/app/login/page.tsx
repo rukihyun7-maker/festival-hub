@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { fetchMyProfile } from '@/lib/supabase/queries';
+import { fetchMyProfile, fetchPlatformSettings } from '@/lib/supabase/queries';
 import Turnstile, { captchaEnabled } from '@/components/Turnstile';
 import type { Role } from '@/lib/types';
 
@@ -33,6 +33,16 @@ export default function LoginPage() {
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [stats, setStats] = useState({ partners: 0, events: 0, recruiting: 0 });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await fetchPlatformSettings();
+        if (s) setStats({ partners: s.landing_partners ?? 0, events: s.landing_events ?? 0, recruiting: s.landing_recruiting ?? 0 });
+      } catch { /* 비로그인/미설정 → 0 */ }
+    })();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -76,30 +86,30 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-page">
       <div className="grid min-h-screen" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' }}>
-        {/* 좌측 · 잉크 패널 */}
-        <aside className="bg-ink text-white flex flex-col justify-between overflow-hidden" style={{ padding: 'clamp(32px, 5vw, 64px)' }}>
+        {/* 좌측 · 히어로 패널 (따뜻한 딥차콜 그라디언트 · 가독성 개선) */}
+        <aside className="flex flex-col justify-between overflow-hidden" style={{ padding: 'clamp(32px, 5vw, 64px)', color: '#fff', background: 'linear-gradient(157deg, #2C271D 0%, #241F17 40%, #17140F 100%)' }}>
           <div>
-            <div className="text-[13px] font-semibold tracking-[0.06em] text-accent uppercase mb-6">Festival Hub</div>
-            <h1 className="font-extrabold text-white leading-[1.24] tracking-[-0.035em]" style={{ fontSize: 'clamp(28px, 4.2vw, 44px)' }}>
+            <div className="text-[13px] font-extrabold tracking-[0.16em] uppercase mb-6" style={{ color: 'var(--accent, #FFC800)' }}>Festival Hub</div>
+            <h1 className="font-extrabold leading-[1.22] tracking-[-0.035em]" style={{ fontSize: 'clamp(28px, 4.2vw, 44px)', textWrap: 'balance' }}>
               좋은 행사 자리와<br />
-              검증된 파트너를 <span className="text-accent">잇다</span>
+              검증된 파트너를 <span style={{ color: 'var(--accent, #FFC800)' }}>잇다</span>
             </h1>
-            <p className="mt-6 text-[15px] leading-[1.65] text-white/70 max-w-[400px]">
-              푸드트럭·음식부스에게는 <b className="text-white/90">상권·예상 수익</b>까지 보이는 자리를,
-              행사 주최에게는 <b className="text-white/90">서류·이력이 검증된 파트너</b>를.
+            <p className="mt-6 text-[15px] leading-[1.7] max-w-[420px]" style={{ color: 'rgba(255,255,255,0.84)' }}>
+              푸드트럭·음식부스에게는 <b style={{ color: '#fff' }}>상권·예상 수익</b>까지 보이는 자리를,
+              행사 주최에게는 <b style={{ color: '#fff' }}>서류·이력이 검증된 파트너</b>를.
               한 곳에서 빠르고 안전하게 연결합니다.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 my-10">
-            <Stat label="입점 파트너" value="수익 자리" />
-            <Stat label="행사 주최" value="검증 파트너" />
-            <Stat label="신청·확인" value="간편·안전" />
+          <div className="grid grid-cols-3 gap-3 my-10">
+            <Stat n={stats.partners} unit="팀" label="입점 파트너" />
+            <Stat n={stats.events} unit="건" label="등록 행사" />
+            <Stat n={stats.recruiting} unit="건" label="지금 모집 중" />
           </div>
 
           <div className="overflow-hidden -mx-2">
-            <div className="text-[11px] font-semibold tracking-[0.08em] text-white/40 uppercase mb-3 px-2">최근 등록 행사</div>
-            <div className="whitespace-nowrap animate-marquee text-[13px] text-white/60 font-medium">
+            <div className="text-[11px] font-bold tracking-[0.1em] uppercase mb-3 px-2" style={{ color: 'rgba(255,255,255,0.5)' }}>최근 등록 행사</div>
+            <div className="whitespace-nowrap animate-marquee text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.68)' }}>
               <span className="inline-block px-6">서울숲 8월 플리마켓</span>
               <span className="text-white/20">·</span>
               <span className="inline-block px-6">2026 강릉 커피축제</span>
@@ -200,11 +210,13 @@ export default function LoginPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ n, unit, label }: { n: number; unit: string; label: string }) {
   return (
-    <div>
-      <div className="text-[11px] font-semibold tracking-[0.05em] text-white/40 uppercase mb-1.5">{label}</div>
-      <div className="text-[22px] font-extrabold tracking-[-0.02em] text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+    <div style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 12, padding: '14px 12px' }}>
+      <div className="font-extrabold leading-none" style={{ fontSize: 26, color: 'var(--accent, #FFC800)', fontVariantNumeric: 'tabular-nums' }}>
+        {n.toLocaleString()}<span className="ml-0.5" style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)' }}>{unit}</span>
+      </div>
+      <div className="text-[11.5px] font-semibold mt-1.5" style={{ color: 'rgba(255,255,255,0.62)' }}>{label}</div>
     </div>
   );
 }
