@@ -132,13 +132,14 @@ export default function SignupPage() {
     const uid = data.session.user.id;
     try {
       if (role === 'host' && cardFile) {
-        const safeC = cardFile.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
-        const cp = `${uid}/business_card/${Date.now()}_${safeC}`;
-        const { error: cErr } = await supabase.storage.from('documents').upload(cp, cardFile, { cacheControl: '3600', upsert: false });
+        // Storage 키는 ASCII만 허용(한글=Invalid key) → 확장자만 사용
+        const extC = (cardFile.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+        const cp = `${uid}/business_card/${Date.now()}.${extC}`;
+        const { error: cErr } = await supabase.storage.from('documents').upload(cp, cardFile, { cacheControl: '3600', upsert: false, contentType: cardFile.type || undefined });
         if (!cErr) await supabase.from('profiles').update({ business_card_url: cp }).eq('id', uid);
       } else if (role === 'seller' && bizFile) {
-        const safe = bizFile.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
-        const path = `${uid}/business_reg/${Date.now()}_${safe}`;
+        const ext = (bizFile.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+        const path = `${uid}/business_reg/${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage.from('documents').upload(path, bizFile, { cacheControl: '3600', upsert: false });
         if (upErr) throw upErr;
         await supabase.from('documents').upsert(

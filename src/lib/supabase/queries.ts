@@ -451,11 +451,13 @@ export function countVerified(slots: DocumentSlot[]): number {
  */
 export async function uploadDocumentFile(sellerId: string, kind: DocKind, file: File): Promise<string> {
   const supabase = createClient();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._가-힣-]/g, '_');
-  const path = `${sellerId}/${kind}/${Date.now()}_${safeName}`;
+  // Storage 키는 ASCII만 허용(한글·특수문자는 "Invalid key" 오류) → 키에는 확장자만, 원본명은 file_name 컬럼에 별도 저장
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+  const path = `${sellerId}/${kind}/${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('documents').upload(path, file, {
     cacheControl: '3600',
     upsert: false,
+    contentType: file.type || undefined,
   });
   if (error) throw error;
   return path;
