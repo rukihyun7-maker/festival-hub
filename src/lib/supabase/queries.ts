@@ -828,6 +828,19 @@ export async function fetchMyHostRequests(ownerId: string): Promise<EventRow[]> 
   return (data ?? []) as EventRow[];
 }
 
+/** 주최 계정 완전 삭제 (관리자 · 등록 행사 0건일 때만) · 서버 라우트 경유 */
+export async function deleteHostAccount(hostId: string): Promise<void> {
+  const res = await fetch('/api/admin/delete-host', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hostId }),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j.error || `삭제 실패 (${res.status})`);
+  }
+}
+
 /** 입점 파트너 가입 심사/정지 상태 변경 (관리자) */
 export async function updateProfileStatus(id: string, status: '정상' | '가입 심사' | '정지' | '반려'): Promise<void> {
   const supabase = createClient();
@@ -1155,6 +1168,17 @@ export async function markSettlementPaid(id: string): Promise<Settlement> {
 // ============================================
 // v3 · Platform settings (평점 정책 싱글턴)
 // ============================================
+
+/** 로그인 노출 지표용 실제 참고 수치 (관리자) — 파트너·전체 행사·모집중 */
+export async function fetchLandingRefCounts(): Promise<{ partners: number; events: number; recruiting: number }> {
+  const supabase = createClient();
+  const [p, e, r] = await Promise.all([
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'seller'),
+    supabase.from('events').select('id', { count: 'exact', head: true }),
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+  ]);
+  return { partners: p.count ?? 0, events: e.count ?? 0, recruiting: r.count ?? 0 };
+}
 
 export async function fetchPlatformSettings(): Promise<PlatformSettings | null> {
   const supabase = createClient();

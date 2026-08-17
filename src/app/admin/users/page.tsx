@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import {
-  fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus,
+  fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus, deleteHostAccount,
   fetchMyDocumentSlots, fetchMyMenus, getSignedDocumentUrl, reviewDocument, countVerified,
   fetchSellerHistory, fetchRatingSummary, fetchMyHostEvents,
 } from '@/lib/supabase/queries';
@@ -243,7 +243,7 @@ export default function AdminUsersPage() {
                 <SellerReviewDetail seller={p} adminId={me?.id ?? ''} />
               )}
               {expandedId === p.id && p.role === 'host' && (
-                <HostReviewDetail host={p} />
+                <HostReviewDetail host={p} onDeleted={() => setProfiles((prev) => prev.filter((x) => x.id !== p.id))} />
               )}
               </div>
             ))}
@@ -458,14 +458,28 @@ function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: str
 }
 
 /** 주최 정보 상세 — 명함 정보 + 등록 행사 (관리자 전체 열람) */
-function HostReviewDetail({ host }: { host: Profile }) {
+function HostReviewDetail({ host, onDeleted }: { host: Profile; onDeleted: () => void }) {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     (async () => {
       try { setEvents(await fetchMyHostEvents(host.id)); } catch { /* noop */ } finally { setLoading(false); }
     })();
   }, [host.id]);
+
+  async function remove() {
+    if (!confirm(`주최 계정 "${host.business_name ?? host.name}"을(를) 완전히 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    setDeleting(true);
+    try {
+      await deleteHostAccount(host.id);
+      onDeleted();
+    } catch (e) {
+      alert('삭제 실패: ' + (e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="px-5 pb-5 pt-1 bg-surface-sunken border-t border-line-faint">
@@ -507,6 +521,22 @@ function HostReviewDetail({ host }: { host: Profile }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* 계정 삭제 (등록 행사 0건일 때만) */}
+      <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-line-faint">
+        {loading ? (
+          <span className="text-[12px] text-text-tertiary">확인 중…</span>
+        ) : events.length === 0 ? (
+          <>
+            <span className="text-[12px] text-text-secondary">등록 행사가 없어 계정을 완전 삭제할 수 있습니다.</span>
+            <button onClick={remove} disabled={deleting} className="text-[12px] font-bold py-1.5 px-3 rounded-input border border-danger/40 text-danger hover:bg-danger-bg disabled:opacity-50">
+              {deleting ? '삭제 중…' : '계정 삭제'}
+            </button>
+          </>
+        ) : (
+          <span className="text-[12px] text-text-tertiary">등록 행사 {events.length}건이 있어 삭제할 수 없습니다. 먼저 행사를 삭제하세요.</span>
+        )}
       </div>
     </div>
   );

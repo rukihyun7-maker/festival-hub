@@ -64,6 +64,21 @@ export default function AdminDocumentsPage() {
     expiringSoon: docs.filter((d) => computeUrgency(d) === 'expiring').length,
   }), [docs]);
 
+  // 파트너(사용자)별 그룹화 — 대기 많은 파트너 우선
+  const groups = useMemo(() => {
+    const m = new Map<string, { seller: DocumentWithSeller['seller']; docs: DocumentWithSeller[] }>();
+    for (const d of docs) {
+      const key = d.seller_id ?? d.seller?.id ?? 'unknown';
+      if (!m.has(key)) m.set(key, { seller: d.seller, docs: [] });
+      m.get(key)!.docs.push(d);
+    }
+    return [...m.values()].sort((a, b) => {
+      const pa = a.docs.filter((d) => d.status === 'pending').length;
+      const pb = b.docs.filter((d) => d.status === 'pending').length;
+      return pb - pa;
+    });
+  }, [docs]);
+
   async function handleApprove(id: string) {
     if (!me) return;
     setReviewingId(id);
@@ -204,112 +219,87 @@ export default function AdminDocumentsPage() {
             <div className="t-sub">필터를 조정해보세요</div>
           </div>
         ) : (
-          <div className="space-y-3">
-            {docs.map((d) => {
-              const urgency = computeUrgency(d);
-              const isExpanded = rejectingId === d.id;
+          <div className="space-y-4">
+            {groups.map((g) => {
+              const pendingN = g.docs.filter((d) => d.status === 'pending').length;
+              const sellerName = g.seller?.business_name ?? g.seller?.name ?? '(알 수 없는 파트너)';
               return (
-                <div key={d.id} className={`card p-0 overflow-hidden ${urgency === 'rejected' || urgency === 'expired' ? 'border-danger/40' : ''}`}>
-                  <div className="p-5">
-                    <div className="grid gap-4 items-start" style={{ gridTemplateColumns: 'minmax(220px, 2fr) minmax(160px, 1fr) auto' }}>
-                      {/* 입점 파트너 + 서류 정보 */}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                          <span className="text-[15px] font-extrabold text-ink truncate">
-                            {DOC_META[d.kind].label}
-                          </span>
-                          <UrgencyBadge urgency={urgency} />
-                        </div>
-                        <div className="text-[13px] text-ink font-semibold mb-1">
-                          {d.seller?.business_name ?? d.seller?.name ?? '(알 수 없는 파트너)'}
-                        </div>
-                        <div className="text-[11px] text-text-tertiary">
-                          {d.seller?.name} · <span style={{ fontFamily: 'ui-monospace, monospace' }}>{d.seller?.email}</span>
-                          {d.seller?.phone && ` · ${d.seller.phone}`}
-                        </div>
-                        {d.file_name && (
-                          <div className="text-[11px] text-text-secondary mt-1.5">
-                            📎 {d.file_name}
-                          </div>
-                        )}
-                        {d.memo && d.status === 'rejected' && (
-                          <div className="text-[11px] text-danger font-semibold mt-1.5">반려 사유: {d.memo}</div>
-                        )}
+                <div key={g.seller?.id ?? sellerName} className="card p-0 overflow-hidden">
+                  {/* 파트너 헤더 */}
+                  <div className="p-4 flex items-center justify-between gap-3 bg-surface-sunken border-b border-line-faint">
+                    <div className="min-w-0">
+                      <div className="text-[15px] font-extrabold text-ink truncate">{sellerName}</div>
+                      <div className="text-[11px] text-text-tertiary truncate">
+                        {g.seller?.name} · <span style={{ fontFamily: 'ui-monospace, monospace' }}>{g.seller?.email}</span>
+                        {g.seller?.phone && ` · ${g.seller.phone}`}
                       </div>
-
-                      {/* 메타 */}
-                      <div className="text-[11px] text-text-tertiary space-y-1">
-                        <div>제출 {new Date(d.uploaded_at).toLocaleDateString('ko-KR')}</div>
-                        {d.expires_at && <div>만료 {d.expires_at}</div>}
-                        {d.reviewed_at && <div>검토 {new Date(d.reviewed_at).toLocaleDateString('ko-KR')}</div>}
-                      </div>
-
-                      {/* 액션 */}
-                      <div className="flex gap-2 shrink-0 flex-wrap">
-                        {d.file_url && (
-                          <button
-                            onClick={() => handleOpen(d)}
-                            disabled={openingId === d.id}
-                            className="btn-secondary text-[12px] py-2 px-3"
-                          >
-                            {openingId === d.id ? '여는 중…' : '📥 파일'}
-                          </button>
-                        )}
-                        {d.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => { setRejectingId(d.id); setRejectMemo(d.memo ?? ''); }}
-                              disabled={reviewingId === d.id}
-                              className="btn-secondary text-[12px] py-2 px-3"
-                            >
-                              반려
-                            </button>
-                            <button
-                              onClick={() => handleApprove(d.id)}
-                              disabled={reviewingId === d.id}
-                              className="btn-primary text-[12px] py-2 px-3"
-                            >
-                              {reviewingId === d.id ? '처리 중…' : '승인'}
-                            </button>
-                          </>
-                        )}
-                        {d.status === 'verified' && (
-                          <button
-                            onClick={() => { setRejectingId(d.id); setRejectMemo(''); }}
-                            className="text-[12px] text-danger hover:underline font-semibold px-2"
-                          >
-                            승인 취소
-                          </button>
-                        )}
-                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {pendingN > 0 && <span className="badge badge-warning">대기 {pendingN}</span>}
+                      <span className="text-[12px] font-semibold text-text-tertiary">서류 {g.docs.length}건</span>
                     </div>
                   </div>
 
-                  {/* 반려 사유 입력 폼 */}
-                  {isExpanded && (
-                    <div className="border-t border-line-faint p-5 bg-surface-sunken">
-                      <label className="flex flex-col gap-2">
-                        <span className="text-[12px] font-semibold text-ink-soft">반려 사유 *</span>
-                        <textarea
-                          rows={3}
-                          value={rejectMemo}
-                          onChange={(e) => setRejectMemo(e.target.value)}
-                          placeholder="예: 파일이 흐릿하여 판독 불가 · 재업로드 요청"
-                          className="input resize-none"
-                        />
-                      </label>
-                      <div className="flex gap-2 mt-3 justify-end">
-                        <button onClick={() => { setRejectingId(null); setRejectMemo(''); }} className="btn-secondary text-[12px] py-2 px-3">취소</button>
-                        <button
-                          onClick={() => handleReject(d.id)}
-                          disabled={!rejectMemo.trim() || reviewingId === d.id}
-                          className="text-[12px] py-2 px-3 rounded-input font-bold bg-danger text-white hover:bg-danger-strong disabled:opacity-50"
-                        >
-                          {reviewingId === d.id ? '처리 중…' : '반려 확정'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {/* 파트너의 서류 목록 */}
+                  <div>
+                    {g.docs.map((d) => {
+                      const urgency = computeUrgency(d);
+                      const isExpanded = rejectingId === d.id;
+                      return (
+                        <div key={d.id} className="border-b border-line-faint last:border-0" style={urgency === 'rejected' || urgency === 'expired' ? { background: 'var(--danger-bg, #FBEDEA)' } : undefined}>
+                          <div className="p-4 flex flex-wrap items-center gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[13.5px] font-bold text-ink">{DOC_META[d.kind].label}</span>
+                                <UrgencyBadge urgency={urgency} />
+                              </div>
+                              <div className="text-[11px] text-text-tertiary mt-1">
+                                {d.file_name ? `📎 ${d.file_name}` : '파일 없음'}
+                                {' · 제출 '}{new Date(d.uploaded_at).toLocaleDateString('ko-KR')}
+                                {d.expires_at && ` · 만료 ${d.expires_at}`}
+                              </div>
+                              {d.memo && d.status === 'rejected' && (
+                                <div className="text-[11px] text-danger font-semibold mt-1">반려 사유: {d.memo}</div>
+                              )}
+                            </div>
+                            <div className="flex gap-2 shrink-0 flex-wrap">
+                              {d.file_url && (
+                                <button onClick={() => handleOpen(d)} disabled={openingId === d.id} className="btn-secondary text-[12px] py-1.5 px-3">
+                                  {openingId === d.id ? '여는 중…' : '📥 파일'}
+                                </button>
+                              )}
+                              {d.status === 'pending' && (
+                                <>
+                                  <button onClick={() => { setRejectingId(d.id); setRejectMemo(d.memo ?? ''); }} disabled={reviewingId === d.id} className="btn-secondary text-[12px] py-1.5 px-3">반려</button>
+                                  <button onClick={() => handleApprove(d.id)} disabled={reviewingId === d.id} className="btn-primary text-[12px] py-1.5 px-3">
+                                    {reviewingId === d.id ? '처리 중…' : '승인'}
+                                  </button>
+                                </>
+                              )}
+                              {d.status === 'verified' && (
+                                <button onClick={() => { setRejectingId(d.id); setRejectMemo(''); }} className="text-[12px] text-danger hover:underline font-semibold px-2">승인 취소</button>
+                              )}
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="border-t border-line-faint p-4 bg-surface-sunken">
+                              <label className="flex flex-col gap-2">
+                                <span className="text-[12px] font-semibold text-ink-soft">반려 사유 *</span>
+                                <textarea rows={2} value={rejectMemo} onChange={(e) => setRejectMemo(e.target.value)} placeholder="예: 파일이 흐릿하여 판독 불가 · 재업로드 요청" className="input resize-none" />
+                              </label>
+                              <div className="flex gap-2 mt-3 justify-end">
+                                <button onClick={() => { setRejectingId(null); setRejectMemo(''); }} className="btn-secondary text-[12px] py-2 px-3">취소</button>
+                                <button onClick={() => handleReject(d.id)} disabled={!rejectMemo.trim() || reviewingId === d.id} className="text-[12px] py-2 px-3 rounded-input font-bold bg-danger text-white hover:bg-danger-strong disabled:opacity-50">
+                                  {reviewingId === d.id ? '처리 중…' : '반려 확정'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}

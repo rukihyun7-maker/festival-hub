@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
-import { fetchMyProfile, fetchPlatformSettings, updatePlatformSettings } from '@/lib/supabase/queries';
+import { fetchMyProfile, fetchPlatformSettings, updatePlatformSettings, fetchLandingRefCounts } from '@/lib/supabase/queries';
 import type { Profile, PlatformSettings, PublicScope } from '@/lib/types';
 
 /**
@@ -17,6 +17,7 @@ const MIN_REVIEWS = [1, 2, 3, 5];
 export default function AdminSettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [s, setS] = useState<PlatformSettings | null>(null);
+  const [ref, setRef] = useState<{ partners: number; events: number; recruiting: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -26,7 +27,10 @@ export default function AdminSettingsPage() {
       try {
         const p = await fetchMyProfile();
         setProfile(p);
-        if (p?.role === 'admin') setS(await fetchPlatformSettings());
+        if (p?.role === 'admin') {
+          setS(await fetchPlatformSettings());
+          fetchLandingRefCounts().then(setRef).catch(() => {});
+        }
       } finally {
         setLoading(false);
       }
@@ -192,21 +196,20 @@ export default function AdminSettingsPage() {
 
         <section className="card mb-4">
           <div className="t-section mb-1">로그인 화면 노출 지표</div>
-          <div className="t-sub mb-4">로그인·회원가입 화면에 노출되는 홍보 수치입니다. 실제 현황에 맞춰 직접 조정하세요.</div>
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-ink-soft">입점 파트너 수 (팀)</span>
-              <input type="number" min={0} value={s.landing_partners ?? 0} onChange={(e) => patch({ landing_partners: Number(e.target.value) })} className="input" />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-ink-soft">등록 행사 수 (건)</span>
-              <input type="number" min={0} value={s.landing_events ?? 0} onChange={(e) => patch({ landing_events: Number(e.target.value) })} className="input" />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-ink-soft">지금 모집 중 (건)</span>
-              <input type="number" min={0} value={s.landing_recruiting ?? 0} onChange={(e) => patch({ landing_recruiting: Number(e.target.value) })} className="input" />
-            </label>
+          <div className="t-sub mb-4">로그인·회원가입 화면에 노출되는 홍보 수치입니다. 아래 <b>실제값</b>을 참고해 직접 조정하세요. (실제값 = 현재 DB 기준)</div>
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+            <RefField label="입점 파트너 수 (팀)" value={s.landing_partners ?? 0} real={ref?.partners} onChange={(v) => patch({ landing_partners: v })} onApply={ref ? () => patch({ landing_partners: ref.partners }) : undefined} />
+            <RefField label="등록 행사 수 (건)" value={s.landing_events ?? 0} real={ref?.events} onChange={(v) => patch({ landing_events: v })} onApply={ref ? () => patch({ landing_events: ref.events }) : undefined} />
+            <RefField label="지금 모집 중 (건)" value={s.landing_recruiting ?? 0} real={ref?.recruiting} onChange={(v) => patch({ landing_recruiting: v })} onApply={ref ? () => patch({ landing_recruiting: ref.recruiting }) : undefined} />
           </div>
+          {ref && (
+            <button
+              onClick={() => patch({ landing_partners: ref.partners, landing_events: ref.events, landing_recruiting: ref.recruiting })}
+              className="btn-secondary text-[12px] py-1.5 px-3 mt-3"
+            >
+              실제값 전체 적용
+            </button>
+          )}
         </section>
 
         <div className="flex items-center gap-3 sticky bottom-0 bg-page/90 backdrop-blur py-3">
@@ -217,6 +220,23 @@ export default function AdminSettingsPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function RefField({ label, value, real, onChange, onApply }: { label: string; value: number; real?: number; onChange: (v: number) => void; onApply?: () => void }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[12px] font-semibold text-ink-soft">{label}</span>
+      <input type="number" min={0} value={value} onChange={(e) => onChange(Number(e.target.value))} className="input" />
+      <span className="text-[11px] text-text-tertiary flex items-center gap-2">
+        {real != null ? (
+          <>
+            <span>실제 <b className="text-ink font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>{real.toLocaleString()}</b></span>
+            {onApply && value !== real && <button type="button" onClick={onApply} className="text-info font-bold hover:underline">적용</button>}
+          </>
+        ) : '실제값 불러오는 중…'}
+      </span>
+    </label>
   );
 }
 
