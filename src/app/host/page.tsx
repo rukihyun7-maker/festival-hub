@@ -7,6 +7,7 @@ import {
   fetchApplicationsForEvent,
   fetchMyHostEvents,
   fetchMyProfile,
+  flushPendingBusinessCard,
 } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, daysUntil, wonCompact } from '@/lib/types';
 import type { ApplicationWithRelations, EventRow, Profile } from '@/lib/types';
@@ -31,6 +32,11 @@ export default function HostDashboardPage() {
         const p = await fetchMyProfile();
         setProfile(p);
         if (p) {
+          // 가입 시 임시 보관한 명함을 첫 로그인에 업로드 (이메일 인증 ON 대응)
+          if (p.role === 'host' && !p.business_card_url) {
+            const url = await flushPendingBusinessCard(p.id).catch(() => null);
+            if (url) setProfile({ ...p, business_card_url: url });
+          }
           const list = await fetchMyHostEvents(p.id);
           setEvents(list);
           if (list.length > 0) setSelectedEventId(list[0].id);

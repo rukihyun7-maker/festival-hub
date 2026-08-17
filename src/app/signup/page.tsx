@@ -25,6 +25,39 @@ function fileError(f: File): string | null {
   return null;
 }
 
+/** 이미지 → 압축 JPEG dataURL (localStorage 용량 초과 방지) */
+function compressImage(file: File, maxDim = 1400, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      const scale = Math.min(1, maxDim / Math.max(width, height));
+      width = Math.round(width * scale); height = Math.round(height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('canvas 미지원'));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('이미지 로드 실패')); };
+    img.src = url;
+  });
+}
+
+/** 명함 파일 → 저장용 dataURL (이미지는 압축, 그 외는 원본) */
+async function fileToStoredDataUrl(file: File): Promise<string> {
+  if (file.type.startsWith('image/')) return compressImage(file);
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result as string);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -79,6 +112,7 @@ export default function SignupPage() {
       return;
     }
     if (captchaEnabled && !captchaToken) { setError('사람인지 확인(보안 인증)을 완료해주세요.'); return; }
+    if (role === 'host' && !cardFile) { setError('명함 이미지를 첨부해주세요. (주최 가입 필수)'); return; }
     if (bizFile) { const fe = fileError(bizFile); if (fe) { setError(fe); return; } }
     if (cardFile) { const fe = fileError(cardFile); if (fe) { setError(fe); return; } }
     setLoading(true);
@@ -122,8 +156,15 @@ export default function SignupPage() {
     }
     // 가입 성공 → 임시 저장 입력값 정리
     try { sessionStorage.removeItem('fh_signup'); } catch { /* noop */ }
-    // 이메일 확인이 켜져 있으면 세션이 없음 → 파일은 로그인 후 등록, 안내 표시
+    // 이메일 확인이 켜져 있으면 세션이 없음 → 명함은 브라우저에 임시 보관 후, 첫 로그인 시 자동 업로드
     if (!data.session) {
+      if (role === 'host' && cardFile && data.user?.id) {
+        try {
+          const dataUrl = await fileToStoredDataUrl(cardFile);
+          const ext = (cardFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+          localStorage.setItem('fh_pending_card', JSON.stringify({ uid: data.user.id, dataUrl, ext }));
+        } catch { /* 임시 저장 실패는 무시 (로그인 후 프로필에서 재업로드 가능) */ }
+      }
       setLoading(false);
       setNeedConfirm(true);
       return;
@@ -240,7 +281,7 @@ export default function SignupPage() {
                 </label>
               </div>
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-ink-soft">명함 이미지 <span className="text-text-tertiary font-normal">(선택 · 신뢰도↑)</span></span>
+                <span className="text-[12px] font-semibold text-ink-soft">명함 이미지 <span className="text-danger font-bold">* 필수</span></span>
                 <input
                   type="file"
                   accept="image/*,application/pdf"

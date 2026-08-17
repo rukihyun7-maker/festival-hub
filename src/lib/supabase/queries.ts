@@ -112,6 +112,29 @@ export async function fetchEventById(id: string): Promise<EventRow | null> {
   return (data as EventRow) ?? null;
 }
 
+/** 가입 시 임시 보관한 주최 명함을 첫 로그인 때 실제 업로드 (이메일 인증 ON 대응)
+ *  localStorage 'fh_pending_card' = { uid, dataUrl, ext } · 성공 시 business_card_url 반영 */
+export async function flushPendingBusinessCard(profileId: string): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('fh_pending_card');
+  if (!raw) return null;
+  let parsed: { uid?: string; dataUrl?: string; ext?: string };
+  try { parsed = JSON.parse(raw); } catch { localStorage.removeItem('fh_pending_card'); return null; }
+  if (parsed.uid !== profileId || !parsed.dataUrl) return null;
+  try {
+    const supabase = createClient();
+    const blob = await (await fetch(parsed.dataUrl)).blob();
+    const path = `${profileId}/business_card/${Date.now()}.${parsed.ext || 'jpg'}`;
+    const { error } = await supabase.storage.from('documents').upload(path, blob, { upsert: true, contentType: blob.type });
+    localStorage.removeItem('fh_pending_card');
+    if (error) return null;
+    await supabase.from('profiles').update({ business_card_url: path }).eq('id', profileId);
+    return path;
+  } catch {
+    return null;
+  }
+}
+
 /** 프로필 단건 조회 (관리자 검수 · 주최 신원 확인 등) */
 export async function fetchProfileById(id: string): Promise<Profile | null> {
   const supabase = createClient();
