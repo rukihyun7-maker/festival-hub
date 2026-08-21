@@ -172,6 +172,7 @@ export interface EventRow {
   status: EventStatus;
   kind?: EventType;        // v3: 신청형(apply)/정보형(info) · DB 기본 apply
   source?: string | null;  // v3: 정보형 출처 (공공 API 등)
+  homepage?: string | null; // v29: 정보형 공식 홈페이지 URL (TourAPI)
   review_status?: ReviewStatus; // v8: 등록 요청 심사 (없으면 approved)
   admin_note?: string | null;   // v8: 반려 사유
   settlement_cycle?: string | null; // v12: 정산 주기 (등록값, 신청형만)

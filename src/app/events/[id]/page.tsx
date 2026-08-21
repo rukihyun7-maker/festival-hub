@@ -371,7 +371,12 @@ export default function EventDetailPage() {
                 <p className="t-sub leading-relaxed mb-4">
                   이 행사는 공개 정보로 제공됩니다. 플랫폼을 통한 자리 신청 대상이 아니며, 참가·부스 문의는 주최 측에 직접 하세요.
                 </p>
-                {event.source && <div className="text-[12px] text-text-tertiary mb-4">출처 · {event.source}</div>}
+                {event.source && <div className="text-[12px] text-text-tertiary mb-3">출처 · {event.source}</div>}
+                {event.homepage && (
+                  <a href={event.homepage} target="_blank" rel="noopener noreferrer" className="btn-primary w-full mb-2 text-center inline-block">
+                    공식 홈페이지 →
+                  </a>
+                )}
                 {profile?.role === 'seller' && (
                   <button onClick={toggleFav} disabled={favBusy} className="btn-secondary w-full">
                     {fav ? '★ 관심 등록됨' : '☆ 관심 등록'}
