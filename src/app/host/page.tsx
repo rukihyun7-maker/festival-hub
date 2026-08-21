@@ -8,6 +8,7 @@ import {
   fetchMyHostEvents,
   fetchMyProfile,
   flushPendingBusinessCard,
+  uploadBusinessCard,
 } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, daysUntil, wonCompact } from '@/lib/types';
 import type { ApplicationWithRelations, EventRow, Profile } from '@/lib/types';
@@ -119,7 +120,8 @@ export default function HostDashboardPage() {
     return (
       <main className="min-h-screen bg-page">
         <AppNav role="host" />
-        <div className="container-app py-12">
+        <div className="container-app py-12 space-y-4">
+          <BusinessCardPrompt profile={profile} onDone={(url) => setProfile({ ...profile, business_card_url: url })} />
           <div className="card text-center py-16">
             <div className="text-[16px] font-bold text-ink mb-2">등록된 행사가 없습니다</div>
             <div className="t-sub mb-6">첫 행사를 등록해서 파트너 신청을 받아보세요</div>
@@ -141,6 +143,11 @@ export default function HostDashboardPage() {
             안녕하세요, {profile.business_name ?? profile.name}님
           </h1>
           <Link href="/host/create-event" className="btn-primary hidden sm:inline-flex">+ 새 행사</Link>
+        </div>
+
+        {/* 명함 미등록 시 재업로드 (이메일 인증 링크를 다른 기기서 열어 자동저장 실패한 경우 대비) */}
+        <div className="mb-3">
+          <BusinessCardPrompt profile={profile} onDone={(url) => setProfile({ ...profile, business_card_url: url })} />
         </div>
 
         {/* 행사 선택 */}
@@ -277,6 +284,48 @@ export default function HostDashboardPage() {
         )}
       </div>
     </main>
+  );
+}
+
+function BusinessCardPrompt({ profile, onDone }: { profile: Profile; onDone: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  if (profile.business_card_url) return null;
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { setMsg('파일이 너무 큽니다 (최대 8MB)'); return; }
+    setUploading(true);
+    setMsg(null);
+    try {
+      const url = await uploadBusinessCard(profile.id, file);
+      onDone(url);
+    } catch (err) {
+      setMsg('업로드 실패: ' + (err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ borderColor: '#E4C97E', background: 'var(--warning-bg, #FBF5E6)' }}>
+      <div className="flex items-start gap-3">
+        <div className="text-[20px] leading-none mt-0.5">🪪</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[14px] font-bold text-ink mb-0.5">담당자 명함이 등록되지 않았습니다</div>
+          <div className="text-[12px] text-text-secondary mb-3">
+            신원 확인을 위해 명함(사업자·담당자 확인용)을 등록해 주세요. 가입 인증 메일을 다른 기기·브라우저에서 여신 경우 자동 저장이 누락될 수 있습니다.
+          </div>
+          <label className={`btn-primary text-[13px] cursor-pointer inline-flex ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+            {uploading ? '업로드 중…' : '명함 파일 선택'}
+            <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} disabled={uploading} />
+          </label>
+          {msg && <div className="text-[12px] text-warning font-semibold mt-2">{msg}</div>}
+        </div>
+      </div>
+    </div>
   );
 }
 

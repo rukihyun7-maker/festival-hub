@@ -135,6 +135,17 @@ export async function flushPendingBusinessCard(profileId: string): Promise<strin
   }
 }
 
+/** 주최 명함 업로드 (로그인 후 · 본인 폴더) → business_card_url 반영 */
+export async function uploadBusinessCard(profileId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `${profileId}/business_card/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('documents').upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  await supabase.from('profiles').update({ business_card_url: path }).eq('id', profileId);
+  return path;
+}
+
 /** 프로필 단건 조회 (관리자 검수 · 주최 신원 확인 등) */
 export async function fetchProfileById(id: string): Promise<Profile | null> {
   const supabase = createClient();
