@@ -13,7 +13,8 @@ import type { EventRow, Profile } from '@/lib/types';
  * Supabase 미설정 시 mock fallback
  */
 
-const REGIONS = ['전체', '서울', '경기', '강원', '충북', '경남', '전남'];
+// 전국 17개 시·도 (행정구역) · 행사 region 값과 1:1 일치해야 필터 동작
+const REGIONS = ['전체', '서울', '경기', '인천', '강원', '충북', '충남', '대전', '세종', '전북', '전남', '광주', '경북', '경남', '대구', '부산', '울산', '제주'];
 const TYPES = [
   { key: 'all' as const, label: '전체' },
   { key: 'apply' as const, label: '신청형' },
