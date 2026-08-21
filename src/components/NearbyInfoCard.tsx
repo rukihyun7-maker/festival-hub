@@ -110,8 +110,13 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
   if ((!rows || rows.length === 0) && fests.length === 0) return null;
 
   // category별 그룹 (거리순은 이미 find_nearby가 정렬)
+  // 같은 시설이 여러 출처·중복 ID로 들어온 경우 이름 기준 1건만 (가장 가까운 것 우선)
   const groups = new Map<LocalInfoCategory, NearbyRow[]>();
+  const seenName = new Set<string>();
   for (const r of rows ?? []) {
+    const key = `${r.category}|${r.name.replace(/\s+/g, '')}`;
+    if (seenName.has(key)) continue;
+    seenName.add(key);
     if (!groups.has(r.category)) groups.set(r.category, []);
     groups.get(r.category)!.push(r);
   }
