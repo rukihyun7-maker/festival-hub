@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import {
-  fetchMyProfile, fetchMyHostEvents, fetchMyApplications,
+  fetchMyProfile, fetchMyHostEvents, fetchMyApplications, fetchMyFavorites,
   fetchMyPersonalEvents, addPersonalEvent, deletePersonalEvent,
 } from '@/lib/supabase/queries';
 import { periodLabel } from '@/lib/types';
@@ -15,7 +15,7 @@ import type { Profile } from '@/lib/types';
  * 플랫폼 행사(입점 파트너=신청 승인/대기, 주최=등록) + 개인(수기) 일정
  */
 
-type CalEvent = { id: string; name: string; start: string; end: string; tone: 'approved' | 'pending' | 'own' | 'personal'; pid?: string; memo?: string | null };
+type CalEvent = { id: string; name: string; start: string; end: string; tone: 'approved' | 'pending' | 'own' | 'personal' | 'fav'; pid?: string; memo?: string | null };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const dstr = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -25,6 +25,7 @@ const TONE: Record<CalEvent['tone'], { bg: string; fg: string; label: string }> 
   pending: { bg: '#FFF3C4', fg: '#7A5B00', label: '대기' },
   own: { bg: '#E9EEFB', fg: '#2B4B9B', label: '등록' },
   personal: { bg: '#F0ECE1', fg: '#3C3626', label: '내 일정' },
+  fav: { bg: '#FBEAF1', fg: '#A83A69', label: '관심' },
 };
 
 export default function CalendarPage() {
@@ -58,8 +59,15 @@ export default function CalendarPage() {
           const evs = await fetchMyHostEvents(p.id);
           setPlatform(evs.filter((e) => e.start_date && e.end_date).map((e) => ({ id: e.id, name: e.name, start: e.start_date, end: e.end_date, tone: 'own' as const })));
         } else {
-          const apps = await fetchMyApplications(p.id);
-          setPlatform(apps.filter((a) => a.event && (a.status === 'approved' || a.status === 'pending')).map((a) => ({ id: a.event!.id, name: a.event!.name, start: a.event!.start_date, end: a.event!.end_date, tone: a.status === 'approved' ? 'approved' as const : 'pending' as const })));
+          const [apps, favs] = await Promise.all([fetchMyApplications(p.id), fetchMyFavorites(p.id).catch(() => [])]);
+          const appEvents: CalEvent[] = apps
+            .filter((a) => a.event && (a.status === 'approved' || a.status === 'pending'))
+            .map((a) => ({ id: a.event!.id, name: a.event!.name, start: a.event!.start_date, end: a.event!.end_date, tone: a.status === 'approved' ? 'approved' as const : 'pending' as const }));
+          const appIds = new Set(appEvents.map((e) => e.id));
+          const favEvents: CalEvent[] = favs
+            .filter((f) => f.event && f.event.start_date && f.event.end_date && !appIds.has(f.event.id))
+            .map((f) => ({ id: f.event!.id, name: f.event!.name, start: f.event!.start_date, end: f.event!.end_date, tone: 'fav' as const }));
+          setPlatform([...appEvents, ...favEvents]);
         }
         await loadPersonal(p.id);
       } finally {
@@ -120,7 +128,7 @@ export default function CalendarPage() {
           <div>
             <h1 className="t-title mb-1">일정</h1>
             <p className="t-sub">
-              {profile?.role === 'host' || profile?.role === 'admin' ? '내가 등록한 행사' : '신청 승인·대기 행사'} + 직접 추가한 일정을 함께 관리합니다.
+              {profile?.role === 'host' || profile?.role === 'admin' ? '내가 등록한 행사' : '신청 승인·대기 + 관심 행사'} + 직접 추가한 일정을 함께 관리합니다.
             </p>
           </div>
           <button onClick={() => setShowForm((v) => !v)} className="btn-primary text-[13px] shrink-0">
