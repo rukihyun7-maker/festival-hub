@@ -6,7 +6,7 @@ import AppNav from '@/components/AppNav';
 import {
   fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus, deleteHostAccount,
   fetchMyDocumentSlots, fetchMyMenus, getSignedDocumentUrl, reviewDocument, countVerified,
-  fetchSellerHistory, fetchRatingSummary, fetchMyHostEvents,
+  fetchSellerHistory, fetchRatingSummary, fetchMyHostEvents, notifyAccountDecision,
 } from '@/lib/supabase/queries';
 import type { Profile, SellerStatus, DocumentSlot, Menu, SellerHistory, RatingSummary, EventRow } from '@/lib/types';
 
@@ -69,6 +69,35 @@ export default function AdminUsersPage() {
     try {
       await updateProfileStatus(profileId, status);
       setProfiles((prev) => prev.map((p) => (p.id === profileId ? { ...p, status } : p)));
+    } catch (e) {
+      alert('상태 변경 실패: ' + (e as Error).message);
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  /** 가입 승인/반려 (파트너·주최 공통) → 상태 변경 후 안내 메일 발송 */
+  async function decide(profileId: string, decision: 'approved' | 'rejected') {
+    const status: SellerStatus = decision === 'approved' ? '정상' : '반려';
+    if (decision === 'approved' && !confirm('가입을 승인하시겠어요? 승인 안내 메일이 발송됩니다.')) return;
+    let reason: string | undefined;
+    if (decision === 'rejected') {
+      const r = window.prompt('가입을 반려합니다. 반려 사유(선택) — 안내 메일에 포함됩니다:', '');
+      if (r === null) return; // 취소
+      reason = r.trim() || undefined;
+    }
+    setUpdatingId(profileId);
+    try {
+      await updateProfileStatus(profileId, status);
+      setProfiles((prev) => prev.map((p) => (p.id === profileId ? { ...p, status } : p)));
+      try {
+        const res = await notifyAccountDecision(profileId, decision, reason);
+        if (res.skipped) {
+          alert(`상태를 변경했습니다.\n(메일은 RESEND_API_KEY 미설정으로 발송되지 않았습니다.)`);
+        }
+      } catch (mailErr) {
+        alert('상태는 변경됐지만 안내 메일 발송에 실패했습니다:\n' + (mailErr as Error).message);
+      }
     } catch (e) {
       alert('상태 변경 실패: ' + (e as Error).message);
     } finally {
@@ -173,6 +202,7 @@ export default function AdminUsersPage() {
                     <span className="text-[15px] font-bold text-ink truncate">{p.business_name ?? p.name}</span>
                     <RoleBadge role={p.role} />
                     {p.role === 'seller' && <SellerStatusBadge status={p.status ?? '정상'} />}
+                    {p.role === 'host' && (p.status === '가입 심사' || p.status === '반려') && <SellerStatusBadge status={p.status} />}
                   </div>
                   <div className="text-[12px] text-text-secondary truncate">
                     {p.name} · <span style={{ fontFamily: 'ui-monospace, monospace' }}>{p.email}</span>
@@ -212,8 +242,8 @@ export default function AdminUsersPage() {
                         const st = p.status ?? '정상';
                         if (st === '가입 심사') return (
                           <>
-                            <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '반려', '가입을 반려하시겠어요? 반려된 파트너는 서비스를 이용할 수 없습니다. (재심사 가능)')} className="text-[12px] text-danger hover:underline font-semibold px-1">반려</button>
-                            <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '정상', '서류·판매메뉴를 확인하셨나요? 승인하면 파트너가 행사 찾기·신청을 이용할 수 있습니다.')} className="btn-primary text-[12px] py-1.5 px-3">가입 승인</button>
+                            <button disabled={updatingId === p.id} onClick={() => decide(p.id, 'rejected')} className="text-[12px] text-danger hover:underline font-semibold px-1">반려</button>
+                            <button disabled={updatingId === p.id} onClick={() => decide(p.id, 'approved')} className="btn-primary text-[12px] py-1.5 px-3">가입 승인</button>
                           </>
                         );
                         if (st === '반려') return (
@@ -228,12 +258,30 @@ export default function AdminUsersPage() {
                       })()}
                     </>
                   ) : p.role === 'host' ? (
-                    <button
-                      onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                      className="text-[12px] font-semibold text-text-secondary hover:text-ink px-2 py-1.5 rounded-input border border-line"
-                    >
-                      {expandedId === p.id ? '접기' : '정보 상세'}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                        className="text-[12px] font-semibold text-text-secondary hover:text-ink px-2 py-1.5 rounded-input border border-line"
+                      >
+                        {expandedId === p.id ? '접기' : '정보 상세'}
+                      </button>
+                      {(() => {
+                        const st = p.status ?? '정상';
+                        if (st === '가입 심사') return (
+                          <>
+                            <button disabled={updatingId === p.id} onClick={() => decide(p.id, 'rejected')} className="text-[12px] text-danger hover:underline font-semibold px-1">반려</button>
+                            <button disabled={updatingId === p.id} onClick={() => decide(p.id, 'approved')} className="btn-primary text-[12px] py-1.5 px-3">가입 승인</button>
+                          </>
+                        );
+                        if (st === '반려') return (
+                          <button disabled={updatingId === p.id} onClick={() => changeStatus(p.id, '가입 심사', '재심사 대기 상태로 되돌리시겠어요?')} className="btn-secondary text-[12px] py-1.5 px-3">재심사</button>
+                        );
+                        // 정상(승인됨) → 반려로 전환 가능
+                        return (
+                          <button disabled={updatingId === p.id} onClick={() => decide(p.id, 'rejected')} className="text-[12px] text-danger hover:underline font-semibold">가입 반려</button>
+                        );
+                      })()}
+                    </>
                   ) : (
                     <span className="text-[11px] text-text-tertiary">—</span>
                   )}

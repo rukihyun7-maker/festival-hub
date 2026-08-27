@@ -213,6 +213,11 @@ export default function SignupPage() {
               로그인 후 <b>[필수 서류]</b>에서 <b>사업자등록증</b>과 나머지 서류를 등록하세요. 서류 완료 + 관리자 승인 후 행사 찾기·신청을 이용할 수 있습니다.
             </div>
           )}
+          {role === 'host' && (
+            <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input mb-5" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
+              가입은 <b>관리자 승인</b> 후 이용할 수 있습니다. 승인 결과는 이 이메일로 안내드리며, 승인되면 로그인해 행사를 등록할 수 있습니다.
+            </div>
+          )}
           <Link href="/login" className="btn-primary inline-flex">로그인으로 이동</Link>
         </div>
       </main>

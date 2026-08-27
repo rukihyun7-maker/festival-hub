@@ -121,11 +121,12 @@ export default function HostDashboardPage() {
       <main className="min-h-screen bg-page">
         <AppNav role="host" />
         <div className="container-app py-12 space-y-4">
+          <HostStatusBanner status={profile.status} />
           <BusinessCardPrompt profile={profile} onDone={(url) => setProfile({ ...profile, business_card_url: url })} />
           <div className="card text-center py-16">
             <div className="text-[16px] font-bold text-ink mb-2">등록된 행사가 없습니다</div>
-            <div className="t-sub mb-6">첫 행사를 등록해서 파트너 신청을 받아보세요</div>
-            <Link href="/host/create-event" className="btn-primary">+ 새 행사 등록</Link>
+            <div className="t-sub mb-6">{profile.status === '정상' ? '첫 행사를 등록해서 파트너 신청을 받아보세요' : '가입 승인 후 행사를 등록할 수 있습니다'}</div>
+            {profile.status === '정상' && <Link href="/host/create-event" className="btn-primary">+ 새 행사 등록</Link>}
           </div>
         </div>
       </main>
@@ -142,8 +143,11 @@ export default function HostDashboardPage() {
           <h1 className="text-[22px] font-extrabold text-ink tracking-[-0.02em]">
             안녕하세요, {profile.business_name ?? profile.name}님
           </h1>
-          <Link href="/host/create-event" className="btn-primary hidden sm:inline-flex">+ 새 행사</Link>
+          {profile.status === '정상' && <Link href="/host/create-event" className="btn-primary hidden sm:inline-flex">+ 새 행사</Link>}
         </div>
+
+        {/* 가입 심사/반려 상태 안내 */}
+        <HostStatusBanner status={profile.status} />
 
         {/* 명함 미등록 시 재업로드 (이메일 인증 링크를 다른 기기서 열어 자동저장 실패한 경우 대비) */}
         <div className="mb-3">
@@ -285,6 +289,40 @@ export default function HostDashboardPage() {
       </div>
     </main>
   );
+}
+
+function HostStatusBanner({ status }: { status?: string | null }) {
+  if (status === '가입 심사') {
+    return (
+      <div className="card mb-3" style={{ borderColor: '#E4C97E', background: 'var(--warning-bg, #FBF5E6)' }}>
+        <div className="flex items-start gap-3">
+          <div className="text-[20px] leading-none mt-0.5">🕓</div>
+          <div>
+            <div className="text-[14px] font-bold text-ink mb-0.5">가입 심사 중입니다</div>
+            <div className="text-[12px] text-text-secondary leading-relaxed">
+              관리자 확인 후 행사 등록·신청 관리 기능이 열립니다. 승인 결과는 가입하신 이메일로 안내드립니다.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (status === '반려') {
+    return (
+      <div className="card mb-3" style={{ borderColor: '#E0A99B', background: 'var(--danger-bg, #FBECE8)' }}>
+        <div className="flex items-start gap-3">
+          <div className="text-[20px] leading-none mt-0.5">⚠️</div>
+          <div>
+            <div className="text-[14px] font-bold text-ink mb-0.5">가입이 반려되었습니다</div>
+            <div className="text-[12px] text-text-secondary leading-relaxed">
+              안내 메일의 사유를 확인해 정보를 보완한 뒤 고객센터로 재심사를 요청해 주세요. 현재는 행사 등록이 제한됩니다.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
 }
 
 function BusinessCardPrompt({ profile, onDone }: { profile: Profile; onDone: (url: string) => void }) {

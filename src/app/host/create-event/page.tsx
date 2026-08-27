@@ -122,6 +122,28 @@ export default function CreateEventPage() {
     );
   }
 
+  // 가입 심사/반려 주최는 행사 등록 불가 (관리자 승인 후 이용)
+  if (me.role === 'host' && me.status !== '정상') {
+    const pending = me.status === '가입 심사';
+    return (
+      <main className="min-h-screen bg-page">
+        <AppNav role="host" />
+        <div className="container-app py-12 max-w-[520px]">
+          <div className="card text-center py-14">
+            <div className="text-[34px] mb-3">{pending ? '🕓' : '⚠️'}</div>
+            <div className="text-[16px] font-bold text-ink mb-2">{pending ? '가입 심사 중입니다' : '가입이 반려되었습니다'}</div>
+            <div className="t-sub mb-6">
+              {pending
+                ? '관리자 승인 후 행사를 등록할 수 있습니다. 결과는 이메일로 안내드립니다.'
+                : '안내 메일의 사유를 확인해 정보를 보완한 뒤 재심사를 요청해 주세요.'}
+            </div>
+            <Link href="/host" className="btn-primary">대시보드로 이동</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (done) {
     const s = done.summary;
     const hasSummary = !!s && (s.apartment + s.university + s.transit + s.commercial) > 0;

@@ -146,6 +146,23 @@ export async function uploadBusinessCard(profileId: string, file: File): Promise
   return path;
 }
 
+/** 가입 승인/반려 안내 메일 발송 (관리자) · 서버 라우트 경유(Resend)
+ *  RESEND_API_KEY 미설정 시 서버가 {skipped:true} 반환 → 조용히 성공 처리 */
+export async function notifyAccountDecision(
+  userId: string,
+  decision: 'approved' | 'rejected',
+  reason?: string
+): Promise<{ ok: boolean; skipped?: boolean; id?: string }> {
+  const res = await fetch('/api/admin/notify-account', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, decision, reason }),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j?.error || '메일 발송 실패');
+  return j;
+}
+
 /** 프로필 단건 조회 (관리자 검수 · 주최 신원 확인 등) */
 export async function fetchProfileById(id: string): Promise<Profile | null> {
   const supabase = createClient();
