@@ -528,6 +528,7 @@ function ApplyModal({
   applying: boolean;
 }) {
   const [agreed, setAgreed] = useState(false);
+  const [agreeInfo, setAgreeInfo] = useState(false);
   return (
     <div onClick={onClose} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(20,18,14,0.4)' }}>
       <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-[520px] bg-surface animate-fh-up" style={{ borderRadius: '20px 20px 0 0', padding: 'clamp(24px, 3vw, 32px)', maxHeight: '92vh', overflowY: 'auto' }}>
@@ -547,15 +548,23 @@ function ApplyModal({
             <span className="text-[20px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{totalFee.toLocaleString()}</span>
           </div>
         </div>
-        <label className="flex items-start gap-2 mb-4 cursor-pointer">
-          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
-          <span className="text-[13px] text-text-secondary leading-[1.6]">
-            참가 약관 및 취소 정책에 동의합니다. 확정 후 취소 시 참가비 30% 위약금이 발생합니다.
-          </span>
-        </label>
+        <div className="space-y-2.5 mb-4">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
+            <span className="text-[13px] text-text-secondary leading-[1.6]">
+              <b className="text-ink">(필수)</b> 참가 약관 및 취소 정책에 동의합니다. 확정 후 취소 시 참가비 30% 위약금이 발생합니다.
+            </span>
+          </label>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked={agreeInfo} onChange={(e) => setAgreeInfo(e.target.checked)} className="mt-1" />
+            <span className="text-[13px] text-text-secondary leading-[1.6]">
+              <b className="text-ink">(필수) 정보 제공 동의</b> — 주최가 신청을 <b>승인</b>하면, 원활한 진행을 위해 주최에게 <b>담당자·연락처·사업자 정보 및 등록 서류</b>가 제공되는 것에 동의합니다. (승인 전에는 제공되지 않습니다)
+            </span>
+          </label>
+        </div>
         <div className="flex gap-2">
           <button onClick={onClose} className="btn-secondary flex-1">취소</button>
-          <button disabled={!agreed || applying} onClick={onConfirm} className="btn-primary flex-1">
+          <button disabled={!agreed || !agreeInfo || applying} onClick={onConfirm} className="btn-primary flex-1">
             {applying ? '처리 중…' : '신청 확정'}
           </button>
         </div>

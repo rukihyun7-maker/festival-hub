@@ -365,6 +365,11 @@ export default function SignupPage() {
                 <Link href="/privacy" target="_blank" className="text-info font-semibold underline">개인정보 수집·이용</Link>에 동의합니다
               </span>
             </label>
+            {role === 'seller' && (
+              <div className="text-[11px] text-text-tertiary leading-relaxed pl-6">
+                ※ 회원님의 연락처·사업자 정보는 <b>기본 비공개</b>이며, 행사에 <b>신청하고 주최가 승인한 경우에 한해</b> 해당 주최에게만 제공됩니다. (신청 시 별도 동의)
+              </div>
+            )}
           </div>
 
           <Turnstile onToken={setCaptchaToken} />
