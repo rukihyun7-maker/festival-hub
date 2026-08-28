@@ -21,6 +21,7 @@ const DEFAULT_SHARE: ShareFlags = {
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [copied, setCopied] = useState(false);
   const [notif, setNotif] = useState<NotifPrefs>(DEFAULT_NOTIF);
   const [share, setShare] = useState<ShareFlags>(DEFAULT_SHARE);
   const [loading, setLoading] = useState(true);
@@ -97,6 +98,30 @@ export default function SettingsPage() {
           <div className="t-section text-[20px]">설정</div>
           <div className="t-sub mt-1">알림 수신과 정보 공개 범위를 관리합니다.</div>
         </div>
+
+        {/* 추천 코드 · 포인트 (입점 파트너) */}
+        {role === 'seller' && (
+          <section className="card mb-4">
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <div className="t-section">추천 코드</div>
+              <div className="text-[13px] font-bold text-ink">보유 포인트 <span className="text-accent-warm">{(profile.points ?? 0).toLocaleString()}P</span></div>
+            </div>
+            <div className="t-sub mb-3">지인에게 코드를 공유하고, 지인이 가입 승인되면 <b>10P</b>가 적립됩니다.</div>
+            {profile.referral_code ? (
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-[16px] font-extrabold tracking-[0.15em] text-ink px-3 py-2.5 rounded-input text-center" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)', border: '1px solid var(--line,#E7DFCE)' }}>{profile.referral_code}</code>
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(profile.referral_code!).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}
+                  className="btn-secondary shrink-0 text-[13px]"
+                >{copied ? '복사됨 ✓' : '코드 복사'}</button>
+              </div>
+            ) : (
+              <div className="text-[12px] text-text-tertiary p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                가입 승인이 완료되면 나만의 추천 코드가 발급됩니다.
+              </div>
+            )}
+          </section>
+        )}
 
         {/* 알림 채널 */}
         <section className="card mb-4">

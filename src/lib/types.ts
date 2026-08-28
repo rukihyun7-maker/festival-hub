@@ -143,6 +143,9 @@ export interface Profile {
   share_flags: ShareFlags;      // v3: 주최사 공개 설정
   notif_prefs: NotifPrefs;      // v3: 알림 설정
   status?: SellerStatus;        // v8: 가입 심사 상태 (없으면 '정상')
+  referral_code?: string | null; // v35: 내 추천 코드 (승인 시 발급)
+  points?: number;               // v35: 보유 포인트
+  referred_by?: string | null;   // v35: 추천인 id
   created_at: string;
   updated_at: string;
 }

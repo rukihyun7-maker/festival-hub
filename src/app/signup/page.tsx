@@ -72,6 +72,7 @@ export default function SignupPage() {
   // 입점 파트너 사업자등록증
   const [bizNo, setBizNo] = useState('');
   const [bizFile, setBizFile] = useState<File | null>(null);
+  const [referrerCode, setReferrerCode] = useState('');
   // 약관 동의
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
@@ -140,6 +141,7 @@ export default function SignupPage() {
         data: {
           name, role,
           ...(role === 'seller' ? { business_no: bizDigits } : { business_name: orgName, position, phone, business_no: bizDigits }),
+          ...(referrerCode.trim() ? { referrer_code: referrerCode.trim().toUpperCase() } : {}),
         },
         ...(captchaToken ? { captchaToken } : {}),
       },
@@ -328,6 +330,11 @@ export default function SignupPage() {
                   className="text-[12px] file:mr-3 file:py-2 file:px-3 file:rounded-input file:border-0 file:bg-ink file:text-accent file:font-bold file:text-[12px] file:cursor-pointer"
                 />
                 {bizFile && <span className="text-[11px] text-success">첨부됨: {bizFile.name}</span>}
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-semibold text-ink-soft">추천인 코드 <span className="text-text-tertiary font-normal">(선택)</span></span>
+                <input type="text" value={referrerCode} onChange={(e) => setReferrerCode(e.target.value.toUpperCase())} className="input" placeholder="추천인에게 받은 6자리 코드" maxLength={6} style={{ textTransform: 'uppercase' }} />
+                <span className="text-[11px] text-text-tertiary">입력하면 가입 승인 시 추천인에게 10P가 적립됩니다.</span>
               </label>
             </>
           )}
