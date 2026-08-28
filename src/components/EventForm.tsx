@@ -158,6 +158,9 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             </Field>
             <Field label="신청 마감일">
               <input type="date" value={v.deadline} onChange={(e) => set('deadline', e.target.value)} className="input" />
+              <div className="text-[11px] text-text-tertiary mt-1 leading-relaxed">
+                입점 파트너가 <b>이 날까지</b> 신청할 수 있어요. 보통 <b>행사 시작 1~2주 전</b>으로 설정하면 검토·준비 시간이 넉넉합니다. (비우면 상시 모집)
+              </div>
             </Field>
           </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'minmax(120px, auto) minmax(200px, 1fr)' }}>

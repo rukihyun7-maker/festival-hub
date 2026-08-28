@@ -145,7 +145,13 @@ export default function HostEventsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4 pt-4 border-t border-line-faint">
-                    <Link href="/host/applicants" className="btn-secondary flex-1 text-center">신청자 관리</Link>
+                    {e.review_status === 'pending' || e.review_status === 'rejected' ? (
+                      <span className="btn-secondary flex-1 text-center opacity-50 cursor-not-allowed" aria-disabled="true" title="승인 후 신청을 받을 수 있습니다">
+                        {e.review_status === 'pending' ? '승인 후 신청 접수' : '반려 상태'}
+                      </span>
+                    ) : (
+                      <Link href="/host/applicants" className="btn-secondary flex-1 text-center">신청자 관리</Link>
+                    )}
                     <Link href={`/host/events/${e.id}/edit`} className="btn-secondary flex-1 text-center">행사 수정</Link>
                   </div>
                 </div>

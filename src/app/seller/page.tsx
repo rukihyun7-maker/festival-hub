@@ -876,7 +876,7 @@ function StoreTab({
         <div className="t-section">매장 정보</div>
         <span className="text-[12px] text-text-tertiary">주최 공개 {publicCount}/{STORE_SHAREABLE.length}항목</span>
       </div>
-      <div className="t-sub mb-5">항목별로 신청서에 넣을지 직접 고르세요. 끈 항목은 주최에게 &lsquo;비공개&rsquo;로 표시됩니다.</div>
+      <div className="t-sub mb-5">각 항목을 주최에게 공개할지 직접 선택하세요. 끄면 해당 항목은 주최에게 &lsquo;비공개&rsquo;로 표시됩니다.</div>
 
       {/* 항상 공개 (필수) */}
       <StoreField label="상호" value={f.business_name} onChange={(v) => set('business_name', v)} always required placeholder="예: 민지네 분식차" />

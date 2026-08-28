@@ -113,7 +113,7 @@ export default function SettingsPage() {
           <Toggle label="마감 임박" desc="신청·서류 마감 사전 알림" on={notif.deadline} onChange={(v) => setNotif({ ...notif, deadline: v })} />
           <Toggle label="심사 결과" desc="신청 승인·반려 통지" on={notif.review} onChange={(v) => setNotif({ ...notif, review: v })} />
           <Toggle label="서류 상태" desc="검증 결과·만료 예정" on={notif.docs} onChange={(v) => setNotif({ ...notif, docs: v })} />
-          <Toggle label="신규 행사" desc="관심 지역 새 행사 공고" on={notif.new_event} onChange={(v) => setNotif({ ...notif, new_event: v })} />
+          <Toggle label="관심 행사 알림" desc="관심 등록(찜)한 행사의 새 소식·변경 알림" on={notif.new_event} onChange={(v) => setNotif({ ...notif, new_event: v })} />
 
           <div className="mt-4 pt-4 border-t border-line-faint">
             <div className="text-[13px] font-bold text-ink mb-2">마감 사전 알림 기준</div>

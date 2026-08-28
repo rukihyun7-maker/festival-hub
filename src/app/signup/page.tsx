@@ -113,13 +113,14 @@ export default function SignupPage() {
     }
     if (captchaEnabled && !captchaToken) { setError('사람인지 확인(보안 인증)을 완료해주세요.'); return; }
     if (role === 'host' && !cardFile) { setError('명함 이미지를 첨부해주세요. (주최 가입 필수)'); return; }
+    if (role === 'host' && bizNo.replace(/\D/g, '').length < 10) { setError('사업자등록번호를 정확히 입력해 주세요. (주최 가입 필수)'); return; }
     if (bizFile) { const fe = fileError(bizFile); if (fe) { setError(fe); return; } }
     if (cardFile) { const fe = fileError(cardFile); if (fe) { setError(fe); return; } }
     setLoading(true);
     const supabase = createClient();
 
-    // 입점 파트너: 사업자번호 정규화(숫자만) + 중복 가입 차단
-    const bizDigits = role === 'seller' ? bizNo.replace(/\D/g, '') : '';
+    // 사업자번호 정규화(숫자만) · 입점 파트너는 중복 가입 차단
+    const bizDigits = bizNo.replace(/\D/g, '');
     if (role === 'seller' && bizDigits) {
       try {
         const { data: taken } = await supabase.rpc('business_no_taken', { p: bizDigits });
@@ -138,7 +139,7 @@ export default function SignupPage() {
       options: {
         data: {
           name, role,
-          ...(role === 'seller' ? { business_no: bizDigits } : { business_name: orgName, position, phone }),
+          ...(role === 'seller' ? { business_no: bizDigits } : { business_name: orgName, position, phone, business_no: bizDigits }),
         },
         ...(captchaToken ? { captchaToken } : {}),
       },
@@ -274,6 +275,10 @@ export default function SignupPage() {
               <label className="flex flex-col gap-1.5">
                 <span className="text-[12px] font-semibold text-ink-soft">소속 (주최사·기관·단체명)</span>
                 <input type="text" required value={orgName} onChange={(e) => setOrgName(e.target.value)} className="input" placeholder="예: 서울숲재단" />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-semibold text-ink-soft">사업자등록번호 <span className="text-danger font-bold">* 필수</span></span>
+                <input type="text" required value={bizNo} onChange={(e) => setBizNo(e.target.value)} className="input" placeholder="000-00-00000" />
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1.5">
