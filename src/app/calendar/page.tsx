@@ -5,33 +5,41 @@ import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import {
   fetchMyProfile, fetchMyHostEvents, fetchMyApplications, fetchMyFavorites,
-  fetchMyPersonalEvents, addPersonalEvent, deletePersonalEvent,
+  fetchMyPersonalEvents, addPersonalEvent, deletePersonalEvent, fetchEvents,
 } from '@/lib/supabase/queries';
-import { periodLabel } from '@/lib/types';
+import { periodLabel, eventType } from '@/lib/types';
 import type { Profile } from '@/lib/types';
 
 /**
- * 일정 캘린더
- * 플랫폼 행사(입점 파트너=신청 승인/대기, 주최=등록) + 개인(수기) 일정
+ * 일정 캘린더 · 2트랙
+ *  - 내 일정: 신청 승인/대기 + 관심 + 직접추가 (개인 트랙)
+ *  - 행사 달력: 전국 축제·행사(정보형) 전체 (탐색 트랙) · 날짜 클릭 시 하단 리스트
  */
 
-type CalEvent = { id: string; name: string; start: string; end: string; tone: 'approved' | 'pending' | 'own' | 'personal' | 'fav'; pid?: string; memo?: string | null };
+type CalTone = 'approved' | 'pending' | 'own' | 'personal' | 'fav' | 'festival' | 'happening';
+type CalEvent = { id: string; name: string; start: string; end: string; tone: CalTone; pid?: string; memo?: string | null };
+type CalView = 'mine' | 'all';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const dstr = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
-const TONE: Record<CalEvent['tone'], { bg: string; fg: string; label: string }> = {
+const TONE: Record<CalTone, { bg: string; fg: string; label: string }> = {
   approved: { bg: '#E2F3E4', fg: '#1D6B2A', label: '승인' },
   pending: { bg: '#FFF3C4', fg: '#7A5B00', label: '대기' },
   own: { bg: '#E9EEFB', fg: '#2B4B9B', label: '등록' },
   personal: { bg: '#F0ECE1', fg: '#3C3626', label: '내 일정' },
   fav: { bg: '#FBEAF1', fg: '#A83A69', label: '관심' },
+  festival: { bg: '#FDEBD6', fg: '#B4651E', label: '축제' },
+  happening: { bg: '#E7EEF7', fg: '#2B5A8C', label: '행사' },
 };
 
 export default function CalendarPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [platform, setPlatform] = useState<CalEvent[]>([]);
   const [personal, setPersonal] = useState<CalEvent[]>([]);
+  const [allEvents, setAllEvents] = useState<CalEvent[]>([]);
+  const [view, setView] = useState<CalView>('mine');
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const now = new Date();
   const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
@@ -70,13 +78,32 @@ export default function CalendarPage() {
           setPlatform([...appEvents, ...favEvents]);
         }
         await loadPersonal(p.id);
+        // 행사 달력(탐색 트랙): 전국 축제·행사(정보형) 전체
+        try {
+          const evs = await fetchEvents({});
+          setAllEvents(
+            evs
+              .filter((e) => e.start_date && e.end_date && eventType(e) === 'info')
+              .map((e) => ({
+                id: e.id, name: e.name, start: e.start_date, end: e.end_date,
+                tone: (e.category === '축제' ? 'festival' : 'happening') as CalTone,
+              }))
+          );
+        } catch { /* 행사 달력 로드 실패는 무시 */ }
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  const events = useMemo(() => [...platform, ...personal], [platform, personal]);
+  // 표시 대상: 내 일정 트랙 vs 행사 달력 트랙 (겹치지 않게 분리)
+  const events = useMemo(
+    () => (view === 'all' ? allEvents : [...platform, ...personal]),
+    [view, allEvents, platform, personal]
+  );
+
+  // 월 이동·트랙 전환 시 선택 날짜 초기화
+  useEffect(() => { setSelectedDay(null); }, [cursor, view]);
 
   async function submitPersonal(e: React.FormEvent) {
     e.preventDefault();
@@ -124,20 +151,40 @@ export default function CalendarPage() {
     <main className="min-h-screen bg-page">
       <AppNav role={profile?.role === 'host' ? 'host' : profile?.role === 'admin' ? 'admin' : 'seller'} />
       <div className="container-app py-8 max-w-[860px]">
-        <div className="flex items-start justify-between gap-3 mb-5">
+        <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="t-title mb-1">일정</h1>
             <p className="t-sub">
-              {profile?.role === 'host' || profile?.role === 'admin' ? '내가 등록한 행사' : '신청 승인·대기 + 관심 행사'} + 직접 추가한 일정을 함께 관리합니다.
+              {view === 'all'
+                ? '전국 축제·행사를 달력에서 보고, 날짜를 눌러 그날 일정을 확인하세요.'
+                : `${profile?.role === 'host' || profile?.role === 'admin' ? '내가 등록한 행사' : '신청 승인·대기 + 관심 행사'} + 직접 추가한 일정을 관리합니다.`}
             </p>
           </div>
-          <button onClick={() => setShowForm((v) => !v)} className="btn-primary text-[13px] shrink-0">
-            {showForm ? '닫기' : '+ 일정 추가'}
-          </button>
+          {view === 'mine' && (
+            <button onClick={() => setShowForm((v) => !v)} className="btn-primary text-[13px] shrink-0">
+              {showForm ? '닫기' : '+ 일정 추가'}
+            </button>
+          )}
         </div>
 
-        {/* 수기 일정 추가 폼 */}
-        {showForm && (
+        {/* 트랙 전환 탭 */}
+        <div className="flex gap-1.5 mb-5">
+          {([['mine', '내 일정'], ['all', '행사 달력']] as const).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => { setView(v); setShowForm(false); }}
+              className="text-[13px] font-bold px-4 py-2 rounded-pill border transition-colors"
+              style={view === v
+                ? { background: 'var(--ink,#14120E)', color: '#fff', borderColor: 'var(--ink,#14120E)' }
+                : { background: 'var(--bg-surface,#fff)', color: 'var(--text-secondary,#6F675A)', borderColor: 'var(--line,#E7DFCE)' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* 수기 일정 추가 폼 (내 일정 트랙만) */}
+        {view === 'mine' && showForm && (
           <form onSubmit={submitPersonal} className="card mb-5">
             <div className="t-section mb-3">직접 일정 추가</div>
             <div className="grid gap-3">
@@ -185,56 +232,82 @@ export default function CalendarPage() {
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-1">
-                {cells.map((day, i) => (
-                  <div key={i} className={`min-h-[64px] sm:min-h-[80px] rounded-input p-1 ${day ? '' : 'opacity-0'}`} style={{ background: day && isToday(day) ? 'var(--warning-bg,#FFF3C4)' : 'var(--bg-surface-sunken,#FDFBF6)' }}>
-                    {day && (
-                      <>
-                        <div className={`text-[11px] font-bold mb-0.5 ${i % 7 === 0 ? 'text-danger' : i % 7 === 6 ? 'text-info' : 'text-text-secondary'}`}>{day}</div>
-                        <div className="space-y-0.5">
-                          {eventsOn(day).slice(0, 3).map((e) => (
-                            <div key={e.id + (e.pid ?? '')} className="truncate text-[10px] font-semibold px-1 py-0.5 rounded" style={{ background: TONE[e.tone].bg, color: TONE[e.tone].fg }} title={e.name}>
-                              {e.name}
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                {cells.map((day, i) => {
+                  if (!day) return <div key={i} className="min-h-[64px] sm:min-h-[80px] opacity-0" />;
+                  const dayEv = eventsOn(day);
+                  const isSel = selectedDay === day;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedDay(isSel ? null : day)}
+                      className="min-h-[64px] sm:min-h-[80px] rounded-input p-1 text-left transition-colors"
+                      style={{
+                        background: isSel ? 'var(--accent-soft,#FFF1D6)' : isToday(day) ? 'var(--warning-bg,#FFF3C4)' : 'var(--bg-surface-sunken,#FDFBF6)',
+                        outline: isSel ? '2px solid var(--accent-warm,#C9622E)' : 'none',
+                        outlineOffset: '-2px',
+                      }}
+                    >
+                      <div className={`text-[11px] font-bold mb-0.5 ${i % 7 === 0 ? 'text-danger' : i % 7 === 6 ? 'text-info' : 'text-text-secondary'}`}>{day}</div>
+                      <div className="space-y-0.5">
+                        {dayEv.slice(0, 3).map((e) => (
+                          <div key={e.id + (e.pid ?? '')} className="truncate text-[10px] font-semibold px-1 py-0.5 rounded" style={{ background: TONE[e.tone].bg, color: TONE[e.tone].fg }} title={e.name}>
+                            {e.name}
+                          </div>
+                        ))}
+                        {dayEv.length > 3 && (
+                          <div className="text-[10px] font-bold text-text-tertiary px-1">+{dayEv.length - 3}건</div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* 이 달 일정 목록 */}
-            <div className="mt-6">
-              <div className="t-section mb-3">{cursor.m + 1}월 일정 {monthEvents.length}건</div>
-              {monthEvents.length === 0 ? (
-                <div className="card text-center py-10">
-                  <div className="text-[14px] font-semibold text-ink mb-1">이 달 일정이 없습니다</div>
-                  <div className="t-sub">‘+ 일정 추가’로 직접 등록하거나, 플랫폼 행사를 신청해보세요.</div>
-                </div>
-              ) : (
-                <div className="card p-0 overflow-hidden">
-                  {monthEvents.slice().sort((a, b) => a.start.localeCompare(b.start)).map((e, i, arr) => (
-                    <div key={e.id + (e.pid ?? '')} className={`flex items-center justify-between gap-3 p-4 ${i !== arr.length - 1 ? 'border-b border-line-faint' : ''}`}>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-bold text-ink truncate">{e.name}</span>
-                          <span className="badge shrink-0" style={{ background: TONE[e.tone].bg, color: TONE[e.tone].fg }}>{TONE[e.tone].label}</span>
-                        </div>
-                        <div className="text-[12px] text-text-secondary mt-0.5">
-                          {periodLabel(e.start, e.end)}{e.memo ? ` · ${e.memo}` : ''}
-                        </div>
-                      </div>
-                      {e.tone === 'personal' ? (
-                        <button onClick={() => removePersonal(e.pid!)} className="text-[12px] font-semibold text-danger hover:underline shrink-0">삭제</button>
-                      ) : (
-                        <Link href={`/events/${e.id}`} className="text-[12px] font-bold text-info shrink-0">상세 →</Link>
-                      )}
+            {/* 하단 일정 목록 (선택 날짜 or 이 달 전체) */}
+            {(() => {
+              const listEvents = selectedDay ? eventsOn(selectedDay) : monthEvents;
+              const title = selectedDay
+                ? `${cursor.m + 1}월 ${selectedDay}일 · ${listEvents.length}건`
+                : `${cursor.m + 1}월 ${view === 'all' ? '행사' : '일정'} ${monthEvents.length}건`;
+              return (
+                <div className="mt-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="t-section">{title}</div>
+                    {selectedDay && (
+                      <button onClick={() => setSelectedDay(null)} className="text-[12px] font-semibold text-accent-warm hover:text-accent-deep">이 달 전체 보기</button>
+                    )}
+                  </div>
+                  {listEvents.length === 0 ? (
+                    <div className="card text-center py-10">
+                      <div className="text-[14px] font-semibold text-ink mb-1">{selectedDay ? '이 날 일정이 없습니다' : view === 'all' ? '이 달 행사가 없습니다' : '이 달 일정이 없습니다'}</div>
+                      <div className="t-sub">{view === 'all' ? '다른 날짜나 달을 확인해보세요.' : '‘+ 일정 추가’로 직접 등록하거나, 플랫폼 행사를 신청해보세요.'}</div>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="card p-0 overflow-hidden">
+                      {listEvents.slice().sort((a, b) => a.start.localeCompare(b.start)).map((e, i, arr) => (
+                        <div key={e.id + (e.pid ?? '')} className={`flex items-center justify-between gap-3 p-4 ${i !== arr.length - 1 ? 'border-b border-line-faint' : ''}`}>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[14px] font-bold text-ink truncate">{e.name}</span>
+                              <span className="badge shrink-0" style={{ background: TONE[e.tone].bg, color: TONE[e.tone].fg }}>{TONE[e.tone].label}</span>
+                            </div>
+                            <div className="text-[12px] text-text-secondary mt-0.5">
+                              {periodLabel(e.start, e.end)}{e.memo ? ` · ${e.memo}` : ''}
+                            </div>
+                          </div>
+                          {e.tone === 'personal' ? (
+                            <button onClick={() => removePersonal(e.pid!)} className="text-[12px] font-semibold text-danger hover:underline shrink-0">삭제</button>
+                          ) : (
+                            <Link href={`/events/${e.id}`} className="text-[12px] font-bold text-info shrink-0">상세 →</Link>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </>
         )}
       </div>
