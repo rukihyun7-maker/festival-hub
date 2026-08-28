@@ -101,10 +101,24 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 my-10">
+          <div className="grid grid-cols-3 gap-3 mt-10 mb-6">
             <Stat n={stats.partners} unit="팀" label="입점 파트너" />
             <Stat n={stats.events} unit="건" label="등록 행사" />
             <Stat n={stats.recruiting} unit="건" label="지금 모집 중" />
+          </div>
+
+          {/* 3대 신뢰 메시지 */}
+          <div className="grid gap-2 mb-8">
+            {[
+              '관리자 검증을 통과한 파트너·행사만',
+              '연락처·사업자 정보는 승인 후에만 공개',
+              '서류 만료까지 미리 알려주는 안심 관리',
+            ].map((t) => (
+              <div key={t} className="flex items-center gap-2 text-[13px]" style={{ color: 'rgba(255,255,255,0.82)' }}>
+                <span className="shrink-0 text-[13px] font-extrabold" style={{ color: 'var(--accent, #FFC800)' }}>✓</span>
+                <span>{t}</span>
+              </div>
+            ))}
           </div>
 
           <div className="overflow-hidden -mx-2">

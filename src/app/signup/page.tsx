@@ -13,8 +13,8 @@ import Turnstile, { captchaEnabled } from '@/components/Turnstile';
  */
 
 const ROLES = [
-  { id: 'seller', mark: '입', label: '입점 파트너', desc: '푸드트럭·음식부스 사업자' },
-  { id: 'host', mark: '주', label: '행사 주최', desc: '축제·팝업·플리마켓 운영' },
+  { id: 'seller', mark: '입', label: '입점 파트너', desc: '푸드트럭·음식부스 사업자', value: '검증된 행사만 골라 신청' },
+  { id: 'host', mark: '주', label: '행사 주최', desc: '축제·팝업·플리마켓 운영', value: '검증된 파트너만 모집' },
 ] as const;
 
 const MAX_UPLOAD_MB = 10;
@@ -260,6 +260,9 @@ export default function SignupPage() {
                     <div className="w-8 h-8 rounded-[9px] flex items-center justify-center font-extrabold text-[13px] text-ink mb-2" style={{ background: 'var(--warning-bg, #FFF3C4)' }}>{r.mark}</div>
                     <div className="text-[14px] font-bold text-ink">{r.label}</div>
                     <div className="text-[11px] text-text-tertiary mt-0.5">{r.desc}</div>
+                    <div className="text-[11px] font-semibold mt-1.5 flex items-center gap-1" style={{ color: 'var(--accent-warm, #C9622E)' }}>
+                      <span>✓</span><span>{r.value}</span>
+                    </div>
                   </button>
                 );
               })}

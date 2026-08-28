@@ -96,7 +96,7 @@ export default function SettingsPage() {
       <div className="container-app py-8 max-w-[640px]">
         <div className="mb-6">
           <div className="t-section text-[20px]">설정</div>
-          <div className="t-sub mt-1">알림 수신과 정보 공개 범위를 관리합니다.</div>
+          <div className="t-sub mt-1">{role === 'host' ? '알림 수신을 관리합니다.' : '알림 수신과 정보 공개 범위를 관리합니다.'}</div>
         </div>
 
         {/* 추천 코드 · 포인트 (입점 파트너) */}
@@ -135,10 +135,14 @@ export default function SettingsPage() {
         <section className="card mb-4">
           <div className="t-section mb-1">알림 종류</div>
           <div className="t-sub mb-4">받을 알림 유형을 켜고 끕니다.</div>
-          <Toggle label="마감 임박" desc="신청·서류 마감 사전 알림" on={notif.deadline} onChange={(v) => setNotif({ ...notif, deadline: v })} />
-          <Toggle label="심사 결과" desc="신청 승인·반려 통지" on={notif.review} onChange={(v) => setNotif({ ...notif, review: v })} />
-          <Toggle label="서류 상태" desc="검증 결과·만료 예정" on={notif.docs} onChange={(v) => setNotif({ ...notif, docs: v })} />
-          <Toggle label="관심 행사 알림" desc="관심 등록(찜)한 행사의 새 소식·변경 알림" on={notif.new_event} onChange={(v) => setNotif({ ...notif, new_event: v })} />
+          <Toggle label="마감 임박" desc={role === 'host' ? '모집 마감 사전 알림' : '신청·서류 마감 사전 알림'} on={notif.deadline} onChange={(v) => setNotif({ ...notif, deadline: v })} />
+          <Toggle label={role === 'host' ? '신청·심사 알림' : '심사 결과'} desc={role === 'host' ? '내 행사 승인·신규 신청자 알림' : '신청 승인·반려 통지'} on={notif.review} onChange={(v) => setNotif({ ...notif, review: v })} />
+          {role === 'seller' && (
+            <>
+              <Toggle label="서류 상태" desc="검증 결과·만료 예정" on={notif.docs} onChange={(v) => setNotif({ ...notif, docs: v })} />
+              <Toggle label="관심 행사 알림" desc="관심 등록(찜)한 행사의 새 소식·변경 알림" on={notif.new_event} onChange={(v) => setNotif({ ...notif, new_event: v })} />
+            </>
+          )}
 
           <div className="mt-4 pt-4 border-t border-line-faint">
             <div className="text-[13px] font-bold text-ink mb-2">마감 사전 알림 기준</div>
