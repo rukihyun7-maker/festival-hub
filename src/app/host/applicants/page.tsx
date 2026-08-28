@@ -14,10 +14,12 @@ import {
   fetchMyDocumentSlots,
   getSignedDocumentUrl,
   fetchPlatformSettings,
+  fetchPartnerReviewsPublic,
 } from '@/lib/supabase/queries';
+import { REHIRE_LABEL } from '@/lib/types';
 import type {
   Profile, EventRow, ApplicationWithRelations, ApplicationStatus,
-  SellerHistory, RatingSummary, Menu, DocumentSlot, DocKind,
+  SellerHistory, RatingSummary, Menu, DocumentSlot, DocKind, PartnerReviewPublic,
 } from '@/lib/types';
 
 const BOOTH_KINDS: { kind: DocKind; label: string }[] = [
@@ -192,6 +194,7 @@ function ApplicantCard({
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [history, setHistory] = useState<SellerHistory[]>([]);
   const [rating, setRating] = useState<RatingSummary | null>(null);
+  const [reviews, setReviews] = useState<PartnerReviewPublic[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [docs, setDocs] = useState<DocumentSlot[]>([]);
 
@@ -210,16 +213,18 @@ function ApplicantCard({
     setOpen(next);
     if (next && !loaded && seller) {
       setLoadingDetail(true);
-      const [h, r, m, d] = await Promise.all([
+      const [h, r, m, d, rv] = await Promise.all([
         fetchSellerHistory(seller.id).catch(() => [] as SellerHistory[]),
         fetchRatingSummary(seller.id).catch(() => null),
         fetchMyMenus(seller.id).catch(() => [] as Menu[]), // RLS 미허용 시 빈 배열
         fetchMyDocumentSlots(seller.id).catch(() => [] as DocumentSlot[]), // v9 정책 후 열람
+        fetchPartnerReviewsPublic(seller.id).catch(() => [] as PartnerReviewPublic[]),
       ]);
       setHistory(h);
       setRating(r);
       setMenus(m);
       setDocs(d);
+      setReviews(rv);
       setLoaded(true);
       setLoadingDetail(false);
     }
@@ -272,6 +277,34 @@ function ApplicantCard({
                 </div>
                 {seller?.intro && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{seller.intro}</div>}
               </div>
+
+              {/* 받은 평가 (공개 후기 · 닉네임) */}
+              {reviews.length > 0 && (
+                <div>
+                  <div className="text-[12px] font-bold text-ink-soft mb-2">
+                    받은 평가 <span className="text-text-tertiary">{rating?.review_count ?? reviews.length}건</span>
+                    {rating?.avg_score ? <span className="text-ink font-extrabold"> · ★ {rating.avg_score}</span> : null}
+                    {rating?.recommend_count ? <span className="text-success font-semibold"> · 재섭외 {rating.recommend_count}</span> : null}
+                  </div>
+                  <div className="space-y-2">
+                    {reviews.slice(0, 4).map((rv) => (
+                      <div key={rv.id} className="p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-[12px] font-bold text-ink">{rv.reviewer_nick}</span>
+                          {rv.rehire && <span className="badge badge-success" style={{ fontSize: 10 }}>{REHIRE_LABEL[rv.rehire]}</span>}
+                        </div>
+                        {rv.praise_tags && rv.praise_tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-1">
+                            {rv.praise_tags.map((t) => <span key={t} className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}>👍{t}</span>)}
+                          </div>
+                        )}
+                        {rv.comment && <div className="text-[12px] text-ink-soft leading-relaxed">{rv.comment}</div>}
+                      </div>
+                    ))}
+                    {reviews.length > 4 && <div className="text-[11px] text-text-tertiary">외 {reviews.length - 4}건</div>}
+                  </div>
+                </div>
+              )}
 
               {/* 판매 메뉴 · 대표메뉴=이미지 포함, 나머지=텍스트 */}
               <div>

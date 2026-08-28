@@ -17,12 +17,12 @@ import {
   createSellerHistory,
   deleteSellerHistory,
   recordSale,
-  fetchSellerRatings,
+  fetchMyReceivedRatings,
   fetchRatingSummary,
   updateProfile,
 } from '@/lib/supabase/queries';
-import { periodLabel } from '@/lib/types';
-import type { ApplicationWithRelations, Menu, Profile, SaleWithEvent, SellerHistory, RatingWithRelations, RatingSummary, ShareFlags } from '@/lib/types';
+import { periodLabel, REHIRE_LABEL } from '@/lib/types';
+import type { ApplicationWithRelations, Menu, Profile, SaleWithEvent, SellerHistory, MyReceivedReview, RatingSummary, ShareFlags } from '@/lib/types';
 
 /**
  * 입점 파트너 마이페이지 · Supabase 연동
@@ -38,7 +38,7 @@ export default function SellerMyPage() {
   const [sales, setSales] = useState<SaleWithEvent[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [history, setHistory] = useState<SellerHistory[]>([]);
-  const [ratings, setRatings] = useState<RatingWithRelations[]>([]);
+  const [ratings, setRatings] = useState<MyReceivedReview[]>([]);
   const [ratingSummary, setRatingSummary] = useState<RatingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export default function SellerMyPage() {
           fetchMySales(p.id),
           fetchMyMenus(p.id),
           fetchSellerHistory(p.id),
-          fetchSellerRatings(p.id).catch(() => [] as RatingWithRelations[]),
+          fetchMyReceivedRatings().catch(() => [] as MyReceivedReview[]),
           fetchRatingSummary(p.id).catch(() => null),
         ]);
         setApplications(a);
@@ -969,40 +969,50 @@ function StoreField({
   );
 }
 
-/** 받은 주최사 평가 (설계 06) */
-function RatingsTab({ loading, ratings, summary }: { loading: boolean; ratings: RatingWithRelations[]; summary: RatingSummary | null }) {
+/** 받은 주최사 평가 (v33 · 닉네임·태그·개선점 본인만) */
+function RatingsTab({ loading, ratings, summary }: { loading: boolean; ratings: MyReceivedReview[]; summary: RatingSummary | null }) {
   if (loading) return <LoadingCard />;
+  const recommend = summary?.recommend_count ?? 0;
   return (
     <div className="card">
       <div className="flex items-baseline justify-between mb-1">
         <div className="t-section">받은 주최사 평가 {ratings.length > 0 && <span className="text-text-tertiary text-[14px]">{ratings.length}건</span>}</div>
-        {summary && summary.review_count > 0 && <span className="text-[15px] font-extrabold text-ink">★ {summary.avg_score}</span>}
+        {summary && summary.review_count > 0 && (
+          <span className="text-[15px] font-extrabold text-ink">★ {summary.avg_score} <span className="text-[12px] font-semibold text-success">· 재섭외 {recommend}</span></span>
+        )}
       </div>
-      <div className="t-sub mb-4">주최사가 남긴 평가입니다.</div>
+      <div className="t-sub mb-4">평가는 행사 종료 14일 후 <b>닉네임(익명)</b>으로 반영됩니다. 🔒 개선점은 나에게만 보입니다.</div>
       {ratings.length === 0 ? (
-        <div className="text-center py-12 text-[13px] text-text-tertiary">아직 받은 평가가 없습니다.</div>
+        <div className="text-center py-12 text-[13px] text-text-tertiary">아직 반영된 평가가 없습니다.</div>
       ) : (
         <div className="space-y-3">
-          {ratings.map((r) => {
-            const host = r.host?.business_name || r.host?.name || '주최';
-            const avg = ((r.hygiene + r.punctual + r.service) / 3).toFixed(1);
-            return (
-              <div key={r.id} className="p-4 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-[14px] font-bold text-ink">{host}
-                      {r.event?.name && <span className="text-[12px] font-normal text-text-tertiary"> · {r.event.name}</span>}
-                    </div>
-                    <div className="text-[11px] text-text-tertiary mt-0.5">
-                      위생 {r.hygiene} · 시간 {r.punctual} · 응대 {r.service} · {r.created_at.slice(0, 10).replace(/-/g, '.')}
-                    </div>
-                  </div>
-                  <span className="text-[15px] font-extrabold text-ink shrink-0">{avg}</span>
-                </div>
-                {r.comment && <div className="text-[13px] text-ink-soft mt-2 leading-relaxed">{r.comment}</div>}
+          {ratings.map((r) => (
+            <div key={r.id} className="p-4 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span className="text-[14px] font-bold text-ink">{r.reviewer_nick}</span>
+                <span className="text-[11px] text-text-tertiary">{r.created_at.slice(0, 10).replace(/-/g, '.')}</span>
               </div>
-            );
-          })}
+              {r.rehire && (
+                <span className="badge badge-success mb-2 inline-flex" style={{ fontSize: 11 }}>{REHIRE_LABEL[r.rehire]}</span>
+              )}
+              {r.praise_tags && r.praise_tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {r.praise_tags.map((t) => (
+                    <span key={t} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}>👍 {t}</span>
+                  ))}
+                </div>
+              )}
+              {r.improve_tags && r.improve_tags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                  <span className="text-[10.5px] font-bold text-text-tertiary">🔒 개선점(나만 보임)</span>
+                  {r.improve_tags.map((t) => (
+                    <span key={t} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FBECE8', color: '#9B2C22' }}>{t}</span>
+                  ))}
+                </div>
+              )}
+              {r.comment && <div className="text-[13px] text-ink-soft mt-1 leading-relaxed">{r.comment}</div>}
+            </div>
+          ))}
         </div>
       )}
     </div>

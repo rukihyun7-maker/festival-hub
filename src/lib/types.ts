@@ -424,14 +424,29 @@ export interface ScenarioResult {
 // ============================================
 
 /** 주최사 -> 입점 파트너 평가 */
+/** v33 평가 태그 · 재섭외 */
+export const PRAISE_TAGS = ['위생 우수', '준비/철수 신속', '시간 준수', '매출 기여', '현장 매너', '메뉴 퀄리티'] as const;
+export const IMPROVE_TAGS = ['준비 지연', '위생 미흡', '소통 아쉬움', '설명과 다른 운영', '정리 미흡', '시간 미준수'] as const;
+export type Rehire = 'recommend' | 'ok' | 'no';
+export const REHIRE_OPTIONS: { key: Rehire; label: string }[] = [
+  { key: 'recommend', label: '다시 부르고 싶어요' },
+  { key: 'ok', label: '보통' },
+  { key: 'no', label: '아쉬워요' },
+];
+export const REHIRE_LABEL: Record<Rehire, string> = { recommend: '다시 부르고 싶어요', ok: '보통', no: '아쉬워요' };
+
 export interface Rating {
   id: string;
   seller_id: string;
   host_id: string;
   event_id: string | null;
-  hygiene: number;   // 위생 관리 1-5
-  punctual: number;  // 시간 준수 1-5
-  service: number;   // 고객 응대 1-5
+  hygiene?: number | null;   // (구) 위생 1-5 · 레거시
+  punctual?: number | null;  // (구) 시간 준수 · 레거시
+  service?: number | null;   // (구) 고객 응대 · 레거시
+  praise_tags?: string[];    // v33 칭찬(공개)
+  improve_tags?: string[];   // v33 개선점(비공개·본인만)
+  rehire?: Rehire | null;    // v33 재섭외 의향
+  reveal_at?: string | null; // v33 공개예정(행사종료+14일)
   comment: string | null;
   created_at: string;
 }
@@ -440,10 +455,26 @@ export interface RatingWithRelations extends Rating {
   seller?: Pick<Profile, 'id' | 'name' | 'business_name'> | null;
   event?: Pick<EventRow, 'id' | 'name'> | null;
 }
+/** partner_reviews_public 뷰 (닉네임·공개후기) */
+export interface PartnerReviewPublic {
+  id: string;
+  seller_id: string;
+  praise_tags: string[] | null;
+  rehire: Rehire | null;
+  comment: string | null;
+  created_at: string;
+  reveal_at: string | null;
+  reviewer_nick: string;
+}
+/** my_received_reviews 뷰 (파트너 본인 · 개선점 포함) */
+export interface MyReceivedReview extends PartnerReviewPublic {
+  improve_tags: string[] | null;
+}
 /** seller_rating_summary 뷰 */
 export interface RatingSummary {
   seller_id: string;
   review_count: number;
+  recommend_count?: number;
   avg_score: number;
 }
 

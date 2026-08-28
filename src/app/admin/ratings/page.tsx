@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import { fetchMyProfile, fetchAllRatings, deleteRating } from '@/lib/supabase/queries';
+import { REHIRE_LABEL } from '@/lib/types';
 import type { Profile, RatingWithRelations } from '@/lib/types';
 
 /**
@@ -88,7 +89,10 @@ export default function AdminRatingsPage() {
             {rows.map((r) => {
               const seller = r.seller?.business_name || r.seller?.name || '파트너';
               const host = r.host?.business_name || r.host?.name || '주최';
-              const avg = ((r.hygiene + r.punctual + r.service) / 3).toFixed(1);
+              const hasSliders = r.hygiene != null && r.punctual != null && r.service != null;
+              const avg = hasSliders
+                ? (((r.hygiene ?? 0) + (r.punctual ?? 0) + (r.service ?? 0)) / 3).toFixed(1)
+                : r.rehire ? ({ recommend: '5.0', ok: '3.5', no: '1.5' }[r.rehire]) : '—';
               return (
                 <div key={r.id} className="card">
                   <div className="flex items-start justify-between gap-3">
@@ -100,9 +104,15 @@ export default function AdminRatingsPage() {
                       <div className="text-[12px] text-text-secondary">
                         {host} · {r.event?.name ?? '행사 미상'} · {r.created_at.slice(0, 10).replace(/-/g, '.')}
                       </div>
-                      <div className="text-[12px] text-text-tertiary mt-1">
-                        위생 {r.hygiene} · 시간 {r.punctual} · 응대 {r.service}
-                      </div>
+                      {hasSliders ? (
+                        <div className="text-[12px] text-text-tertiary mt-1">위생 {r.hygiene} · 시간 {r.punctual} · 응대 {r.service}</div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                          {r.rehire && <span className="badge badge-success" style={{ fontSize: 10 }}>{REHIRE_LABEL[r.rehire]}</span>}
+                          {(r.praise_tags ?? []).map((t) => <span key={t} className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}>👍{t}</span>)}
+                          {(r.improve_tags ?? []).map((t) => <span key={t} className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: '#FBECE8', color: '#9B2C22' }}>🔒{t}</span>)}
+                        </div>
+                      )}
                       {r.comment && <div className="text-[13px] text-ink-soft mt-2 leading-relaxed">“{r.comment}”</div>}
                     </div>
                     <button

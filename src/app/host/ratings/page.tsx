@@ -11,8 +11,8 @@ import {
   fetchPlatformSettings,
   createRating,
 } from '@/lib/supabase/queries';
-import { periodLabel } from '@/lib/types';
-import type { Profile, EventRow, ApplicationWithRelations, Rating } from '@/lib/types';
+import { periodLabel, PRAISE_TAGS, IMPROVE_TAGS, REHIRE_OPTIONS } from '@/lib/types';
+import type { Profile, EventRow, ApplicationWithRelations, Rating, Rehire } from '@/lib/types';
 
 /**
  * 입점 파트너 평가 (행사 주최 · 설계 11)
@@ -138,13 +138,16 @@ export default function HostRatingsPage() {
 function RatingCard({
   item, hostId, disabled, onDone,
 }: { item: Ratable; hostId: string; disabled: boolean; onDone: () => void }) {
-  const [hygiene, setHygiene] = useState(0);
-  const [punctual, setPunctual] = useState(0);
-  const [service, setService] = useState(0);
+  const [praise, setPraise] = useState<string[]>([]);
+  const [improve, setImprove] = useState<string[]>([]);
+  const [rehire, setRehire] = useState<Rehire | null>(null);
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
   const name = item.seller.business_name || item.seller.name || '파트너';
-  const complete = hygiene > 0 && punctual > 0 && service > 0;
+  const complete = rehire !== null; // 재섭외 의향은 필수, 태그는 선택
+
+  const toggle = (arr: string[], set: (v: string[]) => void, t: string) =>
+    set(arr.includes(t) ? arr.filter((x) => x !== t) : [...arr, t]);
 
   async function submit() {
     if (!complete) return;
@@ -154,7 +157,10 @@ function RatingCard({
         seller_id: item.seller.id,
         host_id: hostId,
         event_id: item.event.id,
-        hygiene, punctual, service,
+        event_end: item.event.end_date,
+        praise_tags: praise,
+        improve_tags: improve,
+        rehire,
         comment: comment.trim() || null,
       });
       onDone();
@@ -167,49 +173,61 @@ function RatingCard({
 
   return (
     <div className="card">
-      <div className="flex items-baseline justify-between gap-3 mb-4">
+      <div className="flex items-baseline justify-between gap-3 mb-1">
         <div className="text-[15px] font-extrabold text-ink truncate">{name}</div>
         <div className="text-[12px] text-text-tertiary truncate">{item.event.name}</div>
       </div>
-      <div className="text-[11px] text-text-tertiary mb-3">{periodLabel(item.event.start_date, item.event.end_date)}</div>
+      <div className="text-[11px] text-text-tertiary mb-4">{periodLabel(item.event.start_date, item.event.end_date)}</div>
 
-      <StarRow label="위생 관리" value={hygiene} onChange={setHygiene} disabled={disabled} />
-      <StarRow label="시간 준수" value={punctual} onChange={setPunctual} disabled={disabled} />
-      <StarRow label="고객 응대" value={service} onChange={setService} disabled={disabled} />
+      {/* 재섭외 의향 (필수) */}
+      <div className="mb-4">
+        <div className="text-[12px] font-bold text-ink mb-1.5">다시 함께 하시겠어요? <span className="text-danger">*</span></div>
+        <div className="grid grid-cols-3 gap-2">
+          {REHIRE_OPTIONS.map((o) => (
+            <button key={o.key} type="button" disabled={disabled} onClick={() => setRehire(o.key)}
+              className={`py-2.5 rounded-input border-2 text-[12.5px] font-bold transition-all ${rehire === o.key ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink'}`}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 칭찬 태그 (공개) */}
+      <div className="mb-4">
+        <div className="text-[12px] font-bold text-ink mb-1.5">👍 좋았던 점 <span className="text-[11px] font-normal text-text-tertiary">· 파트너·다른 주최에 공개</span></div>
+        <div className="flex flex-wrap gap-1.5">
+          {PRAISE_TAGS.map((t) => (
+            <button key={t} type="button" disabled={disabled} onClick={() => toggle(praise, setPraise, t)}
+              className={`chip ${praise.includes(t) ? 'selected' : ''}`}>{t}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* 개선점 태그 (비공개) */}
+      <div className="mb-4">
+        <div className="text-[12px] font-bold text-ink mb-1.5">🔒 개선점 <span className="text-[11px] font-normal text-text-tertiary">· 비공개(파트너 본인만, 닉네임) · 신뢰도에 반영</span></div>
+        <div className="flex flex-wrap gap-1.5">
+          {IMPROVE_TAGS.map((t) => (
+            <button key={t} type="button" disabled={disabled} onClick={() => toggle(improve, setImprove, t)}
+              className={`chip ${improve.includes(t) ? 'selected' : ''}`}>{t}</button>
+          ))}
+        </div>
+      </div>
 
       <textarea
         rows={2}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         disabled={disabled}
-        placeholder="코멘트 (선택) · 다른 주최에게 참고가 됩니다"
-        className="input resize-none mt-3 text-[13px]"
+        placeholder="칭찬 코멘트 (선택) · 공개됩니다"
+        className="input resize-none text-[13px]"
       />
-      <button onClick={submit} disabled={disabled || !complete || saving} className="btn-primary w-full mt-3">
+      <div className="text-[11px] text-text-tertiary mt-2 mb-3">
+        평가는 <b>행사 종료 14일 후</b> 파트너에게 <b>닉네임(익명)</b>으로 반영됩니다. 개선점은 집계 점수에만 반영되고 파트너 본인만 볼 수 있어요.
+      </div>
+      <button onClick={submit} disabled={disabled || !complete || saving} className="btn-primary w-full">
         {saving ? '등록 중…' : '평가 등록'}
       </button>
-    </div>
-  );
-}
-
-function StarRow({ label, value, onChange, disabled }: { label: string; value: number; onChange: (v: number) => void; disabled: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-1.5">
-      <span className="text-[13px] font-semibold text-ink-soft">{label}</span>
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            disabled={disabled}
-            onClick={() => onChange(n)}
-            aria-label={`${label} ${n}점`}
-            className="text-[19px] leading-none"
-            style={{ color: n <= value ? 'var(--accent, #FFC800)' : 'var(--bg-muted, #F0ECE1)' }}
-          >
-            ★
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

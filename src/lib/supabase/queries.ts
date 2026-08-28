@@ -19,6 +19,8 @@ import type {
   Rating,
   RatingWithRelations,
   RatingSummary,
+  PartnerReviewPublic,
+  MyReceivedReview,
   Notification,
   NotifKind,
   Settlement,
@@ -1072,32 +1074,61 @@ export async function fetchRatingSummary(sellerId: string): Promise<RatingSummar
   return (data as RatingSummary) ?? null;
 }
 
-/** 평가 등록 (주최사) */
+/** 평가 등록 (주최사 · v33 당근식 태그 + 보류공개)
+ *  reveal_at = 행사 종료 + 14일 (없으면 지금+14일) → 그 전까지 파트너·미래주최에 비공개(작성자·관리자만).
+ *  개선점(improve_tags)은 원본에만 저장 → 집계 반영 + 파트너 본인만 열람(공개뷰엔 제외). */
 export async function createRating(input: {
   seller_id: string;
   host_id: string;
   event_id?: string | null;
-  hygiene: number;
-  punctual: number;
-  service: number;
+  event_end?: string | null; // 행사 종료일 (YYYY-MM-DD) → 공개예정 계산
+  praise_tags?: string[];
+  improve_tags?: string[];
+  rehire?: 'recommend' | 'ok' | 'no' | null;
   comment?: string | null;
 }): Promise<Rating> {
   const supabase = createClient();
+  const base = input.event_end ? new Date(input.event_end + 'T00:00:00') : new Date();
+  const reveal = new Date(base.getTime() + 14 * 86400000).toISOString();
   const { data, error } = await supabase
     .from('ratings')
     .insert({
       seller_id: input.seller_id,
       host_id: input.host_id,
       event_id: input.event_id ?? null,
-      hygiene: input.hygiene,
-      punctual: input.punctual,
-      service: input.service,
+      praise_tags: input.praise_tags ?? [],
+      improve_tags: input.improve_tags ?? [],
+      rehire: input.rehire ?? null,
       comment: input.comment ?? null,
+      reveal_at: reveal,
     })
     .select()
     .single();
   if (error) throw error;
   return data as Rating;
+}
+
+/** 파트너 공개 후기 (닉네임·공개예정 지난 것만 · 개선점 제외) — 미래 주최·파트너 공용 */
+export async function fetchPartnerReviewsPublic(sellerId: string): Promise<PartnerReviewPublic[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('partner_reviews_public')
+    .select('*')
+    .eq('seller_id', sellerId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as PartnerReviewPublic[];
+}
+
+/** 파트너 본인이 받은 평가 (my_received_reviews 뷰 · 닉네임·개선점 포함, host_id 비노출, 공개예정 지난 것만) */
+export async function fetchMyReceivedRatings(): Promise<MyReceivedReview[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('my_received_reviews')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as MyReceivedReview[];
 }
 
 /** 평가 삭제 (관리자) */
