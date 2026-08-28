@@ -32,6 +32,7 @@ export interface EventFormValues {
   description: string;
   contact: string;
   phone: string;
+  contact_public: boolean; // 문의자(담당자·연락처) 공개 여부 (false=승인 후 공개)
   status: 'open' | 'upcoming' | 'close' | 'canceled';
   settlement_cycle: string;
   payment_method: string;
@@ -59,6 +60,7 @@ export function toFormValues(row: EventRow): EventFormValues {
     description: row.description ?? '',
     contact: row.contact ?? '',
     phone: row.phone ?? '',
+    contact_public: row.contact_public ?? false,
     status: row.status,
     settlement_cycle: row.settlement_cycle ?? '',
     payment_method: row.payment_method ?? '',
@@ -87,6 +89,7 @@ export function initialFormValues(profile: Profile | null): EventFormValues {
     description: '',
     contact: profile?.name ?? '',
     phone: profile?.phone ?? '',
+    contact_public: false,
     status: 'open',
     settlement_cycle: '행사 종료 후 3영업일',
     payment_method: '현금 · 카드',
@@ -248,6 +251,28 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             <Field label="연락처">
               <input value={v.phone} onChange={(e) => set('phone', e.target.value)} className="input" placeholder="02-2286-1234" />
             </Field>
+          </div>
+
+          {/* 문의자 정보 공개 여부 (주최·관리자 설정) */}
+          <div className="mt-4">
+            <div className="text-[12px] font-bold text-ink mb-1.5">문의자 정보 공개</div>
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              {([
+                [false, '승인 후 공개', '신청·승인한 파트너에게만 담당자·연락처를 공개(권장)'],
+                [true, '바로 공개', '행사 상세를 보는 모든 파트너에게 담당자·연락처 공개'],
+              ] as const).map(([val, title, desc]) => (
+                <button
+                  key={String(val)}
+                  type="button"
+                  onClick={() => set('contact_public', val)}
+                  className={`p-3 rounded-input border-2 text-left transition-all ${v.contact_public === val ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink'}`}
+                >
+                  <div className="text-[13px] font-bold">{title}</div>
+                  <div className={`text-[11px] mt-0.5 ${v.contact_public === val ? 'text-white/80' : 'text-text-tertiary'}`}>{desc}</div>
+                </button>
+              ))}
+            </div>
+            <div className="text-[11px] text-text-tertiary mt-1.5">비공개(승인 후 공개)로 두면 연락처가 함부로 노출되지 않아 문의 피로도를 줄일 수 있습니다.</div>
           </div>
         </Section>
 

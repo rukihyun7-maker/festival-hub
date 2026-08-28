@@ -169,6 +169,7 @@ export interface EventRow {
   description: string | null;
   contact: string | null;
   phone: string | null;
+  contact_public?: boolean; // v32: 문의자(담당자·연락처) 공개 여부 (false=승인 후 공개)
   status: EventStatus;
   kind?: EventType;        // v3: 신청형(apply)/정보형(info) · DB 기본 apply
   source?: string | null;  // v3: 정보형 출처 (공공 API 등)
