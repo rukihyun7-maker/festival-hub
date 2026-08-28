@@ -134,7 +134,7 @@ export default function SellerApplicationsPage() {
                           <div className="flex flex-col items-center gap-1.5">
                             <div
                               className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold"
-                              style={{ background: dotColor, color: done ? '#fff' : 'var(--text-tertiary, #8C8474)' }}
+                              style={{ background: dotColor, color: done ? '#fff' : 'var(--text-tertiary, #756E5B)' }}
                             >
                               {done ? '✓' : i + 1}
                             </div>

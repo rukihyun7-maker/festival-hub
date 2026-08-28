@@ -18,7 +18,7 @@
   --ink: #14120E;
   --ink-soft: #3C3626;
   --text-secondary: #6F675A;
-  --text-tertiary: #8C8474;
+  --text-tertiary: #756E5B;   /* AA 대비 확보(4.8:1) · 기존 #8C8474는 3.5로 미달 */
   --text-disabled: #B5AC98;
 
   /* Line */
@@ -30,7 +30,7 @@
   --accent: #FFC800;
   --accent-hover: #FFD433;
   --accent-shadow: #C99F00;
-  --accent-warm: #B78A00;
+  --accent-warm: #8F6D00;   /* AA 대비 확보(4.8:1 on white) · 기존 #B78A00는 3.2로 미달 */
   --accent-deep: #7A5B00;
 
   /* Semantic */
@@ -57,6 +57,13 @@ html, body {
 
 body {
   min-height: 100vh;
+}
+
+/* 키보드 포커스 표시 (마우스 클릭엔 미표시) · 접근성 */
+:focus-visible {
+  outline: 2px solid var(--accent-shadow, #C99F00);
+  outline-offset: 2px;
+  border-radius: 5px;
 }
 
 /* Component Classes */
