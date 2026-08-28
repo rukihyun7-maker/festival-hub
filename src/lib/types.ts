@@ -229,7 +229,15 @@ export interface EventWithCounts extends EventRow {
   approved_count?: number;
 }
 
-export interface RecruitSlot { type: string; count: number; }
+export interface RecruitSlot {
+  type: string;
+  count: number;
+  fee?: number | null;      // v40: 부문별 참가비(없으면 행사 기본)
+  electric?: boolean;       // v40: 부문별 시설
+  water?: boolean;
+  gas?: boolean;
+  note?: string;            // v40: 부문별 조건 안내
+}
 export interface EventExtraDoc { label: string; desc?: string; }
 export interface EventRequiredDocs { standard?: DocKind[]; extra?: EventExtraDoc[]; }
 export interface ApplicationDocument {

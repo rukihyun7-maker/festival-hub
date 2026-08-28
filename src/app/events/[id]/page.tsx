@@ -243,14 +243,24 @@ export default function EventDetailPage() {
             {t === 'apply' && (event.recruit_slots?.length ?? 0) > 0 && (
               <div className="card">
                 <div className="t-section mb-1">모집 부문</div>
-                <p className="text-[12px] text-text-tertiary mb-3">부문별로 나눠 모집합니다. 신청 시 부문을 선택하세요.</p>
-                <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
-                  {event.recruit_slots!.map((s) => (
-                    <div key={s.type} className="flex items-center justify-between gap-2 p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
-                      <span className="text-[13px] font-bold text-ink truncate">{s.type}</span>
-                      <span className="text-[13px] font-extrabold text-accent-warm shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{s.count}명</span>
-                    </div>
-                  ))}
+                <p className="text-[12px] text-text-tertiary mb-3">부문별로 나눠 모집합니다. 부문마다 참가비·시설이 다를 수 있어요. 신청 시 부문을 선택하세요.</p>
+                <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+                  {event.recruit_slots!.map((s) => {
+                    const fac = [s.electric && '전기', s.water && '수도', s.gas && '가스'].filter(Boolean).join('·');
+                    return (
+                      <div key={s.type} className="p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-[13px] font-bold text-ink truncate">{s.type}</span>
+                          <span className="text-[13px] font-extrabold text-accent-warm shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{s.count}명</span>
+                        </div>
+                        <div className="text-[11.5px] text-text-secondary">
+                          참가비 {typeof s.fee === 'number' ? (s.fee > 0 ? `${s.fee.toLocaleString()}원` : '무료') : '행사 기본'}
+                          {fac && ` · 시설 ${fac}`}
+                        </div>
+                        {s.note && <div className="text-[11px] text-text-tertiary mt-0.5 leading-relaxed">{s.note}</div>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -582,6 +592,10 @@ function ApplyModal({
   const extraDocs = (event.required_docs?.extra ?? []).filter((d) => d.label.trim());
   const [extraFiles, setExtraFiles] = useState<Record<number, File>>({});
   const extraOk = extraDocs.every((_, i) => extraFiles[i]);
+  const selSlot = slots.find((s) => s.type === slot);
+  const effFee = selSlot && typeof selSlot.fee === 'number' ? (selSlot.fee as number) : event.fee;
+  const total = effFee * days;
+  const selFac = selSlot ? [selSlot.electric && '전기', selSlot.water && '수도', selSlot.gas && '가스'].filter(Boolean).join('·') : '';
   return (
     <div onClick={onClose} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(20,18,14,0.4)' }}>
       <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-[520px] bg-surface animate-fh-up" style={{ borderRadius: '20px 20px 0 0', padding: 'clamp(24px, 3vw, 32px)', maxHeight: '92vh', overflowY: 'auto' }}>
@@ -594,11 +608,11 @@ function ApplyModal({
         </div>
         <div className="space-y-3 mb-6 p-4 bg-surface-sunken rounded-card border border-line-faint">
           <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">일정</span><span className="font-semibold text-ink">{periodLabel(event.start_date, event.end_date)} ({days}일)</span></div>
-          <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">참가비 소계</span><span className="font-semibold text-ink">₩{totalFee.toLocaleString()}</span></div>
+          <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">참가비 소계{selSlot ? ` · ${selSlot.type}` : ''}</span><span className="font-semibold text-ink">₩{total.toLocaleString()}</span></div>
           <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">수수료</span><span className="font-semibold text-ink">{event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'}</span></div>
           <div className="pt-3 border-t border-line-faint flex justify-between">
             <span className="text-[14px] font-bold text-ink">결제 예정</span>
-            <span className="text-[20px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{totalFee.toLocaleString()}</span>
+            <span className="text-[20px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{total.toLocaleString()}</span>
           </div>
         </div>
 
@@ -613,6 +627,13 @@ function ApplyModal({
                 </button>
               ))}
             </div>
+            {selSlot && (selFac || selSlot.note || typeof selSlot.fee === 'number') && (
+              <div className="text-[12px] text-text-secondary mt-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                {typeof selSlot.fee === 'number' && <span>참가비 {selSlot.fee > 0 ? `${selSlot.fee.toLocaleString()}원/일` : '무료'}</span>}
+                {selFac && <span>{typeof selSlot.fee === 'number' ? ' · ' : ''}시설 {selFac}</span>}
+                {selSlot.note && <div className="text-[11px] text-text-tertiary mt-0.5">{selSlot.note}</div>}
+              </div>
+            )}
           </div>
         )}
 
