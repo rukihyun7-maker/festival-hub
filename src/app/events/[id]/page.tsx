@@ -197,8 +197,8 @@ export default function EventDetailPage() {
         {/* 히어로 */}
         <section className="animate-fh-up mb-8">
           <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <span className={`badge ${t === 'apply' ? 'badge-warning' : 'badge-info'}`}>{t === 'apply' ? '신청형' : '정보형'}</span>
-            <span className="badge">{event.category}</span>
+            <span className={`badge ${t === 'apply' ? 'badge-warning' : 'badge-info'}`}>{t === 'apply' ? '신청형' : (event.category || '정보형')}</span>
+            {t === 'apply' && <span className="badge">{event.category}</span>}
             {event.deadline && <span className={`text-[11px] font-bold ${d !== null && d <= 3 ? 'text-danger' : 'text-warning'}`}>{deadlineLabel(event.deadline)}</span>}
           </div>
           <div className="flex items-start gap-3">

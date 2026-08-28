@@ -23,6 +23,18 @@ const REGION: [string, string][] = [
   ['전북특별자치도', '전북'], ['전라북', '전북'], ['전라남', '전남'], ['경상북', '경북'], ['경상남', '경남'], ['제주', '제주'],
 ];
 const toRegion = (a = '') => { for (const [k, v] of REGION) if (a.startsWith(k)) return v; return '서울'; };
+
+// 분류: TourAPI cat2/cat3 → 축제 / 행사 / 공연(제외)
+const GONGYEON = new Set(['A02080100', 'A02080200', 'A02080300', 'A02080400', 'A02080800', 'A02080900', 'A02081000']);
+function classify(it: any): '축제' | '행사' | '공연' {
+  const c2 = it.cat2 || '', c3 = it.cat3 || '', title = it.title || '';
+  if (c2 === 'A0207' || c3.startsWith('A0207')) return '축제';
+  if (GONGYEON.has(c3)) return '공연';
+  if (c2 === 'A0208' || c3.startsWith('A0208')) return '행사';
+  if (/축제|페스티벌|festival/i.test(title)) return '축제';
+  if (/공연|콘서트|뮤지컬|연극|오페라|리사이틀|내한|무용|합창|교향|필하모닉/i.test(title)) return '공연';
+  return '행사';
+}
 const toDate = (s?: string) => (s && s.length === 8 ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null);
 const yyyymmdd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 
@@ -66,8 +78,8 @@ export async function GET(req: Request) {
     if (items.length >= total) break;
   }
 
-  // 진행중/향후 + 좌표 있는 것만
-  const fests = items.filter((it) => (it.eventenddate || '0') >= today && it.mapx && it.mapy);
+  // 진행중/향후 + 좌표 있는 것만 → 공연 제외(축제·행사만)
+  const fests = items.filter((it) => (it.eventenddate || '0') >= today && it.mapx && it.mapy && classify(it) !== '공연');
   if (fests.length === 0) {
     return NextResponse.json({ ok: true, note: '목록 0건 → 갱신 건너뜀(외부 API 일시 오류 가능)', fetched: items.length });
   }
@@ -78,7 +90,7 @@ export async function GET(req: Request) {
     ext_id: String(it.contentid),
     owner_id: adm.id,
     name: it.title,
-    category: '축제',
+    category: classify(it),
     organizer: it.title,
     start_date: toDate(it.eventstartdate),
     end_date: toDate(it.eventenddate),

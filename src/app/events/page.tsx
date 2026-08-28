@@ -18,8 +18,10 @@ const REGIONS = ['전체', '서울', '경기', '인천', '강원', '충북', '�
 const TYPES = [
   { key: 'all' as const, label: '전체' },
   { key: 'apply' as const, label: '신청형' },
-  { key: 'info' as const, label: '정보형' },
+  { key: 'festival' as const, label: '축제' },
+  { key: 'event' as const, label: '행사' },
 ];
+type TypeKey = 'all' | 'apply' | 'festival' | 'event';
 const SORTS = [
   { key: 'start' as const, label: '진행 임박순' },
   { key: 'deadline' as const, label: '마감 임박순' },
@@ -80,7 +82,7 @@ const MOCK_FALLBACK: EventRow[] = [
 
 export default function EventsListPage() {
   const [region, setRegion] = useState('전체');
-  const [type, setType] = useState<'all' | 'apply' | 'info'>('all');
+  const [type, setType] = useState<TypeKey>('all');
   const [statusFilter, setStatusFilter] = useState<StatusKey>('all');
   const [month, setMonth] = useState<string>('all'); // 'all' | 'YYYY-MM'
   const [sort, setSort] = useState<SortKey>('start');
@@ -174,7 +176,9 @@ export default function EventsListPage() {
     let list = events;
     if (restrictInfo) list = list.filter((e) => eventType(e) === 'info');
     if (region !== '전체') list = list.filter((e) => e.region === region);
-    if (type !== 'all') list = list.filter((e) => eventType(e) === type);
+    if (type === 'apply') list = list.filter((e) => eventType(e) === 'apply');
+    else if (type === 'festival') list = list.filter((e) => eventType(e) === 'info' && e.category === '축제');
+    else if (type === 'event') list = list.filter((e) => eventType(e) === 'info' && e.category === '행사');
     if (month !== 'all') list = list.filter((e) => monthsOf(e).includes(month));
     return list;
   }, [events, region, type, month, restrictInfo]);
@@ -376,7 +380,7 @@ function EventCard({ event: e, phase }: { event: EventRow; phase: Phase }) {
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: pm.bg, color: pm.fg }}>{pm.label}</span>
           <span className={`badge ${t === 'apply' ? 'badge-warning' : 'badge-info'}`}>
-            {t === 'apply' ? '신청형' : '정보형'}
+            {t === 'apply' ? '신청형' : (e.category || '정보형')}
           </span>
         </div>
         {t === 'apply' && (
