@@ -496,12 +496,21 @@ function InfoRow({ label, value, strong }: { label: string; value: string; stron
   );
 }
 
+/** 지저분한 홈페이지 값에서 첫 번째 정상 URL만 추출 (여러 링크·설명 혼재 대응) */
+function cleanUrl(raw: string): { href: string; label: string } {
+  const m = raw.match(/https?:\/\/[^\s"'<>]+/i);
+  let url = m ? m[0] : (raw.trim().split(/\s+/)[0] || raw.trim());
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url.replace(/^\/+/, '');
+  const label = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return { href: url, label };
+}
+
 function InfoLinkRow({ label, href }: { label: string; href: string }) {
-  const pretty = href.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const { href: url, label: pretty } = cleanUrl(href);
   return (
     <div className="flex gap-3 py-1">
       <span className="w-20 shrink-0 text-[13px] font-semibold text-text-tertiary">{label}</span>
-      <a href={href} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-[14px] font-bold text-info hover:underline break-all">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-[14px] font-bold text-info hover:underline break-all">
         {pretty} ↗
       </a>
     </div>
