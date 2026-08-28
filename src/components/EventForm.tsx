@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { uploadEventNotice } from '@/lib/supabase/queries';
 import { REQUIRED_DOC_KINDS, DOC_META } from '@/lib/types';
 import type { EventRow, Profile, SiteDetails, RecruitSlot, EventRequiredDocs, DocKind, EventExtraDoc } from '@/lib/types';
 
@@ -40,6 +41,8 @@ export interface EventFormValues {
   site: SiteDetails; // v24: 푸드트럭 현장 인프라 상세 (선택)
   recruit_slots: RecruitSlot[]; // v38: 부문별 모집
   required_docs: EventRequiredDocs; // v39: 행사별 필수서류
+  notice_url: string;   // v40: 모집공고문 URL
+  notice_name: string;  // v40: 모집공고문 파일명
 }
 
 export function toFormValues(row: EventRow): EventFormValues {
@@ -73,6 +76,8 @@ export function toFormValues(row: EventRow): EventFormValues {
       standard: row.required_docs?.standard ?? [...REQUIRED_DOC_KINDS],
       extra: row.required_docs?.extra ?? [],
     },
+    notice_url: row.notice_url ?? '',
+    notice_name: row.notice_name ?? '',
   };
 }
 
@@ -104,6 +109,8 @@ export function initialFormValues(profile: Profile | null): EventFormValues {
     site: {},
     recruit_slots: [],
     required_docs: { standard: [...REQUIRED_DOC_KINDS], extra: [] },
+    notice_url: '',
+    notice_name: '',
   };
 }
 
@@ -114,12 +121,29 @@ interface EventFormProps {
   error: string | null;
   cancelHref: string;
   showDelete?: boolean;
+  ownerId?: string; // v40: 모집공고문 업로드용
   onSubmit: (values: EventFormValues) => Promise<void>;
   onDelete?: () => Promise<void>;
 }
 
-export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, onSubmit, onDelete }: EventFormProps) {
+export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, ownerId, onSubmit, onDelete }: EventFormProps) {
   const [v, setV] = useState<EventFormValues>(initial);
+  const [noticeUploading, setNoticeUploading] = useState(false);
+
+  async function handleNotice(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !ownerId) return;
+    if (file.size > 15 * 1024 * 1024) { alert('파일이 너무 큽니다 (최대 15MB)'); return; }
+    setNoticeUploading(true);
+    try {
+      const url = await uploadEventNotice(ownerId, file);
+      setV((p) => ({ ...p, notice_url: url, notice_name: file.name }));
+    } catch (err) {
+      alert('공고문 업로드 실패: ' + (err as Error).message);
+    } finally {
+      setNoticeUploading(false);
+    }
+  }
   const set = <K extends keyof EventFormValues>(key: K, val: EventFormValues[K]) => setV((prev) => ({ ...prev, [key]: val }));
   const setSite = (key: keyof SiteDetails, val: string) => setV((prev) => ({ ...prev, site: { ...prev.site, [key]: val } }));
 
@@ -156,6 +180,22 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           <Field label="소개글">
             <textarea rows={3} value={v.description} onChange={(e) => set('description', e.target.value)} className="input resize-none" placeholder="어떤 행사인지 파트너에게 짧게 설명해주세요" />
           </Field>
+          <div>
+            <div className="text-[12px] font-semibold text-ink-soft mb-1.5">모집 공고문 <span className="text-text-tertiary font-normal ml-1">· 선택 (지자체 등 공식 공고문 PDF)</span></div>
+            {v.notice_url ? (
+              <div className="flex items-center gap-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                <span className="text-[13px] font-semibold text-ink flex-1 truncate">📄 {v.notice_name || '공고문'}</span>
+                <a href={v.notice_url} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-info hover:underline shrink-0">보기</a>
+                <button type="button" onClick={() => { set('notice_url', ''); set('notice_name', ''); }} className="text-[12px] text-danger font-bold shrink-0">제거</button>
+              </div>
+            ) : (
+              <label className={`btn-secondary text-[13px] cursor-pointer inline-flex ${noticeUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                {noticeUploading ? '업로드 중…' : '공고문 파일 첨부'}
+                <input type="file" accept="application/pdf,image/*" className="hidden" onChange={handleNotice} disabled={noticeUploading} />
+              </label>
+            )}
+            <div className="text-[11px] text-text-tertiary mt-1">첨부하면 파트너가 행사 상세에서 공고문을 열람·다운로드할 수 있습니다.</div>
+          </div>
         </Section>
 
         <Section title="2. 일정 & 장소">

@@ -138,6 +138,17 @@ export async function flushPendingBusinessCard(profileId: string): Promise<strin
   }
 }
 
+/** 행사 모집공고문 업로드 (menu-photos 버킷 재사용) → 공개 URL 반환 */
+export async function uploadEventNotice(ownerId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf';
+  const path = `event-notice/${ownerId}/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('menu-photos').upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  const { data } = supabase.storage.from('menu-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /** 현수막 위치 사진 업로드 (menu-photos 버킷 재사용) → 공개 URL 반환 */
 export async function uploadBannerPhoto(sellerId: string, file: File): Promise<string> {
   const supabase = createClient();

@@ -71,6 +71,8 @@ export default function EditEventPage() {
         site_details: compactSiteDetails(v.site),
         recruit_slots: v.recruit_slots.filter((s) => s.type.trim() && s.count > 0),
         required_docs: { standard: v.required_docs.standard ?? [], extra: (v.required_docs.extra ?? []).filter((d) => d.label.trim()) },
+        notice_url: v.notice_url || null,
+        notice_name: v.notice_name || null,
       });
       router.push(`/events/${event.id}`);
     } catch (err) {
@@ -177,6 +179,7 @@ export default function EditEventPage() {
           error={error}
           cancelHref={`/events/${event.id}`}
           showDelete
+          ownerId={event.owner_id}
           onSubmit={handleSubmit}
           onDelete={handleDelete}
         />

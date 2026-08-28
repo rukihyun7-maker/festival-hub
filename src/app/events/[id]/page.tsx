@@ -240,6 +240,17 @@ export default function EventDetailPage() {
               </div>
             </div>
 
+            {event.notice_url && (
+              <a href={event.notice_url} target="_blank" rel="noopener noreferrer" className="card card-hover flex items-center gap-3" style={{ textDecoration: 'none' }}>
+                <div className="text-[22px] shrink-0">📄</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-bold text-ink">모집 공고문</div>
+                  <div className="text-[12px] text-text-secondary truncate">{event.notice_name || '공식 모집공고문'} · 클릭해서 열람·다운로드</div>
+                </div>
+                <span className="text-info font-bold text-[13px] shrink-0">열기 →</span>
+              </a>
+            )}
+
             {t === 'apply' && (event.recruit_slots?.length ?? 0) > 0 && (
               <div className="card">
                 <div className="t-section mb-1">모집 부문</div>

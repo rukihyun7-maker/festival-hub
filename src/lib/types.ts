@@ -186,6 +186,8 @@ export interface EventRow {
   site_details?: SiteDetails | null; // v24: 푸드트럭 현장 인프라 상세 (jsonb)
   recruit_slots?: RecruitSlot[];     // v38: 부문별 모집 [{type,count}]
   required_docs?: EventRequiredDocs; // v39: 행사별 필수서류 {standard, extra}
+  notice_url?: string | null;        // v40: 모집공고문 파일 URL
+  notice_name?: string | null;       // v40: 모집공고문 원본 파일명
   demand_score?: number | null;     // v14: 입지 수요점수 (반경 1km 인근시설 기반, 0~100)
   demand_tags?: string[] | null;    // v14: 입지 태그 (역세권·대학가·주거밀집·상업지)
   lat?: number | null;              // v5: 위도 (지오코딩)
