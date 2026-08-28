@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { EventRow, Profile, SiteDetails } from '@/lib/types';
+import type { EventRow, Profile, SiteDetails, RecruitSlot } from '@/lib/types';
 
 /**
  * 행사 등록/수정 공용 폼
@@ -37,6 +37,7 @@ export interface EventFormValues {
   settlement_cycle: string;
   payment_method: string;
   site: SiteDetails; // v24: 푸드트럭 현장 인프라 상세 (선택)
+  recruit_slots: RecruitSlot[]; // v38: 부문별 모집
 }
 
 export function toFormValues(row: EventRow): EventFormValues {
@@ -65,6 +66,7 @@ export function toFormValues(row: EventRow): EventFormValues {
     settlement_cycle: row.settlement_cycle ?? '',
     payment_method: row.payment_method ?? '',
     site: row.site_details ?? {},
+    recruit_slots: row.recruit_slots ?? [],
   };
 }
 
@@ -94,6 +96,7 @@ export function initialFormValues(profile: Profile | null): EventFormValues {
     settlement_cycle: '행사 종료 후 3영업일',
     payment_method: '현금 · 카드',
     site: {},
+    recruit_slots: [],
   };
 }
 
@@ -180,6 +183,29 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             <Field label="파트너 자리 수" hint="'20자리' 또는 '공고 예정'">
               <input value={v.capacity} onChange={(e) => set('capacity', e.target.value)} className="input" placeholder="예: 20자리" />
             </Field>
+          </div>
+
+          {/* 모집 부문 (선택) */}
+          <div className="mt-4">
+            <div className="text-[12px] font-semibold text-ink-soft mb-1">모집 부문 <span className="text-text-tertiary font-normal ml-1">· 선택 (부문별로 나눠 모집할 때)</span></div>
+            <div className="text-[11px] text-text-tertiary mb-2">예: 플리마켓 20 · 푸드트럭 10 · 음식부스 10. 파트너는 부문을 선택해 신청합니다. (비우면 부문 구분 없음)</div>
+            {v.recruit_slots.length > 0 && (
+              <div className="space-y-2 mb-2">
+                {v.recruit_slots.map((s, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <input value={s.type} onChange={(e) => { const n = [...v.recruit_slots]; n[i] = { ...n[i], type: e.target.value }; set('recruit_slots', n); }} className="input flex-1" placeholder="부문 (예: 푸드트럭)" />
+                    <input type="number" min={1} value={s.count || ''} onChange={(e) => { const n = [...v.recruit_slots]; n[i] = { ...n[i], count: Number(e.target.value) || 0 }; set('recruit_slots', n); }} className="input" style={{ width: 96 }} placeholder="모집 수" />
+                    <button type="button" onClick={() => set('recruit_slots', v.recruit_slots.filter((_, j) => j !== i))} className="text-danger text-[12px] font-bold px-2 shrink-0">삭제</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1.5">
+              {['플리마켓', '푸드트럭', '음식부스', '체험부스'].map((t) => (
+                <button type="button" key={t} onClick={() => set('recruit_slots', [...v.recruit_slots, { type: t, count: 10 }])} className="chip">+ {t}</button>
+              ))}
+              <button type="button" onClick={() => set('recruit_slots', [...v.recruit_slots, { type: '', count: 10 }])} className="chip">+ 직접 추가</button>
+            </div>
           </div>
         </Section>
 

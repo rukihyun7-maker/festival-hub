@@ -63,11 +63,11 @@ export default function EventDetailPage() {
   const approved = !isSeller || sellerStatus === '정상';                 // 1차 심사완료
   const verified = !isSeller || (sellerStatus === '정상' && check.ready); // 검증 파트너(신청 자격 충족)
 
-  async function handleApply() {
+  async function handleApply(slotType: string | null) {
     if (!event || !profile) return;
     setApplying(true);
     try {
-      await createApplication(event.id, profile.id);
+      await createApplication(event.id, profile.id, slotType);
       setApplied(true);
       setShowApplyModal(false);
     } catch (e) {
@@ -234,6 +234,21 @@ export default function EventDetailPage() {
                 <InfoRow label="주최" value={event.organizer} />
               </div>
             </div>
+
+            {t === 'apply' && (event.recruit_slots?.length ?? 0) > 0 && (
+              <div className="card">
+                <div className="t-section mb-1">모집 부문</div>
+                <p className="text-[12px] text-text-tertiary mb-3">부문별로 나눠 모집합니다. 신청 시 부문을 선택하세요.</p>
+                <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
+                  {event.recruit_slots!.map((s) => (
+                    <div key={s.type} className="flex items-center justify-between gap-2 p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                      <span className="text-[13px] font-bold text-ink truncate">{s.type}</span>
+                      <span className="text-[13px] font-extrabold text-accent-warm shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{s.count}명</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <NearbyInfoCard eventId={event.id} />
 
@@ -524,11 +539,14 @@ function ApplyModal({
   days: number;
   totalFee: number;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (slotType: string | null) => void;
   applying: boolean;
 }) {
   const [agreed, setAgreed] = useState(false);
   const [agreeInfo, setAgreeInfo] = useState(false);
+  const slots = event.recruit_slots ?? [];
+  const [slot, setSlot] = useState<string | null>(slots.length === 1 ? slots[0].type : null);
+  const slotOk = slots.length === 0 || !!slot;
   return (
     <div onClick={onClose} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(20,18,14,0.4)' }}>
       <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-[520px] bg-surface animate-fh-up" style={{ borderRadius: '20px 20px 0 0', padding: 'clamp(24px, 3vw, 32px)', maxHeight: '92vh', overflowY: 'auto' }}>
@@ -548,6 +566,21 @@ function ApplyModal({
             <span className="text-[20px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{totalFee.toLocaleString()}</span>
           </div>
         </div>
+
+        {slots.length > 0 && (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold text-ink mb-2">신청 부문 <span className="text-danger">*</span></div>
+            <div className="flex flex-wrap gap-1.5">
+              {slots.map((s) => (
+                <button key={s.type} type="button" onClick={() => setSlot(s.type)}
+                  className={`text-[12.5px] font-bold px-3 py-2 rounded-input border-2 transition-all ${slot === s.type ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink'}`}>
+                  {s.type} <span className="opacity-70">· {s.count}명</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2.5 mb-4">
           <label className="flex items-start gap-2 cursor-pointer">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
@@ -564,8 +597,8 @@ function ApplyModal({
         </div>
         <div className="flex gap-2">
           <button onClick={onClose} className="btn-secondary flex-1">취소</button>
-          <button disabled={!agreed || !agreeInfo || applying} onClick={onConfirm} className="btn-primary flex-1">
-            {applying ? '처리 중…' : '신청 확정'}
+          <button disabled={!agreed || !agreeInfo || !slotOk || applying} onClick={() => onConfirm(slot)} className="btn-primary flex-1">
+            {applying ? '처리 중…' : !slotOk ? '부문을 선택하세요' : '신청 확정'}
           </button>
         </div>
       </div>

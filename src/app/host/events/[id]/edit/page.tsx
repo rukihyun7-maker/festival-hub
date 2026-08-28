@@ -69,6 +69,7 @@ export default function EditEventPage() {
         settlement_cycle: v.settlement_cycle.trim() || null,
         payment_method: v.payment_method.trim() || null,
         site_details: compactSiteDetails(v.site),
+        recruit_slots: v.recruit_slots.filter((s) => s.type.trim() && s.count > 0),
       });
       router.push(`/events/${event.id}`);
     } catch (err) {

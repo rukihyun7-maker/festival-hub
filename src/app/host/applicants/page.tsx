@@ -234,8 +234,9 @@ function ApplicantCard({
     <div className="card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className={`badge ${meta.cls}`}>{meta.label}</span>
+            {a.slot_type && <span className="badge badge-info">{a.slot_type}</span>}
             <span className="text-[12px] text-text-tertiary truncate">{a.event?.name}</span>
           </div>
           <div className="text-[15px] font-extrabold text-ink truncate">{name}</div>

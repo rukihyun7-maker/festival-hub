@@ -277,11 +277,11 @@ export async function fetchApplicationsForHost(hostId: string): Promise<Applicat
 }
 
 /** 신청 생성 */
-export async function createApplication(eventId: string, sellerId: string): Promise<Application> {
+export async function createApplication(eventId: string, sellerId: string, slotType?: string | null): Promise<Application> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('applications')
-    .insert({ event_id: eventId, seller_id: sellerId, status: 'pending' })
+    .insert({ event_id: eventId, seller_id: sellerId, status: 'pending', slot_type: slotType ?? null })
     .select()
     .single();
   if (error) throw error;

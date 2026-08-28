@@ -65,6 +65,7 @@ export default function CreateEventPage() {
         settlement_cycle: v.settlement_cycle.trim() || null,
         payment_method: v.payment_method.trim() || null,
         site_details: compactSiteDetails(v.site),
+        recruit_slots: v.recruit_slots.filter((s) => s.type.trim() && s.count > 0),
         review_status: me.role === 'admin' ? 'approved' : 'pending', // 주최=승인 대기 / 관리자=즉시 공개
       });
 
