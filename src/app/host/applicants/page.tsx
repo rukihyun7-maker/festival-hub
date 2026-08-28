@@ -270,6 +270,7 @@ function ApplicantCard({
                   })()}
                   {seller?.hygiene_gear && <DetailRow label="위생 관리" value={seller.hygiene_gear} />}
                   {seller?.vehicle && <DetailRow label="차량·부스 규격" value={seller.vehicle} />}
+                  {seller?.banner && <DetailRow label="현수막" value={seller.banner} />}
                   {seller?.power && <DetailRow label="전기 사용량" value={seller.power} />}
                   {seller?.cooking && <DetailRow label="조리 설비" value={seller.cooking} />}
                   {seller?.crew && <DetailRow label="운영 인원" value={seller.crew} />}

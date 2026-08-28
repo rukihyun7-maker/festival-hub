@@ -137,6 +137,17 @@ export async function flushPendingBusinessCard(profileId: string): Promise<strin
   }
 }
 
+/** 현수막 위치 사진 업로드 (menu-photos 버킷 재사용) → 공개 URL 반환 */
+export async function uploadBannerPhoto(sellerId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `${sellerId}/banner.${ext}`;
+  const { error } = await supabase.storage.from('menu-photos').upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  const { data } = supabase.storage.from('menu-photos').getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
 /** 주최 명함 업로드 (로그인 후 · 본인 폴더) → business_card_url 반영 */
 export async function uploadBusinessCard(profileId: string, file: File): Promise<string> {
   const supabase = createClient();

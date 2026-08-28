@@ -140,6 +140,8 @@ export interface Profile {
   cooking?: string | null;      // v10: 조리 설비
   crew?: string | null;         // v10: 운영 인원
   sns?: string | null;          // v10: SNS
+  banner?: string | null;           // v37: 현수막 부착 가능·규격(가로/세로/높이)
+  banner_photo_url?: string | null; // v37: 현수막 위치 사진 URL
   share_flags: ShareFlags;      // v3: 주최사 공개 설정
   notif_prefs: NotifPrefs;      // v3: 알림 설정
   status?: SellerStatus;        // v8: 가입 심사 상태 (없으면 '정상')

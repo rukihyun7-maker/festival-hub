@@ -13,6 +13,7 @@ import {
   updateMenu,
   setMenuSignature,
   uploadMenuImage,
+  uploadBannerPhoto,
   fetchSellerHistory,
   createSellerHistory,
   deleteSellerHistory,
@@ -826,13 +827,31 @@ function StoreTab({
 }) {
   const [f, setF] = useState(() => fromProfile(profile));
   const [share, setShare] = useState<ShareFlags>(profile?.share_flags ?? {});
+  const [bannerPhoto, setBannerPhoto] = useState<string | null>(profile?.banner_photo_url ?? null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setF(fromProfile(profile));
     setShare(profile?.share_flags ?? {});
+    setBannerPhoto(profile?.banner_photo_url ?? null);
   }, [profile]);
+
+  async function handleBannerPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    if (file.size > 8 * 1024 * 1024) { alert('사진이 너무 큽니다 (최대 8MB)'); return; }
+    setPhotoUploading(true);
+    try {
+      const url = await uploadBannerPhoto(profile.id, file);
+      setBannerPhoto(url);
+    } catch (err) {
+      alert('사진 업로드 실패: ' + (err as Error).message);
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
 
   function set<K extends keyof StoreFields>(k: K, v: StoreFields[K]) { setF((p) => ({ ...p, [k]: v })); }
   function toggleShare(key: string) { setShare((p) => ({ ...p, [key]: p[key] === false ? true : false })); }
@@ -855,6 +874,8 @@ function StoreTab({
         crew: f.crew || null,
         sns: f.sns || null,
         intro: f.intro || null,
+        banner: f.banner || null,
+        banner_photo_url: bannerPhoto,
         share_flags: share,
       });
       setSaved(true);
@@ -898,6 +919,27 @@ function StoreTab({
         />
       ))}
 
+      {/* 현수막 위치 사진 */}
+      <div className="py-3 border-b border-line-faint">
+        <div className="text-[12px] font-semibold text-ink-soft mb-1.5">현수막 위치 사진 <span className="text-text-tertiary font-normal ml-1">· 선택</span></div>
+        <div className="flex items-center gap-3">
+          {bannerPhoto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={bannerPhoto} alt="현수막 위치" className="w-20 h-20 rounded-input object-cover border border-line-faint" />
+          ) : (
+            <div className="w-20 h-20 rounded-input bg-muted flex items-center justify-center text-[11px] text-text-tertiary text-center">사진<br/>없음</div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label className={`btn-secondary text-[12px] cursor-pointer inline-flex ${photoUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              {photoUploading ? '업로드 중…' : bannerPhoto ? '사진 변경' : '사진 첨부'}
+              <input type="file" accept="image/*" className="hidden" onChange={handleBannerPhoto} disabled={photoUploading} />
+            </label>
+            {bannerPhoto && <button type="button" onClick={() => setBannerPhoto(null)} className="text-[11px] text-danger hover:underline text-left">사진 제거</button>}
+            <span className="text-[11px] text-text-tertiary">현수막을 걸 수 있는 위치를 촬영해 첨부하면 주최가 배치를 판단하기 쉽습니다.</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center gap-3 mt-5">
         <button onClick={save} disabled={saving} className="btn-primary">{saving ? '저장 중…' : '매장 정보 저장'}</button>
         {saved && <span className="text-[13px] font-semibold text-success">✓ 저장되었습니다</span>}
@@ -908,26 +950,27 @@ function StoreTab({
 
 interface StoreFields {
   business_name: string; name: string; business_no: string; phone: string; region: string;
-  affiliation: string; vehicle: string; power: string; cooking: string; hygiene_gear: string; crew: string; sns: string; intro: string;
+  affiliation: string; vehicle: string; power: string; cooking: string; hygiene_gear: string; crew: string; sns: string; intro: string; banner: string;
 }
 function fromProfile(p: Profile | null): StoreFields {
   return {
     business_name: p?.business_name ?? '', name: p?.name ?? '', business_no: p?.business_no ?? '',
     phone: p?.phone ?? '', region: p?.region ?? '', affiliation: p?.affiliation ?? '',
     vehicle: p?.vehicle ?? '', power: p?.power ?? '', cooking: p?.cooking ?? '',
-    hygiene_gear: p?.hygiene_gear ?? '', crew: p?.crew ?? '', sns: p?.sns ?? '', intro: p?.intro ?? '',
+    hygiene_gear: p?.hygiene_gear ?? '', crew: p?.crew ?? '', sns: p?.sns ?? '', intro: p?.intro ?? '', banner: p?.banner ?? '',
   };
 }
 const STORE_SHAREABLE: { key: string; label: string; field: keyof StoreFields; placeholder: string; required?: boolean }[] = [
   { key: 'biz_no', label: '사업자등록번호', field: 'business_no', placeholder: '214-05-88931', required: true },
   { key: 'phone', label: '연락처', field: 'phone', placeholder: '010-0000-0000', required: true },
   { key: 'affiliation', label: '소속', field: 'affiliation', placeholder: '예: 전국음식사업자협회' },
-  { key: 'vehicle', label: '차량·부스 규격', field: 'vehicle', placeholder: '예: 3.5t 개조 푸드트럭 · 5.2×2.1m', required: true },
-  { key: 'power', label: '전기 사용량', field: 'power', placeholder: '예: 3kW · 자체 발전기 보유', required: true },
-  { key: 'cooking', label: '조리 설비', field: 'cooking', placeholder: '예: 가스 2구 + 전기 튀김기 1대', required: true },
-  { key: 'hygiene_gear', label: '위생 관리', field: 'hygiene_gear', placeholder: '예: 마스크·모자·장갑 상시 착용', required: true },
-  { key: 'crew', label: '운영 인원', field: 'crew', placeholder: '예: 상시 2명 (주말 3명)' },
-  { key: 'sns', label: 'SNS', field: 'sns', placeholder: '예: @minji_bunsik · 팔로워 8,400' },
+  { key: 'vehicle', label: '차량·부스 규격', field: 'vehicle', placeholder: '예: 가로 5m × 세로 2m', required: true },
+  { key: 'power', label: '전기 사용량', field: 'power', placeholder: '예: 3kW', required: true },
+  { key: 'cooking', label: '조리 설비', field: 'cooking', placeholder: '예: 가스 2구 · 튀김기', required: true },
+  { key: 'hygiene_gear', label: '위생 관리', field: 'hygiene_gear', placeholder: '예: 마스크·모자·장갑 착용', required: true },
+  { key: 'banner', label: '현수막', field: 'banner', placeholder: '예: 부착 가능 · 가로 3m × 세로 1m × 높이 0.5m (거치대 지참)' },
+  { key: 'crew', label: '운영 인원', field: 'crew', placeholder: '예: 2명 (주말 3명)' },
+  { key: 'sns', label: 'SNS', field: 'sns', placeholder: '예: @minji_bunsik' },
   { key: 'intro', label: '매장 소개', field: 'intro', placeholder: '어떤 매장인지 짧게 소개해주세요' },
 ];
 
