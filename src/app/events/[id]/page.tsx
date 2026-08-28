@@ -247,7 +247,11 @@ export default function EventDetailPage() {
                   {t === 'apply' && <InfoRow label="매출 수수료" value={event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'} />}
                   {t === 'apply' && <InfoRow label="정산 주기" value={event.settlement_cycle || '주최 측 안내 예정'} />}
                   {t === 'apply' && <InfoRow label="결제 방식" value={event.payment_method || '주최 측 안내 예정'} />}
-                  {t === 'info' && event.source && <InfoRow label="정보 출처" value={event.source} />}
+                  {t === 'info' && event.phone && <InfoRow label="문의 전화" value={event.phone} />}
+                  {t === 'info' && event.homepage && <InfoLinkRow label="공식 홈페이지" href={event.homepage} />}
+                  {t === 'info' && !event.homepage && !event.phone && (
+                    <div className="text-[13px] text-text-tertiary">상세 정보·문의는 아래 출처(공식 채널)에서 확인해 주세요.</div>
+                  )}
                 </div>
               )}
             </div>
@@ -372,11 +376,6 @@ export default function EventDetailPage() {
                   이 행사는 공개 정보로 제공됩니다. 플랫폼을 통한 자리 신청 대상이 아니며, 참가·부스 문의는 주최 측에 직접 하세요.
                 </p>
                 {event.source && <div className="text-[12px] text-text-tertiary mb-3">출처 · {event.source}</div>}
-                {event.homepage && (
-                  <a href={event.homepage} target="_blank" rel="noopener noreferrer" className="btn-primary w-full mb-2 text-center inline-block">
-                    공식 홈페이지 →
-                  </a>
-                )}
                 {profile?.role === 'seller' && (
                   <button onClick={toggleFav} disabled={favBusy} className="btn-secondary w-full">
                     {fav ? '★ 관심 등록됨' : '☆ 관심 등록'}
@@ -493,6 +492,18 @@ function InfoRow({ label, value, strong }: { label: string; value: string; stron
     <div className="flex gap-3 py-1">
       <span className="w-20 shrink-0 text-[13px] font-semibold text-text-tertiary">{label}</span>
       <span className={`flex-1 text-[14px] ${strong ? 'font-extrabold text-ink' : 'font-semibold text-ink'}`}>{value}</span>
+    </div>
+  );
+}
+
+function InfoLinkRow({ label, href }: { label: string; href: string }) {
+  const pretty = href.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return (
+    <div className="flex gap-3 py-1">
+      <span className="w-20 shrink-0 text-[13px] font-semibold text-text-tertiary">{label}</span>
+      <a href={href} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-[14px] font-bold text-info hover:underline break-all">
+        {pretty} ↗
+      </a>
     </div>
   );
 }

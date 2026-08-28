@@ -21,11 +21,49 @@ const TYPES = [
   { key: 'info' as const, label: '정보형' },
 ];
 const SORTS = [
+  { key: 'start' as const, label: '진행 임박순' },
   { key: 'deadline' as const, label: '마감 임박순' },
   { key: 'demand' as const, label: '입지 좋은순' },
   { key: 'recent' as const, label: '최신 등록순' },
   { key: 'fee' as const, label: '참가비 낮은순' },
 ];
+type SortKey = 'start' | 'deadline' | 'demand' | 'recent' | 'fee';
+
+// 진행 상태 (오늘 기준 시작·종료일 비교)
+type Phase = 'ongoing' | 'upcoming' | 'ended';
+const STATUSES = [
+  { key: 'all' as const, label: '전체' },
+  { key: 'ongoing' as const, label: '진행중' },
+  { key: 'upcoming' as const, label: '진행전' },
+  { key: 'ended' as const, label: '종료' },
+];
+type StatusKey = 'all' | Phase;
+const PHASE_META: Record<Phase, { label: string; bg: string; fg: string }> = {
+  ongoing: { label: '진행중', bg: '#EAF3EC', fg: '#2E7D46' },
+  upcoming: { label: '진행전', bg: '#F4F7FE', fg: '#2B4B9B' },
+  ended: { label: '종료', bg: '#F0ECE1', fg: '#8A8272' },
+};
+function phaseOf(e: EventRow, today: string): Phase {
+  if (e.end_date && e.end_date < today) return 'ended';
+  if (e.start_date && e.start_date > today) return 'upcoming';
+  return 'ongoing';
+}
+/** 행사가 걸쳐 있는 월 목록 ['2026-08', ...] (시작월~종료월) */
+function monthsOf(e: EventRow): string[] {
+  if (!e.start_date) return [];
+  const out: string[] = [];
+  const s = new Date(e.start_date + 'T00:00:00');
+  const end = new Date((e.end_date || e.start_date) + 'T00:00:00');
+  let y = s.getFullYear(), m = s.getMonth();
+  const ey = end.getFullYear(), em = end.getMonth();
+  let guard = 0;
+  while ((y < ey || (y === ey && m <= em)) && guard++ < 60) {
+    out.push(`${y}-${String(m + 1).padStart(2, '0')}`);
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  return out;
+}
+const monthLabel = (ym: string) => { const [y, m] = ym.split('-'); return `${y}.${Number(m)}`; };
 const PAGE_SIZE = 12; // 목록 페이지네이션(더 보기)
 
 const MOCK_FALLBACK: EventRow[] = [
@@ -43,8 +81,14 @@ const MOCK_FALLBACK: EventRow[] = [
 export default function EventsListPage() {
   const [region, setRegion] = useState('전체');
   const [type, setType] = useState<'all' | 'apply' | 'info'>('all');
-  const [sort, setSort] = useState<'deadline' | 'demand' | 'recent' | 'fee'>('deadline');
+  const [statusFilter, setStatusFilter] = useState<StatusKey>('all');
+  const [month, setMonth] = useState<string>('all'); // 'all' | 'YYYY-MM'
+  const [sort, setSort] = useState<SortKey>('start');
   const [q, setQ] = useState('');
+  const today = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,19 +148,40 @@ export default function EventsListPage() {
   const restrictInfo = gateChecked && !!gate && !qualified && !suspended;
 
   // 필터/검색 변경 시 페이지 리셋
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [region, type, sort, q, restrictInfo]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [region, type, statusFilter, month, sort, q, restrictInfo]);
 
-  const filtered = useMemo(() => {
+  // 선택 가능한 월 목록 (행사들이 걸쳐 있는 월의 합집합, 오름차순)
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of events) for (const m of monthsOf(e)) set.add(m);
+    return [...set].sort();
+  }, [events]);
+
+  // 상태(진행중/진행전/종료)·월을 제외한 기준 목록 → 상태 탭 카운트 산출용
+  const base = useMemo(() => {
     let list = events;
     if (restrictInfo) list = list.filter((e) => eventType(e) === 'info');
     if (region !== '전체') list = list.filter((e) => e.region === region);
     if (type !== 'all') list = list.filter((e) => eventType(e) === type);
+    if (month !== 'all') list = list.filter((e) => monthsOf(e).includes(month));
+    return list;
+  }, [events, region, type, month, restrictInfo]);
+
+  const statusCounts = useMemo(() => {
+    const c = { all: base.length, ongoing: 0, upcoming: 0, ended: 0 };
+    for (const e of base) c[phaseOf(e, today)]++;
+    return c;
+  }, [base, today]);
+
+  const filtered = useMemo(() => {
+    let list = statusFilter === 'all' ? base : base.filter((e) => phaseOf(e, today) === statusFilter);
+    if (sort === 'start') list = [...list].sort((a, b) => (a.start_date ?? '9999').localeCompare(b.start_date ?? '9999'));
     if (sort === 'deadline') list = [...list].sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'));
     if (sort === 'demand') list = [...list].sort((a, b) => (b.demand_score ?? -1) - (a.demand_score ?? -1));
     if (sort === 'fee') list = [...list].sort((a, b) => a.fee - b.fee);
     if (sort === 'recent') list = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
     return list;
-  }, [events, region, type, sort, restrictInfo]);
+  }, [base, statusFilter, sort, today]);
 
   // 정지·반려 계정만 완전 잠금. 그 외 미검증은 정보형 열람 허용(아래 배너)
   if (gateChecked && suspended) {
@@ -150,6 +215,27 @@ export default function EventsListPage() {
           </div>
         </div>
 
+        {/* 상태 탭 (전체/진행중/진행전/종료) */}
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {STATUSES.map((s) => {
+            const n = statusCounts[s.key];
+            const active = statusFilter === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setStatusFilter(s.key)}
+                className="text-[13px] font-bold px-3.5 py-2 rounded-pill border transition-colors"
+                style={active
+                  ? { background: 'var(--ink,#14120E)', color: '#fff', borderColor: 'var(--ink,#14120E)' }
+                  : { background: 'var(--bg-surface,#fff)', color: 'var(--text-secondary,#6F675A)', borderColor: 'var(--line,#E7DFCE)' }}
+              >
+                {s.label}
+                <span className="ml-1.5 text-[12px] font-extrabold" style={{ opacity: active ? 0.9 : 0.6, fontVariantNumeric: 'tabular-nums' }}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* 검색 + 필터 */}
         <div className="card mb-6">
           <div className="flex flex-col gap-4">
@@ -166,6 +252,16 @@ export default function EventsListPage() {
                   {REGIONS.map((r) => (
                     <button key={r} onClick={() => setRegion(r)} className={`chip ${region === r ? 'selected' : ''}`}>
                       {r}
+                    </button>
+                  ))}
+                </div>
+              </FilterGroup>
+              <FilterGroup label="월">
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => setMonth('all')} className={`chip ${month === 'all' ? 'selected' : ''}`}>전체</button>
+                  {availableMonths.map((m) => (
+                    <button key={m} onClick={() => setMonth(m)} className={`chip ${month === m ? 'selected' : ''}`}>
+                      {monthLabel(m)}
                     </button>
                   ))}
                 </div>
@@ -221,7 +317,7 @@ export default function EventsListPage() {
           </span>
           {filtered.length !== events.length && (
             <button
-              onClick={() => { setRegion('전체'); setType('all'); setQ(''); }}
+              onClick={() => { setRegion('전체'); setType('all'); setStatusFilter('all'); setMonth('all'); setQ(''); }}
               className="text-[12px] font-semibold text-accent-warm hover:text-accent-deep"
             >
               필터 초기화
@@ -241,7 +337,7 @@ export default function EventsListPage() {
         ) : (
           <>
             <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-              {filtered.slice(0, visibleCount).map((e) => <EventCard key={e.id} event={e} />)}
+              {filtered.slice(0, visibleCount).map((e) => <EventCard key={e.id} event={e} phase={phaseOf(e, today)} />)}
             </div>
             {filtered.length > visibleCount && (
               <div className="text-center mt-6">
@@ -257,19 +353,25 @@ export default function EventsListPage() {
   );
 }
 
-function EventCard({ event: e }: { event: EventRow }) {
+function EventCard({ event: e, phase }: { event: EventRow; phase: Phase }) {
   const t = e.kind ?? eventType(e);
   const d = daysUntil(e.deadline);
   const urgent = t === 'apply' && d !== null && d >= 0 && d <= 3;
+  const pm = PHASE_META[phase];
   return (
     <Link href={`/events/${e.id}`} className={`card card-hover ${t === 'apply' ? 'card-apply' : 'card-info'} block`}>
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <span className={`badge ${t === 'apply' ? 'badge-warning' : 'badge-info'}`}>
-          {t === 'apply' ? '신청형' : '정보형'}
-        </span>
-        <span className={`text-[12px] font-extrabold ${urgent ? 'text-danger' : t === 'apply' ? 'text-warning' : 'text-info'}`}>
-          {deadlineLabel(e.deadline)}
-        </span>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: pm.bg, color: pm.fg }}>{pm.label}</span>
+          <span className={`badge ${t === 'apply' ? 'badge-warning' : 'badge-info'}`}>
+            {t === 'apply' ? '신청형' : '정보형'}
+          </span>
+        </div>
+        {t === 'apply' && (
+          <span className={`text-[12px] font-extrabold ${urgent ? 'text-danger' : 'text-warning'}`}>
+            {deadlineLabel(e.deadline)}
+          </span>
+        )}
       </div>
       <div className="t-card mb-2 line-clamp-1">{e.name}</div>
       <DemandBadge score={e.demand_score} tags={e.demand_tags} />
