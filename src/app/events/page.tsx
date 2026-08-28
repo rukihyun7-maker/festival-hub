@@ -150,12 +150,24 @@ export default function EventsListPage() {
   // 필터/검색 변경 시 페이지 리셋
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [region, type, statusFilter, month, sort, q, restrictInfo]);
 
-  // 선택 가능한 월 목록 (행사들이 걸쳐 있는 월의 합집합, 오름차순)
+  // 선택 가능한 월 목록: 이번 달 ~ 최대 종료월 (최대 15개월). 장기 상시행사로 과거 월이 넘치는 것 방지.
   const availableMonths = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of events) for (const m of monthsOf(e)) set.add(m);
-    return [...set].sort();
-  }, [events]);
+    const cur = today.slice(0, 7); // 'YYYY-MM'
+    let maxEnd = cur;
+    for (const e of events) {
+      const end = (e.end_date || e.start_date || '').slice(0, 7);
+      if (end && end > maxEnd) maxEnd = end;
+    }
+    const out: string[] = [];
+    let [y, m] = cur.split('-').map(Number);
+    const [ey, em] = maxEnd.split('-').map(Number);
+    let guard = 0;
+    while ((y < ey || (y === ey && m <= em)) && guard++ < 15) {
+      out.push(`${y}-${String(m).padStart(2, '0')}`);
+      m++; if (m > 12) { m = 1; y++; }
+    }
+    return out;
+  }, [events, today]);
 
   // 상태(진행중/진행전/종료)·월을 제외한 기준 목록 → 상태 탭 카운트 산출용
   const base = useMemo(() => {
