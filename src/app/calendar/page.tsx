@@ -78,22 +78,30 @@ export default function CalendarPage() {
           setPlatform([...appEvents, ...favEvents]);
         }
         await loadPersonal(p.id);
-        // 행사 달력(탐색 트랙): 전국 축제·행사(정보형) 전체
-        try {
-          const evs = await fetchEvents({});
-          setAllEvents(
-            evs
-              .filter((e) => e.start_date && e.end_date && eventType(e) === 'info')
-              .map((e) => ({
-                id: e.id, name: e.name, start: e.start_date, end: e.end_date,
-                tone: (e.category === '축제' ? 'festival' : 'happening') as CalTone,
-              }))
-          );
-        } catch { /* 행사 달력 로드 실패는 무시 */ }
       } finally {
         setLoading(false);
       }
     })();
+  }, []);
+
+  // 행사 달력(탐색 트랙): 전국 축제·행사(정보형) 전체 — 로그인 여부와 무관하게 로드
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const evs = await fetchEvents({});
+        if (cancelled) return;
+        setAllEvents(
+          evs
+            .filter((e) => e.start_date && e.end_date && eventType(e) === 'info')
+            .map((e) => ({
+              id: e.id, name: e.name, start: e.start_date, end: e.end_date,
+              tone: (e.category === '축제' ? 'festival' : 'happening') as CalTone,
+            }))
+        );
+      } catch { /* 행사 달력 로드 실패는 무시 */ }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // 표시 대상: 내 일정 트랙 vs 행사 달력 트랙 (겹치지 않게 분리)
