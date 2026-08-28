@@ -61,17 +61,20 @@ create policy "ratings_select" on public.ratings
   );
 
 -- 집계 뷰 재정의 (공개된 것만 · 재섭외/슬라이더 혼합 점수)
-create or replace view public.seller_rating_summary as
+-- 기존 뷰 컬럼(seller_id, review_count, avg_score) 순서 유지 + recommend_count는 맨 뒤 추가
+-- (CREATE OR REPLACE VIEW는 기존 컬럼 순서 변경 불가 → drop 후 재생성)
+drop view if exists public.seller_rating_summary;
+create view public.seller_rating_summary as
 select
   seller_id,
   count(*) as review_count,
-  count(*) filter (where rehire = 'recommend') as recommend_count,
   round(avg(
     coalesce(
       case rehire when 'recommend' then 5.0 when 'ok' then 3.5 when 'no' then 1.5 end,
       (hygiene + punctual + service) / 3.0
     )
-  )::numeric, 1) as avg_score
+  )::numeric, 1) as avg_score,
+  count(*) filter (where rehire = 'recommend') as recommend_count
 from public.ratings
 where reveal_at is null or reveal_at <= now()
 group by seller_id;
