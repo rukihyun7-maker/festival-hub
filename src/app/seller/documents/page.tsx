@@ -87,10 +87,38 @@ export default function SellerDocumentsPage() {
           <span className="text-ink">서류 관리</span>
         </nav>
 
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="t-title mb-1">필수 서류 관리</h1>
           <p className="t-sub">모든 항목이 검증되면 행사 신청 시 자동 첨부됩니다. (서류 + 부스/트럭 사진 3컷)</p>
+          <div className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--info-soft,#F4F7FE)', color: 'var(--info,#2B4B9B)' }}>
+            🔔 만료일이 다가오면 미리 알려드립니다 — 서류 걱정 없이 운영하세요
+          </div>
         </div>
+
+        {(() => {
+          const expired = slots.filter((s) => s.urgency === 'expired');
+          const expiring = slots.filter((s) => s.urgency === 'expiring');
+          if (expired.length === 0 && expiring.length === 0) return null;
+          const isExp = expired.length > 0;
+          return (
+            <div className="card mb-6" style={{ borderColor: isExp ? '#E0A99B' : '#E4C97E', background: isExp ? 'var(--danger-bg,#FBECE8)' : 'var(--warning-bg,#FBF5E6)' }}>
+              <div className="flex items-start gap-3">
+                <div className="text-[20px] leading-none mt-0.5">{isExp ? '⚠️' : '🔔'}</div>
+                <div>
+                  <div className="text-[14px] font-bold text-ink mb-0.5">
+                    {isExp ? `만료된 서류 ${expired.length}건 — 갱신이 필요합니다` : `만료 임박 서류 ${expiring.length}건`}
+                  </div>
+                  <div className="text-[12px] text-text-secondary leading-relaxed">
+                    {isExp
+                      ? '만료된 서류가 있으면 행사에 신청할 수 없습니다. 갱신 후 재등록하면 관리자 재검토를 거쳐 다시 유효해집니다.'
+                      : '만료 전에 미리 갱신·재등록해 두면 신청이 끊기지 않습니다.'}
+                    {' '}({[...expired, ...expiring].map((s) => s.label).join(', ')})
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         <div className={`card mb-8 ${allGood ? 'card-apply' : 'card-info'}`}>
           <div className="flex items-center justify-between mb-3">
