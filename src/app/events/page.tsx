@@ -397,8 +397,17 @@ function EventCard({ event: e, phase }: { event: EventRow; phase: Phase }) {
         <Row label="자리" value={e.capacity ?? '공고 예정'} />
       </div>
       <div className="flex items-baseline justify-between mt-3 pt-3 border-t border-line-faint">
-        <span className="text-[11px] text-text-tertiary">참가비</span>
-        <span className="text-[15px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{feeLabel(e.fee, e.fee_rate)}</span>
+        {t === 'apply' ? (
+          <>
+            <span className="text-[11px] text-text-tertiary">참가비</span>
+            <span className="text-[15px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{feeLabel(e.fee, e.fee_rate)}</span>
+          </>
+        ) : (
+          <>
+            <span className="text-[11px] text-text-tertiary">정보 제공</span>
+            <span className="text-[12px] font-semibold text-text-secondary">참가·부스는 주최 확인</span>
+          </>
+        )}
       </div>
     </Link>
   );
