@@ -3,11 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 /**
- * 주최 계정 완전 삭제 (관리자 전용)
- * 조건: 대상이 '주최(host)' + 등록된 행사가 0건일 때만.
+ * 계정 완전 삭제 (관리자 전용) · 주최(host) + 입점 파트너(seller)
+ * - 주최: 등록된 행사가 0건일 때만 (기존 조건 유지)
+ * - 파트너: 반려·정지 등 이슈 계정 삭제 허용 (이메일 해제 → 재가입 가능). 관련 데이터는 cascade 정리.
  * 완전 삭제는 Auth Admin API(서비스 키)가 필요 → 서버에서만 처리.
- * 필요 env: SUPABASE_SERVICE_ROLE_KEY (Vercel/서버에만, 클라 비노출)
- * POST { hostId } → { ok } | { error }
+ * POST { hostId | userId } → { ok } | { error }
  */
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -19,20 +19,22 @@ export async function POST(req: Request) {
   if (me?.role !== 'admin') return NextResponse.json({ error: '관리자만 가능합니다' }, { status: 403 });
 
   let hostId: string | undefined;
-  try { hostId = (await req.json())?.hostId; } catch { /* no body */ }
-  if (!hostId) return NextResponse.json({ error: 'hostId가 필요합니다' }, { status: 400 });
+  try { const b = await req.json(); hostId = b?.hostId ?? b?.userId; } catch { /* no body */ }
+  if (!hostId) return NextResponse.json({ error: '대상 id가 필요합니다' }, { status: 400 });
 
-  // 대상이 주최 계정인지
+  // 대상 역할 확인 (관리자 계정은 삭제 불가)
   const { data: target } = await supabase.from('profiles').select('role').eq('id', hostId).maybeSingle();
   if (!target) return NextResponse.json({ error: '대상 계정을 찾을 수 없습니다' }, { status: 404 });
-  if (target.role !== 'host') return NextResponse.json({ error: '주최 계정만 삭제할 수 있습니다' }, { status: 400 });
+  if (target.role === 'admin') return NextResponse.json({ error: '관리자 계정은 삭제할 수 없습니다' }, { status: 400 });
 
-  // 등록된 행사가 없어야 함
-  const { count, error: cErr } = await supabase
-    .from('events').select('id', { count: 'exact', head: true }).eq('owner_id', hostId);
-  if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
-  if ((count ?? 0) > 0) {
-    return NextResponse.json({ error: `등록된 행사 ${count}건이 있어 삭제할 수 없습니다. 먼저 행사를 삭제하세요.` }, { status: 409 });
+  // 주최는 등록된 행사가 없어야 함 (파트너는 조건 없음)
+  if (target.role === 'host') {
+    const { count, error: cErr } = await supabase
+      .from('events').select('id', { count: 'exact', head: true }).eq('owner_id', hostId);
+    if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
+    if ((count ?? 0) > 0) {
+      return NextResponse.json({ error: `등록된 행사 ${count}건이 있어 삭제할 수 없습니다. 먼저 행사를 삭제하세요.` }, { status: 409 });
+    }
   }
 
   // 서비스 키로 완전 삭제

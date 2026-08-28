@@ -894,10 +894,15 @@ export async function fetchMyHostRequests(ownerId: string): Promise<EventRow[]> 
 
 /** 주최 계정 완전 삭제 (관리자 · 등록 행사 0건일 때만) · 서버 라우트 경유 */
 export async function deleteHostAccount(hostId: string): Promise<void> {
+  return deleteUserAccount(hostId);
+}
+
+/** 계정 완전 삭제 (관리자) · 주최·파트너 공용. 파트너 반려/이슈 계정 삭제 시 이메일 해제 → 재가입 가능 */
+export async function deleteUserAccount(userId: string): Promise<void> {
   const res = await fetch('/api/admin/delete-host', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ hostId }),
+    body: JSON.stringify({ userId }),
   });
   if (!res.ok) {
     const j = await res.json().catch(() => ({}));

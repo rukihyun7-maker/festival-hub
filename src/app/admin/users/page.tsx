@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import {
-  fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus, deleteHostAccount,
+  fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus, deleteHostAccount, deleteUserAccount,
   fetchMyDocumentSlots, fetchMyMenus, getSignedDocumentUrl, reviewDocument, countVerified,
   fetchSellerHistory, fetchRatingSummary, fetchMyHostEvents, notifyAccountDecision,
 } from '@/lib/supabase/queries';
@@ -288,7 +288,7 @@ export default function AdminUsersPage() {
                 </div>
               </div>
               {expandedId === p.id && p.role === 'seller' && (
-                <SellerReviewDetail seller={p} adminId={me?.id ?? ''} />
+                <SellerReviewDetail seller={p} adminId={me?.id ?? ''} onDeleted={() => setProfiles((prev) => prev.filter((x) => x.id !== p.id))} />
               )}
               {expandedId === p.id && p.role === 'host' && (
                 <HostReviewDetail host={p} onDeleted={() => setProfiles((prev) => prev.filter((x) => x.id !== p.id))} />
@@ -331,13 +331,22 @@ function SellerStatusBadge({ status }: { status: SellerStatus }) {
 }
 
 /** 가입 심사 상세 — 필수 서류 열람·검증 + 판매 메뉴 */
-function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: string }) {
+function SellerReviewDetail({ seller, adminId, onDeleted }: { seller: Profile; adminId: string; onDeleted: () => void }) {
   const [slots, setSlots] = useState<DocumentSlot[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [history, setHistory] = useState<SellerHistory[]>([]);
   const [rating, setRating] = useState<RatingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function removeAccount() {
+    if (!confirm(`파트너 계정 "${seller.business_name ?? seller.name}"을(를) 완전히 삭제할까요?\n이 작업은 되돌릴 수 없으며, 해당 이메일로 다시 가입할 수 있게 됩니다.`)) return;
+    setDeleting(true);
+    try { await deleteUserAccount(seller.id); onDeleted(); }
+    catch (e) { alert('삭제 실패: ' + (e as Error).message); }
+    finally { setDeleting(false); }
+  }
 
   const load = async () => {
     try {
@@ -497,6 +506,14 @@ function SellerReviewDetail({ seller, adminId }: { seller: Profile; adminId: str
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* 계정 삭제 (반려·정지 등 이슈 계정 · 이메일 해제) */}
+            <div className="md:col-span-2 flex items-center justify-between gap-3 pt-3 border-t border-line-faint" style={{ gridColumn: '1 / -1' }}>
+              <span className="text-[12px] text-text-secondary">반려·정지 등 이슈 계정은 삭제하면 이메일이 해제되어 재가입할 수 있습니다.</span>
+              <button onClick={removeAccount} disabled={deleting} className="text-[12px] font-bold py-1.5 px-3 rounded-input border border-danger/40 text-danger hover:bg-danger-bg disabled:opacity-50 shrink-0">
+                {deleting ? '삭제 중…' : '계정 삭제'}
+              </button>
             </div>
           </div>
         </div>
