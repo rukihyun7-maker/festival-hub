@@ -70,6 +70,7 @@ export default function EditEventPage() {
         payment_method: v.payment_method.trim() || null,
         site_details: compactSiteDetails(v.site),
         recruit_slots: v.recruit_slots.filter((s) => s.type.trim() && s.count > 0),
+        required_docs: { standard: v.required_docs.standard ?? [], extra: (v.required_docs.extra ?? []).filter((d) => d.label.trim()) },
       });
       router.push(`/events/${event.id}`);
     } catch (err) {

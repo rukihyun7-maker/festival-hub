@@ -21,6 +21,7 @@ import type {
   RatingSummary,
   PartnerReviewPublic,
   MyReceivedReview,
+  ApplicationDocument,
   Notification,
   NotifKind,
   Settlement,
@@ -286,6 +287,31 @@ export async function createApplication(eventId: string, sellerId: string, slotT
     .single();
   if (error) throw error;
   return data as Application;
+}
+
+/** 신청 추가서류 업로드 (documents 버킷 · ASCII 키) → 저장 경로 반환 */
+export async function uploadApplicationDoc(sellerId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+  const path = `${sellerId}/app/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  const { error } = await supabase.storage.from('documents').upload(path, file, { upsert: false, contentType: file.type || undefined });
+  if (error) throw error;
+  return path;
+}
+
+/** 신청 추가서류 레코드 등록 (RLS: 신청자 본인) */
+export async function addApplicationDocument(applicationId: string, label: string, fileUrl: string, fileName: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('application_documents').insert({ application_id: applicationId, label, file_url: fileUrl, file_name: fileName });
+  if (error) throw error;
+}
+
+/** 신청 추가서류 조회 (신청자·주최·관리자) */
+export async function fetchApplicationDocuments(applicationId: string): Promise<ApplicationDocument[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('application_documents').select('*').eq('application_id', applicationId).order('created_at');
+  if (error) throw error;
+  return (data ?? []) as ApplicationDocument[];
 }
 
 /** 신청 상태 변경 (호스트 승인/거절) */

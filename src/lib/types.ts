@@ -185,6 +185,7 @@ export interface EventRow {
   payment_method?: string | null;   // v12: 결제 방식 (등록값, 신청형만)
   site_details?: SiteDetails | null; // v24: 푸드트럭 현장 인프라 상세 (jsonb)
   recruit_slots?: RecruitSlot[];     // v38: 부문별 모집 [{type,count}]
+  required_docs?: EventRequiredDocs; // v39: 행사별 필수서류 {standard, extra}
   demand_score?: number | null;     // v14: 입지 수요점수 (반경 1km 인근시설 기반, 0~100)
   demand_tags?: string[] | null;    // v14: 입지 태그 (역세권·대학가·주거밀집·상업지)
   lat?: number | null;              // v5: 위도 (지오코딩)
@@ -229,6 +230,16 @@ export interface EventWithCounts extends EventRow {
 }
 
 export interface RecruitSlot { type: string; count: number; }
+export interface EventExtraDoc { label: string; desc?: string; }
+export interface EventRequiredDocs { standard?: DocKind[]; extra?: EventExtraDoc[]; }
+export interface ApplicationDocument {
+  id: string;
+  application_id: string;
+  label: string;
+  file_url: string | null;
+  file_name: string | null;
+  created_at: string;
+}
 
 export interface Application {
   id: string;

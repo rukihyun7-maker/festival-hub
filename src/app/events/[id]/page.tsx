@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import NearbyInfoCard from '@/components/NearbyInfoCard';
-import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, fetchMyMenus, fetchEventContact, fetchMyFavorites, addFavorite, removeFavorite } from '@/lib/supabase/queries';
-import { periodLabel, feeLabel, deadlineLabel, daysUntil, filledSiteDetails, fitCheck, applyChecklist, requiredDocsVerified, REQUIRED_DOC_KINDS } from '@/lib/types';
+import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, fetchMyMenus, fetchEventContact, fetchMyFavorites, addFavorite, removeFavorite, uploadApplicationDoc, addApplicationDocument } from '@/lib/supabase/queries';
+import { periodLabel, feeLabel, deadlineLabel, daysUntil, filledSiteDetails, fitCheck, applyChecklist, requiredDocsVerified, REQUIRED_DOC_KINDS, DOC_META } from '@/lib/types';
 import type { EventRow, Profile, DocumentSlot } from '@/lib/types';
 
 export default function EventDetailPage() {
@@ -63,11 +63,16 @@ export default function EventDetailPage() {
   const approved = !isSeller || sellerStatus === '정상';                 // 1차 심사완료
   const verified = !isSeller || (sellerStatus === '정상' && check.ready); // 검증 파트너(신청 자격 충족)
 
-  async function handleApply(slotType: string | null) {
+  async function handleApply(slotType: string | null, extraFiles: { label: string; file: File }[]) {
     if (!event || !profile) return;
     setApplying(true);
     try {
-      await createApplication(event.id, profile.id, slotType);
+      const app = await createApplication(event.id, profile.id, slotType);
+      // 이 행사 추가 서류 업로드
+      for (const ef of extraFiles) {
+        const path = await uploadApplicationDoc(profile.id, ef.file);
+        await addApplicationDocument(app.id, ef.label, path, ef.file.name);
+      }
       setApplied(true);
       setShowApplyModal(false);
     } catch (e) {
@@ -247,6 +252,33 @@ export default function EventDetailPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {t === 'apply' && ((event.required_docs?.extra?.length ?? 0) > 0 || (event.required_docs?.standard?.length ?? 0) > 0) && (
+              <div className="card">
+                <div className="t-section mb-1">필수 서류</div>
+                <p className="text-[12px] text-text-tertiary mb-3">이 행사 신청에 필요한 서류입니다. 표준 서류는 검증된 서류가 자동 첨부되고, 추가 서류는 신청 시 첨부합니다.</p>
+                {(event.required_docs?.standard?.length ?? 0) > 0 && (
+                  <div className="mb-3">
+                    <div className="text-[11px] font-bold text-text-tertiary mb-1.5">표준 서류</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {event.required_docs!.standard!.map((k) => (
+                        <span key={k} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}>✓ {DOC_META[k]?.label ?? k}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(event.required_docs?.extra?.length ?? 0) > 0 && (
+                  <div>
+                    <div className="text-[11px] font-bold text-text-tertiary mb-1.5">추가 서류 · 신청 시 첨부</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {event.required_docs!.extra!.map((d, i) => (
+                        <span key={i} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--warning-bg,#FBF5E6)', color: '#7A5B00' }}>📎 {d.label}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -539,7 +571,7 @@ function ApplyModal({
   days: number;
   totalFee: number;
   onClose: () => void;
-  onConfirm: (slotType: string | null) => void;
+  onConfirm: (slotType: string | null, extraFiles: { label: string; file: File }[]) => void;
   applying: boolean;
 }) {
   const [agreed, setAgreed] = useState(false);
@@ -547,6 +579,9 @@ function ApplyModal({
   const slots = event.recruit_slots ?? [];
   const [slot, setSlot] = useState<string | null>(slots.length === 1 ? slots[0].type : null);
   const slotOk = slots.length === 0 || !!slot;
+  const extraDocs = (event.required_docs?.extra ?? []).filter((d) => d.label.trim());
+  const [extraFiles, setExtraFiles] = useState<Record<number, File>>({});
+  const extraOk = extraDocs.every((_, i) => extraFiles[i]);
   return (
     <div onClick={onClose} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(20,18,14,0.4)' }}>
       <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-[520px] bg-surface animate-fh-up" style={{ borderRadius: '20px 20px 0 0', padding: 'clamp(24px, 3vw, 32px)', maxHeight: '92vh', overflowY: 'auto' }}>
@@ -581,6 +616,27 @@ function ApplyModal({
           </div>
         )}
 
+        {extraDocs.length > 0 && (
+          <div className="mb-4">
+            <div className="text-[13px] font-bold text-ink mb-1">이 행사 추가 서류 <span className="text-danger">*</span></div>
+            <div className="text-[11px] text-text-tertiary mb-2">주최가 요청한 추가 서류를 첨부해 주세요.</div>
+            <div className="space-y-2">
+              {extraDocs.map((d, i) => (
+                <div key={i} className="flex items-center gap-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12.5px] font-bold text-ink truncate">{d.label}</div>
+                    {extraFiles[i] && <div className="text-[11px] text-success truncate">첨부: {extraFiles[i].name}</div>}
+                  </div>
+                  <label className="btn-secondary text-[11px] py-1.5 px-2.5 cursor-pointer shrink-0">
+                    {extraFiles[i] ? '변경' : '첨부'}
+                    <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setExtraFiles((p) => ({ ...p, [i]: f })); }} />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2.5 mb-4">
           <label className="flex items-start gap-2 cursor-pointer">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
@@ -597,8 +653,8 @@ function ApplyModal({
         </div>
         <div className="flex gap-2">
           <button onClick={onClose} className="btn-secondary flex-1">취소</button>
-          <button disabled={!agreed || !agreeInfo || !slotOk || applying} onClick={() => onConfirm(slot)} className="btn-primary flex-1">
-            {applying ? '처리 중…' : !slotOk ? '부문을 선택하세요' : '신청 확정'}
+          <button disabled={!agreed || !agreeInfo || !slotOk || !extraOk || applying} onClick={() => onConfirm(slot, extraDocs.map((d, i) => ({ label: d.label, file: extraFiles[i]! })))} className="btn-primary flex-1">
+            {applying ? '처리 중…' : !slotOk ? '부문을 선택하세요' : !extraOk ? '추가 서류를 첨부하세요' : '신청 확정'}
           </button>
         </div>
       </div>

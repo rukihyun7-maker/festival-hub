@@ -15,11 +15,12 @@ import {
   getSignedDocumentUrl,
   fetchPlatformSettings,
   fetchPartnerReviewsPublic,
+  fetchApplicationDocuments,
 } from '@/lib/supabase/queries';
 import { REHIRE_LABEL } from '@/lib/types';
 import type {
   Profile, EventRow, ApplicationWithRelations, ApplicationStatus,
-  SellerHistory, RatingSummary, Menu, DocumentSlot, DocKind, PartnerReviewPublic,
+  SellerHistory, RatingSummary, Menu, DocumentSlot, DocKind, PartnerReviewPublic, ApplicationDocument,
 } from '@/lib/types';
 
 const BOOTH_KINDS: { kind: DocKind; label: string }[] = [
@@ -195,6 +196,7 @@ function ApplicantCard({
   const [history, setHistory] = useState<SellerHistory[]>([]);
   const [rating, setRating] = useState<RatingSummary | null>(null);
   const [reviews, setReviews] = useState<PartnerReviewPublic[]>([]);
+  const [appDocs, setAppDocs] = useState<ApplicationDocument[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [docs, setDocs] = useState<DocumentSlot[]>([]);
 
@@ -213,18 +215,20 @@ function ApplicantCard({
     setOpen(next);
     if (next && !loaded && seller) {
       setLoadingDetail(true);
-      const [h, r, m, d, rv] = await Promise.all([
+      const [h, r, m, d, rv, ad] = await Promise.all([
         fetchSellerHistory(seller.id).catch(() => [] as SellerHistory[]),
         fetchRatingSummary(seller.id).catch(() => null),
         fetchMyMenus(seller.id).catch(() => [] as Menu[]), // RLS 미허용 시 빈 배열
         fetchMyDocumentSlots(seller.id).catch(() => [] as DocumentSlot[]), // v9 정책 후 열람
         fetchPartnerReviewsPublic(seller.id).catch(() => [] as PartnerReviewPublic[]),
+        fetchApplicationDocuments(a.id).catch(() => [] as ApplicationDocument[]),
       ]);
       setHistory(h);
       setRating(r);
       setMenus(m);
       setDocs(d);
       setReviews(rv);
+      setAppDocs(ad);
       setLoaded(true);
       setLoadingDetail(false);
     }
@@ -304,6 +308,26 @@ function ApplicantCard({
                       </div>
                     ))}
                     {reviews.length > 4 && <div className="text-[11px] text-text-tertiary">외 {reviews.length - 4}건</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* 이 행사 추가 서류 (신청 시 첨부) */}
+              {appDocs.length > 0 && (
+                <div>
+                  <div className="text-[12px] font-bold text-ink-soft mb-2">이 행사 추가 서류 <span className="text-text-tertiary">{appDocs.length}건</span></div>
+                  <div className="space-y-1.5">
+                    {appDocs.map((ad) => (
+                      <div key={ad.id} className="flex items-center justify-between gap-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                        <div className="min-w-0">
+                          <div className="text-[12.5px] font-bold text-ink truncate">📎 {ad.label}</div>
+                          {ad.file_name && <div className="text-[11px] text-text-tertiary truncate">{ad.file_name}</div>}
+                        </div>
+                        {ad.file_url && (
+                          <button onClick={async () => { try { window.open(await getSignedDocumentUrl(ad.file_url!, 3600), '_blank', 'noopener'); } catch (e) { alert('열람 실패: ' + (e as Error).message); } }} className="text-[11px] font-bold text-info hover:underline shrink-0">열람</button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

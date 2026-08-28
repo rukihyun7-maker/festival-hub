@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { EventRow, Profile, SiteDetails, RecruitSlot } from '@/lib/types';
+import { REQUIRED_DOC_KINDS, DOC_META } from '@/lib/types';
+import type { EventRow, Profile, SiteDetails, RecruitSlot, EventRequiredDocs, DocKind, EventExtraDoc } from '@/lib/types';
 
 /**
  * 행사 등록/수정 공용 폼
@@ -38,6 +39,7 @@ export interface EventFormValues {
   payment_method: string;
   site: SiteDetails; // v24: 푸드트럭 현장 인프라 상세 (선택)
   recruit_slots: RecruitSlot[]; // v38: 부문별 모집
+  required_docs: EventRequiredDocs; // v39: 행사별 필수서류
 }
 
 export function toFormValues(row: EventRow): EventFormValues {
@@ -67,6 +69,10 @@ export function toFormValues(row: EventRow): EventFormValues {
     payment_method: row.payment_method ?? '',
     site: row.site_details ?? {},
     recruit_slots: row.recruit_slots ?? [],
+    required_docs: {
+      standard: row.required_docs?.standard ?? [...REQUIRED_DOC_KINDS],
+      extra: row.required_docs?.extra ?? [],
+    },
   };
 }
 
@@ -97,6 +103,7 @@ export function initialFormValues(profile: Profile | null): EventFormValues {
     payment_method: '현금 · 카드',
     site: {},
     recruit_slots: [],
+    required_docs: { standard: [...REQUIRED_DOC_KINDS], extra: [] },
   };
 }
 
@@ -303,6 +310,33 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             </div>
             <div className="text-[11px] text-text-tertiary mt-1.5">비공개(승인 후 공개)로 두면 연락처가 함부로 노출되지 않아 문의 피로도를 줄일 수 있습니다.</div>
           </div>
+        </Section>
+
+        <Section title="6. 이 행사 필수 서류">
+          <p className="text-[12px] text-text-tertiary mb-3">표준 서류 중 확인할 항목을 고르고, 이 행사만의 추가 서류를 넣을 수 있어요. 열람·검증 기준(표준 6종)은 그대로 유지됩니다.</p>
+          <div className="text-[12px] font-semibold text-ink-soft mb-1.5">표준 서류 · 확인 요청</div>
+          <div className="flex flex-wrap gap-1.5 mb-5">
+            {REQUIRED_DOC_KINDS.map((k: DocKind) => {
+              const on = v.required_docs.standard?.includes(k) ?? false;
+              return (
+                <button type="button" key={k}
+                  onClick={() => { const cur = v.required_docs.standard ?? []; const next = on ? cur.filter((x) => x !== k) : [...cur, k]; set('required_docs', { ...v.required_docs, standard: next }); }}
+                  className={`chip ${on ? 'selected' : ''}`}>{DOC_META[k].label}</button>
+              );
+            })}
+          </div>
+          <div className="text-[12px] font-semibold text-ink-soft mb-1.5">추가 서류 · <span className="text-text-tertiary font-normal">신청 시 파트너가 업로드</span></div>
+          {(v.required_docs.extra ?? []).length > 0 && (
+            <div className="space-y-2 mb-2">
+              {v.required_docs.extra!.map((d: EventExtraDoc, i: number) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <input value={d.label} onChange={(e) => { const n = [...(v.required_docs.extra ?? [])]; n[i] = { ...n[i], label: e.target.value }; set('required_docs', { ...v.required_docs, extra: n }); }} className="input flex-1" placeholder="서류명 (예: 화기취급 서약서 · 보험증서)" />
+                  <button type="button" onClick={() => set('required_docs', { ...v.required_docs, extra: (v.required_docs.extra ?? []).filter((_, j) => j !== i) })} className="text-danger text-[12px] font-bold px-2 shrink-0">삭제</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={() => set('required_docs', { ...v.required_docs, extra: [...(v.required_docs.extra ?? []), { label: '' }] })} className="chip">+ 추가 서류</button>
         </Section>
 
         <Section title="게시 상태">

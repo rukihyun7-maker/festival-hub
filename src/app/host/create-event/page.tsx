@@ -66,6 +66,7 @@ export default function CreateEventPage() {
         payment_method: v.payment_method.trim() || null,
         site_details: compactSiteDetails(v.site),
         recruit_slots: v.recruit_slots.filter((s) => s.type.trim() && s.count > 0),
+        required_docs: { standard: v.required_docs.standard ?? [], extra: (v.required_docs.extra ?? []).filter((d) => d.label.trim()) },
         review_status: me.role === 'admin' ? 'approved' : 'pending', // 주최=승인 대기 / 관리자=즉시 공개
       });
 
