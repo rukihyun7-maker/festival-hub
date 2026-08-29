@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import EventForm, { initialFormValues, type EventFormValues } from '@/components/EventForm';
-import { createEvent, fetchMyProfile, updateEvent } from '@/lib/supabase/queries';
+import { createEvent, fetchMyProfile, updateEvent, fetchPlatformSettings } from '@/lib/supabase/queries';
 import { compactSiteDetails } from '@/lib/types';
 import type { Profile } from '@/lib/types';
 
@@ -22,11 +22,13 @@ export default function CreateEventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ id: string; name: string; isAdmin: boolean; summary: NearbySummary | null; located: boolean } | null>(null);
+  const [categories, setCategories] = useState<string[] | undefined>(undefined);
 
   useEffect(() => {
     (async () => {
       const p = await fetchMyProfile();
       setMe(p);
+      try { const st = await fetchPlatformSettings(); if (st?.event_categories?.length) setCategories(st.event_categories); } catch { /* 기본 사용 */ }
       setCheckingAuth(false);
     })();
   }, []);
@@ -221,6 +223,7 @@ export default function CreateEventPage() {
           error={error}
           cancelHref="/host"
           ownerId={me.id}
+          categories={categories}
           onSubmit={handleSubmit}
         />
       </div>

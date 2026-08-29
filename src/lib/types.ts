@@ -562,6 +562,7 @@ export interface PlatformSettings {
   landing_partners?: number;        // v28: 로그인 노출 — 입점 파트너 수(관리자 수기)
   landing_events?: number;          // v28: 로그인 노출 — 등록 행사 수(관리자 수기)
   landing_recruiting?: number;      // v28: 로그인 노출 — 모집 중 수(관리자 수기)
+  event_categories?: string[];      // v42: 행사 카테고리(관리자 편집 · 순서·내용)
   updated_at: string;
 }
 

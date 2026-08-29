@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import { fetchMyProfile, fetchPlatformSettings, updatePlatformSettings, fetchLandingRefCounts } from '@/lib/supabase/queries';
+import { EVENT_CATEGORIES } from '@/components/EventForm';
 import type { Profile, PlatformSettings, PublicScope } from '@/lib/types';
 
 /**
@@ -108,6 +109,29 @@ export default function AdminSettingsPage() {
           <div className="t-section text-[20px]">플랫폼 설정</div>
           <div className="t-sub mt-1">평점 정책과 공개 범위를 관리합니다. 파트너·주최 화면에 즉시 반영됩니다.</div>
         </div>
+
+        <section className="card mb-4">
+          <div className="t-section mb-1">행사 카테고리</div>
+          <div className="t-sub mb-4">행사 등록 시 선택하는 카테고리입니다. 순서·내용을 편집하고 아래 저장을 누르면 등록 화면에 반영됩니다.</div>
+          {(() => {
+            const cats = s.event_categories ?? [...EVENT_CATEGORIES];
+            return (
+              <>
+                <div className="space-y-2 mb-3">
+                  {cats.map((c, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input value={c} onChange={(e) => { const n = [...cats]; n[i] = e.target.value; patch({ event_categories: n }); }} className="input flex-1" placeholder="카테고리명" />
+                      <button type="button" disabled={i === 0} onClick={() => { const n = [...cats];[n[i - 1], n[i]] = [n[i], n[i - 1]]; patch({ event_categories: n }); }} className="btn-secondary py-1.5 px-2.5 text-[13px] disabled:opacity-30">↑</button>
+                      <button type="button" disabled={i === cats.length - 1} onClick={() => { const n = [...cats];[n[i + 1], n[i]] = [n[i], n[i + 1]]; patch({ event_categories: n }); }} className="btn-secondary py-1.5 px-2.5 text-[13px] disabled:opacity-30">↓</button>
+                      <button type="button" onClick={() => patch({ event_categories: cats.filter((_, j) => j !== i) })} className="text-danger text-[12px] font-bold px-1.5 shrink-0">삭제</button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => patch({ event_categories: [...cats, ''] })} className="chip">+ 카테고리 추가</button>
+              </>
+            );
+          })()}
+        </section>
 
         <section className="card mb-4">
           <div className="t-section mb-1">평점 정책</div>

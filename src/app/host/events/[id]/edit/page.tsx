@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import EventForm, { toFormValues, type EventFormValues } from '@/components/EventForm';
-import { deleteEvent, fetchEventById, fetchEventContact, fetchMyProfile, updateEvent } from '@/lib/supabase/queries';
+import { deleteEvent, fetchEventById, fetchEventContact, fetchMyProfile, updateEvent, fetchPlatformSettings } from '@/lib/supabase/queries';
 import { compactSiteDetails } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
 
@@ -23,6 +23,7 @@ export default function EditEventPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [contact, setContact] = useState<{ contact: string | null; phone: string | null } | null>(null);
+  const [categories, setCategories] = useState<string[] | undefined>(undefined);
 
   useEffect(() => {
     (async () => {
@@ -30,6 +31,7 @@ export default function EditEventPage() {
         const [p, e] = await Promise.all([fetchMyProfile(), fetchEventById(params.id)]);
         setMe(p);
         setEvent(e);
+        try { const st = await fetchPlatformSettings(); if (st?.event_categories?.length) setCategories(st.event_categories); } catch { /* 기본 사용 */ }
         try { setContact(await fetchEventContact(params.id)); } catch { /* 권한 없음 → null */ }
       } catch (err) {
         setError((err as Error).message);
@@ -181,6 +183,7 @@ export default function EditEventPage() {
           cancelHref={`/events/${event.id}`}
           showDelete
           ownerId={event.owner_id}
+          categories={categories}
           onSubmit={handleSubmit}
           onDelete={handleDelete}
         />

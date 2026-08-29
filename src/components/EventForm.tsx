@@ -125,12 +125,14 @@ interface EventFormProps {
   cancelHref: string;
   showDelete?: boolean;
   ownerId?: string; // v40: 모집공고문 업로드용
+  categories?: string[]; // v42: 관리자 편집 카테고리 (없으면 기본)
   onSubmit: (values: EventFormValues) => Promise<void>;
   onDelete?: () => Promise<void>;
 }
 
-export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, ownerId, onSubmit, onDelete }: EventFormProps) {
+export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, ownerId, categories, onSubmit, onDelete }: EventFormProps) {
   const [v, setV] = useState<EventFormValues>(initial);
+  const catOptions = (categories && categories.length ? categories : EVENT_CATEGORIES).filter((c) => c.trim());
   const [noticeUploading, setNoticeUploading] = useState(false);
   const todayStr = (() => { const dt = new Date(); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; })();
 
@@ -174,7 +176,8 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
             <Field label="카테고리" required>
               <select value={v.category} onChange={(e) => set('category', e.target.value)} className="input">
-                {EVENT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {!catOptions.includes(v.category) && v.category && <option value={v.category}>{v.category}</option>}
+                {catOptions.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
             <Field label="주최 단체명" required>
