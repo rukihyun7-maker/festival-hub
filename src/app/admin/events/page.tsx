@@ -309,12 +309,14 @@ export default function AdminEventsPage() {
                       <option value="close">종료</option>
                       <option value="canceled">취소</option>
                     </select>
-                    <Link
-                      href={`/host/events/${e.id}/edit`}
-                      className="btn-secondary text-[12px] py-2 px-3"
-                    >
-                      수정
-                    </Link>
+                    {e.kind !== 'info' && (
+                      <Link
+                        href={`/host/events/${e.id}/edit`}
+                        className="btn-secondary text-[12px] py-2 px-3"
+                      >
+                        수정
+                      </Link>
+                    )}
                     <button
                       disabled={actionId === e.id}
                       onClick={() => handleDelete(e.id, e.name)}
