@@ -17,7 +17,6 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
   const [fav, setFav] = useState(false);
@@ -136,6 +135,10 @@ export default function EventDetailPage() {
   const blindBody = t === 'apply' && !approved;
   const d = daysUntil(event.deadline);
   const days = Math.max(1, Math.ceil((new Date(event.end_date).getTime() - new Date(event.start_date).getTime()) / 86400000) + 1);
+  // 마감/종료 판정 (신청·관심등록 비활성)
+  const localToday = (() => { const dt = new Date(); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; })();
+  const ended = !!event.end_date && event.end_date < localToday;
+  const closed = event.status === 'close' || event.status === 'canceled' || (d !== null && d < 0) || ended;
   const totalFee = event.fee * days;
 
   // 신청형 상세 열람 자격: 주최·관리자 OR (정상 계정 + 필수 서류 6종 검증 완료)
@@ -483,7 +486,12 @@ export default function EventDetailPage() {
                 </div>
               )}
 
-              {applied ? (
+              {closed ? (
+                <div className="text-center py-3">
+                  <div className="text-[15px] font-extrabold text-text-secondary mb-1">{ended ? '종료된 행사' : '모집이 마감되었습니다'}</div>
+                  <div className="text-[12px] text-text-tertiary">더 이상 신청을 받지 않습니다</div>
+                </div>
+              ) : applied ? (
                 <div className="text-center py-3">
                   <div className="text-[16px] font-extrabold text-success mb-1">✓ 신청 완료</div>
                   <div className="text-[12px] text-text-secondary">호스트 검토 후 알림 발송</div>
@@ -497,9 +505,11 @@ export default function EventDetailPage() {
                   >
                     {applying ? '신청 중…' : !isSeller ? '입점 파트너만 신청 가능' : verified ? '지금 신청하기' : approved ? '신청 자격 충족 후 신청 가능' : '가입 승인 후 신청 가능'}
                   </button>
-                  <button onClick={() => setSaved((v) => !v)} className="btn-secondary w-full mt-2 py-3 text-[14px]">
-                    {saved ? '★ 저장됨' : '☆ 관심 등록'}
-                  </button>
+                  {isSeller && (
+                    <button onClick={toggleFav} disabled={favBusy} className="btn-secondary w-full mt-2 py-3 text-[14px]">
+                      {fav ? '★ 관심 등록됨' : '☆ 관심 등록'}
+                    </button>
+                  )}
                 </>
               )}
             </div>
