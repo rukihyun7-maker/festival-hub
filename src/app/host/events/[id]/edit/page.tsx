@@ -192,7 +192,7 @@ export default function EditEventPage() {
 
       <div className="container-app py-8 md:py-12">
         <nav className="text-[12px] font-semibold text-text-tertiary mb-4">
-          <Link href="/host" className="hover:text-ink">주최 대시보드</Link>
+          <Link href={isAdmin ? '/admin/events' : '/host'} className="hover:text-ink">{isAdmin ? '행사 검수' : '주최 대시보드'}</Link>
           <span className="mx-2">/</span>
           <Link href={`/events/${event.id}`} className="hover:text-ink">{event.name}</Link>
           <span className="mx-2">/</span>

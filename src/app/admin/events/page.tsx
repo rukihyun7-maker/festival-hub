@@ -309,6 +309,12 @@ export default function AdminEventsPage() {
                       <option value="close">종료</option>
                       <option value="canceled">취소</option>
                     </select>
+                    <Link
+                      href={`/host/events/${e.id}/edit`}
+                      className="btn-secondary text-[12px] py-2 px-3"
+                    >
+                      수정
+                    </Link>
                     <button
                       disabled={actionId === e.id}
                       onClick={() => handleDelete(e.id, e.name)}
@@ -439,6 +445,7 @@ function PendingCard({
         <button onClick={() => onApprove(e.id)} disabled={actionId === e.id} className="btn-primary flex-1">
           {actionId === e.id ? '처리 중…' : missing.length > 0 ? '보완 확인 후 승인' : '승인하고 공개'}
         </button>
+        <Link href={`/host/events/${e.id}/edit`} className="btn-secondary text-center px-4">수정</Link>
         <button onClick={() => onReject(e.id)} disabled={actionId === e.id} className="btn-secondary flex-1">반려</button>
       </div>
     </div>
