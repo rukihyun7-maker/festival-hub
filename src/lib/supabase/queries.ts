@@ -288,6 +288,20 @@ export async function fetchApplicationsForHost(hostId: string): Promise<Applicat
   return (data ?? []) as ApplicationWithRelations[];
 }
 
+/** 이 행사에 대한 내 최신 신청 (없으면 null) · 재신청 방지용 */
+export async function fetchMyApplicationForEvent(eventId: string, sellerId: string): Promise<Application | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('applications')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('seller_id', sellerId)
+    .order('applied_at', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return (data?.[0] as Application) ?? null;
+}
+
 /** 신청 생성 */
 export async function createApplication(eventId: string, sellerId: string, slotType?: string | null): Promise<Application> {
   const supabase = createClient();

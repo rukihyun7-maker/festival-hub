@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import NearbyInfoCard from '@/components/NearbyInfoCard';
-import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, fetchMyMenus, fetchEventContact, fetchMyFavorites, addFavorite, removeFavorite, uploadApplicationDoc, addApplicationDocument } from '@/lib/supabase/queries';
+import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, fetchMyMenus, fetchEventContact, fetchMyFavorites, addFavorite, removeFavorite, uploadApplicationDoc, addApplicationDocument, fetchMyApplicationForEvent } from '@/lib/supabase/queries';
 import { periodLabel, feeLabel, deadlineLabel, daysUntil, filledSiteDetails, fitCheck, applyChecklist, requiredDocsVerified, REQUIRED_DOC_KINDS, DOC_META } from '@/lib/types';
 import type { EventRow, Profile, DocumentSlot } from '@/lib/types';
 
@@ -19,6 +19,7 @@ export default function EventDetailPage() {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [myAppStatus, setMyAppStatus] = useState<'pending' | 'approved' | null>(null);
   const [fav, setFav] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
   const [menuCount, setMenuCount] = useState(0);
@@ -38,6 +39,14 @@ export default function EventDetailPage() {
         if (p?.role === 'seller') {
           const [s, menus] = await Promise.all([fetchMyDocumentSlots(p.id), fetchMyMenus(p.id).catch(() => [])]);
           if (!cancelled) { setDocSlots(s); setMenuCount(menus.length); }
+          // 이미 신청한 행사면 재신청 차단 (대기/승인 상태만 · 취소·반려는 재신청 허용)
+          try {
+            const mine = await fetchMyApplicationForEvent(params.id, p.id);
+            if (!cancelled && mine && (mine.status === 'pending' || mine.status === 'approved')) {
+              setApplied(true);
+              setMyAppStatus(mine.status);
+            }
+          } catch { /* 무시 */ }
           // 찜 조회는 실패해도 상세 표시를 막지 않음 (favorites 테이블 미생성 등)
           try {
             const favs = await fetchMyFavorites(p.id);
@@ -73,6 +82,7 @@ export default function EventDetailPage() {
         await addApplicationDocument(app.id, ef.label, path, ef.file.name);
       }
       setApplied(true);
+      setMyAppStatus('pending');
       setShowApplyModal(false);
     } catch (e) {
       alert('신청 실패: ' + (e as Error).message);
@@ -496,8 +506,9 @@ export default function EventDetailPage() {
                 </div>
               ) : applied ? (
                 <div className="text-center py-3">
-                  <div className="text-[16px] font-extrabold text-success mb-1">✓ 신청 완료</div>
-                  <div className="text-[12px] text-text-secondary">호스트 검토 후 알림 발송</div>
+                  <div className="text-[16px] font-extrabold text-success mb-1">{myAppStatus === 'approved' ? '✓ 승인됨' : '✓ 신청 완료'}</div>
+                  <div className="text-[12px] text-text-secondary">{myAppStatus === 'approved' ? '주최 승인이 완료된 행사입니다' : '이미 신청한 행사입니다 · 주최 검토 후 알림'}</div>
+                  <Link href="/seller/applications" className="text-[12px] font-bold text-info hover:underline inline-block mt-2">내 신청 현황 보기 →</Link>
                 </div>
               ) : (
                 <>
