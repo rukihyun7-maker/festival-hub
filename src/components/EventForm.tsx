@@ -126,15 +126,17 @@ interface EventFormProps {
   showDelete?: boolean;
   ownerId?: string; // v40: 모집공고문 업로드용
   categories?: string[]; // v42: 관리자 편집 카테고리 (없으면 기본)
+  lockCore?: boolean; // 승인 완료된 행사: 핵심 거래 조건(일정·장소·참가비·모집 부문) 수정 잠금 (사고 방지)
   onSubmit: (values: EventFormValues) => Promise<void>;
   onDelete?: () => Promise<void>;
 }
 
-export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, ownerId, categories, onSubmit, onDelete }: EventFormProps) {
+export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, ownerId, categories, lockCore = false, onSubmit, onDelete }: EventFormProps) {
   const [v, setV] = useState<EventFormValues>(initial);
   const catOptions = (categories && categories.length ? categories : EVENT_CATEGORIES).filter((c) => c.trim());
   const [noticeUploading, setNoticeUploading] = useState(false);
   const todayStr = (() => { const dt = new Date(); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; })();
+  const lockCls = lockCore ? ' opacity-60 cursor-not-allowed bg-muted' : '';
 
   async function handleNotice(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -169,6 +171,14 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
   return (
     <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
       <div className="space-y-6" style={{ minWidth: 0 }}>
+        {lockCore && (
+          <div className="rounded-card p-4 border" style={{ background: 'var(--warning-bg, #FEF6E7)', borderColor: 'var(--warning, #B7791F)' }}>
+            <div className="text-[13px] font-bold text-ink mb-1">🔒 승인 완료된 행사입니다</div>
+            <div className="text-[12px] text-text-secondary leading-relaxed">
+              파트너가 신청 근거로 삼는 <b>핵심 조건(일정·장소·참가비·모집 부문)</b>은 승인 후 변경할 수 없습니다. 오기재·불가피한 변경은 관리자에게 요청해 주세요. 소개·시설 안내·담당자·공고문·게시 상태는 계속 수정할 수 있습니다.
+            </div>
+          </div>
+        )}
         <Section title="1. 기본 정보">
           <Field label="행사명" required>
             <input required value={v.name} onChange={(e) => set('name', e.target.value)} className="input" placeholder="예: 서울숲 8월 플리마켓" />
@@ -207,11 +217,11 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
 
         <Section title="2. 일정 & 장소">
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-            <Field label="행사 시작일" required>
-              <input required type="date" min={todayStr} value={v.start_date} onChange={(e) => { const s = e.target.value; setV((p) => ({ ...p, start_date: s, end_date: p.end_date && p.end_date < s ? s : p.end_date })); }} className="input" />
+            <Field label="행사 시작일" required hint={lockCore ? '승인 후 잠금' : undefined}>
+              <input required disabled={lockCore} type="date" min={todayStr} value={v.start_date} onChange={(e) => { const s = e.target.value; setV((p) => ({ ...p, start_date: s, end_date: p.end_date && p.end_date < s ? s : p.end_date })); }} className={`input${lockCls}`} />
             </Field>
-            <Field label="행사 종료일" required>
-              <input required type="date" min={v.start_date || todayStr} value={v.end_date} onChange={(e) => set('end_date', e.target.value)} className="input" />
+            <Field label="행사 종료일" required hint={lockCore ? '승인 후 잠금' : undefined}>
+              <input required disabled={lockCore} type="date" min={v.start_date || todayStr} value={v.end_date} onChange={(e) => set('end_date', e.target.value)} className={`input${lockCls}`} />
             </Field>
             <Field label="신청 마감일">
               <input type="date" min={todayStr} max={v.start_date || undefined} value={v.deadline} onChange={(e) => set('deadline', e.target.value)} className="input" />
@@ -241,13 +251,13 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </div>
 
           <div className="grid gap-3" style={{ gridTemplateColumns: 'minmax(120px, auto) minmax(200px, 1fr)' }}>
-            <Field label="지역" required>
-              <select value={v.region} onChange={(e) => set('region', e.target.value)} className="input">
+            <Field label="지역" required hint={lockCore ? '승인 후 잠금' : undefined}>
+              <select disabled={lockCore} value={v.region} onChange={(e) => set('region', e.target.value)} className={`input${lockCls}`}>
                 {EVENT_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </Field>
-            <Field label="상세 주소" required>
-              <input required value={v.address} onChange={(e) => set('address', e.target.value)} className="input" placeholder="예: 성동구 뚝섬로 273 · 서울숲 문화광장" />
+            <Field label="상세 주소" required hint={lockCore ? '승인 후 잠금' : undefined}>
+              <input required disabled={lockCore} value={v.address} onChange={(e) => set('address', e.target.value)} className={`input${lockCls}`} placeholder="예: 성동구 뚝섬로 273 · 서울숲 문화광장" />
             </Field>
           </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
@@ -263,11 +273,11 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
 
         <Section title="3. 조건 & 시설">
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-            <Field label="일 참가비 (원)" hint="0 = 무료">
-              <input type="number" min={0} step={10000} value={v.fee} onChange={(e) => set('fee', Number(e.target.value))} className="input" />
+            <Field label="일 참가비 (원)" hint={lockCore ? '승인 후 잠금' : '0 = 무료'}>
+              <input type="number" disabled={lockCore} min={0} step={10000} value={v.fee} onChange={(e) => set('fee', Number(e.target.value))} className={`input${lockCls}`} />
             </Field>
-            <Field label="매출 수수료율 (%)" hint="0 = 없음">
-              <input type="number" min={0} max={30} step={0.5} value={v.fee_rate} onChange={(e) => set('fee_rate', Number(e.target.value))} className="input" />
+            <Field label="매출 수수료율 (%)" hint={lockCore ? '승인 후 잠금' : '0 = 없음'}>
+              <input type="number" disabled={lockCore} min={0} max={30} step={0.5} value={v.fee_rate} onChange={(e) => set('fee_rate', Number(e.target.value))} className={`input${lockCls}`} />
             </Field>
           </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
@@ -324,7 +334,22 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </Field>
         </Section>
 
-        <Section title="5. 모집 부문">
+        <Section title={`5. 모집 부문${lockCore ? ' 🔒' : ''}`}>
+          {lockCore ? (
+            <>
+              <p className="text-[11px] text-text-tertiary -mt-1">승인 후에는 모집 부문(참가비·인원·시설)을 변경할 수 없습니다. 변경이 필요하면 관리자에게 요청해 주세요.</p>
+              {v.recruit_slots.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {v.recruit_slots.map((s, i) => (
+                    <span key={i} className="badge">{s.type || '부문'} · {s.count}자리{s.fee != null ? ` · 참가비 ${(s.fee / 10000).toFixed(0)}만원` : ''}</span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[12px] text-text-tertiary">부문 구분 없음 (행사 기본 조건으로 모집)</div>
+              )}
+            </>
+          ) : (
+          <>
           <p className="text-[11px] text-text-tertiary -mt-1">예: 플리마켓 20 · 푸드트럭 10 · 음식부스 10. 부문마다 참가비·시설을 다르게 둘 수 있어요(비우면 행사 기본값). 파트너는 부문을 선택해 신청합니다. (부문을 나누지 않으면 비워두세요)</p>
           {v.recruit_slots.length > 0 && (
             <div className="space-y-2">
@@ -359,15 +384,17 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             ))}
             <button type="button" onClick={() => set('recruit_slots', [...v.recruit_slots, { type: '', count: 10 }])} className="chip">+ 직접 추가</button>
           </div>
+          </>
+          )}
         </Section>
 
         <Section title="6. 담당자 정보">
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
             <Field label="담당자명">
-              <input value={v.contact} onChange={(e) => set('contact', e.target.value)} className="input" placeholder="예: 김주무관" />
+              <input value={v.contact} onChange={(e) => set('contact', e.target.value)} className="input" />
             </Field>
             <Field label="연락처">
-              <input value={v.phone} onChange={(e) => set('phone', e.target.value)} className="input" placeholder="02-2286-1234" />
+              <input value={v.phone} onChange={(e) => set('phone', e.target.value)} className="input" />
             </Field>
           </div>
 

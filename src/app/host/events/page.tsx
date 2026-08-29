@@ -150,7 +150,7 @@ export default function HostEventsPage() {
                         {e.review_status === 'pending' ? '승인 후 신청 접수' : '반려 상태'}
                       </span>
                     ) : (
-                      <Link href="/host/applicants" className="btn-secondary flex-1 text-center">신청자 관리</Link>
+                      <Link href={`/host/applicants?event=${e.id}`} className="btn-secondary flex-1 text-center">신청자 관리</Link>
                     )}
                     <Link href={`/host/events/${e.id}/edit`} className="btn-secondary flex-1 text-center">행사 수정</Link>
                   </div>

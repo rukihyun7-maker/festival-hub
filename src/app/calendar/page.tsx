@@ -184,21 +184,23 @@ export default function CalendarPage() {
           )}
         </div>
 
-        {/* 트랙 전환 탭 */}
-        <div className="flex gap-1.5 mb-5">
-          {([['mine', '내 일정'], ['all', '행사 달력']] as const).map(([v, label]) => (
-            <button
-              key={v}
-              onClick={() => { setView(v); setShowForm(false); }}
-              className="text-[13px] font-bold px-4 py-2 rounded-pill border transition-colors"
-              style={view === v
-                ? { background: 'var(--ink,#14120E)', color: '#fff', borderColor: 'var(--ink,#14120E)' }
-                : { background: 'var(--bg-surface,#fff)', color: 'var(--text-secondary,#6F675A)', borderColor: 'var(--line,#E7DFCE)' }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* 트랙 전환 탭 · 행사 달력(탐색)은 입점 파트너 전용 서비스 */}
+        {profile?.role === 'seller' && (
+          <div className="flex gap-1.5 mb-5">
+            {([['mine', '내 일정'], ['all', '행사 달력']] as const).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => { setView(v); setShowForm(false); }}
+                className="text-[13px] font-bold px-4 py-2 rounded-pill border transition-colors"
+                style={view === v
+                  ? { background: 'var(--ink,#14120E)', color: '#fff', borderColor: 'var(--ink,#14120E)' }
+                  : { background: 'var(--bg-surface,#fff)', color: 'var(--text-secondary,#6F675A)', borderColor: 'var(--line,#E7DFCE)' }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* 수기 일정 추가 폼 (내 일정 트랙만) */}
         {view === 'mine' && showForm && (
@@ -253,13 +255,17 @@ export default function CalendarPage() {
                   if (!day) return <div key={i} className="min-h-[64px] sm:min-h-[80px] opacity-0" />;
                   const dayEv = eventsOn(day);
                   const isSel = selectedDay === day;
+                  const isHol = HOLIDAYS.has(dstr(cursor.y, cursor.m, day));
+                  const isSun = i % 7 === 0 || isHol;
+                  const isSat = i % 7 === 6 && !isHol;
+                  const restBg = isSun ? '#FCEFEE' : isSat ? '#EFF2FB' : 'var(--bg-surface-sunken,#FDFBF6)';
                   return (
                     <button
                       key={i}
                       onClick={() => setSelectedDay(isSel ? null : day)}
                       className="min-h-[64px] sm:min-h-[80px] rounded-input p-1 text-left transition-colors"
                       style={{
-                        background: isSel ? 'var(--accent-soft,#FFF1D6)' : isToday(day) ? 'var(--warning-bg,#FFF3C4)' : 'var(--bg-surface-sunken,#FDFBF6)',
+                        background: isSel ? 'var(--accent-soft,#FFF1D6)' : isToday(day) ? 'var(--warning-bg,#FFF3C4)' : restBg,
                         outline: isSel ? '2px solid var(--accent-warm,#C9622E)' : 'none',
                         outlineOffset: '-2px',
                       }}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import {
@@ -42,11 +43,20 @@ const STATUS_META: Record<ApplicationStatus, { label: string; cls: string }> = {
 };
 
 export default function HostApplicantsPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-page"><AppNav role="host" /></main>}>
+      <HostApplicantsInner />
+    </Suspense>
+  );
+}
+
+function HostApplicantsInner() {
+  const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [apps, setApps] = useState<ApplicationWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
-  const [eventFilter, setEventFilter] = useState<string>('all');
+  const [eventFilter, setEventFilter] = useState<string>(searchParams.get('event') ?? 'all');
   const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('pending');
   const [actionOn, setActionOn] = useState<string | null>(null);
   const [docDownload, setDocDownload] = useState(false);

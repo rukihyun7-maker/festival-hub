@@ -184,6 +184,7 @@ export default function EditEventPage() {
           showDelete
           ownerId={event.owner_id}
           categories={categories}
+          lockCore={event.review_status !== 'pending' && event.review_status !== 'rejected' && !isAdmin}
           onSubmit={handleSubmit}
           onDelete={handleDelete}
         />
