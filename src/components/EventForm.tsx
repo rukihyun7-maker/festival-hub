@@ -256,44 +256,6 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             </Field>
           </div>
 
-          {/* 모집 부문 (선택) */}
-          <div className="mt-4">
-            <div className="text-[12px] font-semibold text-ink-soft mb-1">모집 부문 <span className="text-text-tertiary font-normal ml-1">· 선택 (부문별로 나눠 모집할 때)</span></div>
-            <div className="text-[11px] text-text-tertiary mb-2">예: 플리마켓 20 · 푸드트럭 10 · 음식부스 10. 부문마다 참가비·시설을 다르게 둘 수 있어요(비우면 행사 기본값). 파트너는 부문을 선택해 신청합니다.</div>
-            {v.recruit_slots.length > 0 && (
-              <div className="space-y-2 mb-2">
-                {v.recruit_slots.map((s, i) => {
-                  const upd = (patch: Partial<RecruitSlot>) => { const n = [...v.recruit_slots]; n[i] = { ...n[i], ...patch }; set('recruit_slots', n); };
-                  return (
-                    <div key={i} className="p-3 rounded-input border border-line-faint" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
-                      <div className="flex gap-2 items-center mb-2">
-                        <input value={s.type} onChange={(e) => upd({ type: e.target.value })} className="input flex-1" placeholder="부문 (예: 푸드트럭)" />
-                        <input type="number" min={1} value={s.count || ''} onChange={(e) => upd({ count: Number(e.target.value) || 0 })} className="input" style={{ width: 84 }} placeholder="수" />
-                        <button type="button" onClick={() => set('recruit_slots', v.recruit_slots.filter((_, j) => j !== i))} className="text-danger text-[12px] font-bold px-1.5 shrink-0">삭제</button>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-text-tertiary">참가비</span>
-                          <input type="number" value={s.fee ?? ''} onChange={(e) => upd({ fee: e.target.value === '' ? null : Number(e.target.value) })} className="input py-1.5" style={{ width: 108 }} placeholder="행사 기본" />
-                        </div>
-                        <span className="text-[11px] text-text-tertiary ml-1">시설</span>
-                        <button type="button" onClick={() => upd({ electric: !s.electric })} className={`chip ${s.electric ? 'selected' : ''}`}>전기</button>
-                        <button type="button" onClick={() => upd({ water: !s.water })} className={`chip ${s.water ? 'selected' : ''}`}>수도</button>
-                        <button type="button" onClick={() => upd({ gas: !s.gas })} className={`chip ${s.gas ? 'selected' : ''}`}>가스</button>
-                      </div>
-                      <input value={s.note ?? ''} onChange={(e) => upd({ note: e.target.value })} className="input py-1.5 mt-2 text-[13px]" placeholder="이 부문 조건 안내 (선택 · 예: 3.5t 이하 · 자체 발전기 지참)" />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-1.5">
-              {['플리마켓', '푸드트럭', '음식부스', '체험부스'].map((t) => (
-                <button type="button" key={t} onClick={() => set('recruit_slots', [...v.recruit_slots, { type: t, count: 10 }])} className="chip">+ {t}</button>
-              ))}
-              <button type="button" onClick={() => set('recruit_slots', [...v.recruit_slots, { type: '', count: 10 }])} className="chip">+ 직접 추가</button>
-            </div>
-          </div>
         </Section>
 
         <Section title="3. 조건 & 시설">
@@ -359,7 +321,44 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </Field>
         </Section>
 
-        <Section title="5. 담당자 정보">
+        <Section title="5. 모집 부문">
+          <p className="text-[11px] text-text-tertiary -mt-1">예: 플리마켓 20 · 푸드트럭 10 · 음식부스 10. 부문마다 참가비·시설을 다르게 둘 수 있어요(비우면 행사 기본값). 파트너는 부문을 선택해 신청합니다. (부문을 나누지 않으면 비워두세요)</p>
+          {v.recruit_slots.length > 0 && (
+            <div className="space-y-2">
+              {v.recruit_slots.map((s, i) => {
+                const upd = (patch: Partial<RecruitSlot>) => { const n = [...v.recruit_slots]; n[i] = { ...n[i], ...patch }; set('recruit_slots', n); };
+                return (
+                  <div key={i} className="p-3 rounded-input border border-line-faint" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+                    <div className="flex gap-2 items-center mb-2">
+                      <input value={s.type} onChange={(e) => upd({ type: e.target.value })} className="input flex-1" placeholder="부문 (예: 푸드트럭)" />
+                      <input type="number" min={1} value={s.count || ''} onChange={(e) => upd({ count: Number(e.target.value) || 0 })} className="input" style={{ width: 84 }} placeholder="수" />
+                      <button type="button" onClick={() => set('recruit_slots', v.recruit_slots.filter((_, j) => j !== i))} className="text-danger text-[12px] font-bold px-1.5 shrink-0">삭제</button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-text-tertiary">참가비</span>
+                        <input type="number" value={s.fee ?? ''} onChange={(e) => upd({ fee: e.target.value === '' ? null : Number(e.target.value) })} className="input py-1.5" style={{ width: 108 }} placeholder="행사 기본" />
+                      </div>
+                      <span className="text-[11px] text-text-tertiary ml-1">시설</span>
+                      <button type="button" onClick={() => upd({ electric: !s.electric })} className={`chip ${s.electric ? 'selected' : ''}`}>전기</button>
+                      <button type="button" onClick={() => upd({ water: !s.water })} className={`chip ${s.water ? 'selected' : ''}`}>수도</button>
+                      <button type="button" onClick={() => upd({ gas: !s.gas })} className={`chip ${s.gas ? 'selected' : ''}`}>가스</button>
+                    </div>
+                    <input value={s.note ?? ''} onChange={(e) => upd({ note: e.target.value })} className="input py-1.5 mt-2 text-[13px]" placeholder="이 부문 조건 안내 (선택 · 예: 3.5t 이하 · 자체 발전기 지참)" />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            {['플리마켓', '푸드트럭', '음식부스', '체험부스'].map((t) => (
+              <button type="button" key={t} onClick={() => set('recruit_slots', [...v.recruit_slots, { type: t, count: 10 }])} className="chip">+ {t}</button>
+            ))}
+            <button type="button" onClick={() => set('recruit_slots', [...v.recruit_slots, { type: '', count: 10 }])} className="chip">+ 직접 추가</button>
+          </div>
+        </Section>
+
+        <Section title="6. 담당자 정보">
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
             <Field label="담당자명">
               <input value={v.contact} onChange={(e) => set('contact', e.target.value)} className="input" placeholder="예: 김주무관" />
@@ -392,7 +391,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </div>
         </Section>
 
-        <Section title="6. 이 행사 필수 서류">
+        <Section title="7. 이 행사 필수 서류">
           <p className="text-[12px] text-text-tertiary mb-3">표준 서류 중 확인할 항목을 고르고, 이 행사만의 추가 서류를 넣을 수 있어요. 열람·검증 기준(표준 6종)은 그대로 유지됩니다.</p>
           <div className="text-[12px] font-semibold text-ink-soft mb-1.5">표준 서류 · 확인 요청</div>
           <div className="flex flex-wrap gap-1.5 mb-5">
