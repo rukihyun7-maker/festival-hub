@@ -82,20 +82,21 @@ function HostApplicantsInner() {
     })();
   }, []);
 
+  // 선택한 행사 필터 기준으로 집계 (상단 카드·상태 탭이 필터를 따라 움직이도록)
+  const eventScoped = useMemo(
+    () => apps.filter((a) => eventFilter === 'all' || a.event_id === eventFilter),
+    [apps, eventFilter]
+  );
+
   const statusCounts = useMemo(() => ({
-    pending: apps.filter((a) => a.status === 'pending').length,
-    approved: apps.filter((a) => a.status === 'approved').length,
-    rejected: apps.filter((a) => a.status === 'rejected').length,
-  }), [apps]);
+    pending: eventScoped.filter((a) => a.status === 'pending').length,
+    approved: eventScoped.filter((a) => a.status === 'approved').length,
+    rejected: eventScoped.filter((a) => a.status === 'rejected').length,
+  }), [eventScoped]);
 
   const filtered = useMemo(
-    () =>
-      apps.filter(
-        (a) =>
-          (eventFilter === 'all' || a.event_id === eventFilter) &&
-          (statusFilter === 'all' || a.status === statusFilter)
-      ),
-    [apps, eventFilter, statusFilter]
+    () => eventScoped.filter((a) => statusFilter === 'all' || a.status === statusFilter),
+    [eventScoped, statusFilter]
   );
   async function act(appId: string, status: 'approved' | 'rejected') {
     if (!profile) return;
@@ -145,20 +146,34 @@ function HostApplicantsInner() {
       <div className="container-app py-8 max-w-[860px]">
         <div className="mb-4">
           <div className="t-section text-[20px]">신청자 관리</div>
-          <div className="t-sub mt-1">전체 {apps.length}건 · 신청자 카드에서 [세부정보]로 매장·메뉴·부스사진·서류를 확인한 뒤 승인하세요.</div>
+          <div className="t-sub mt-1">
+            {eventFilter === 'all' ? '전체' : (events.find((e) => e.id === eventFilter)?.name ?? '선택 행사')} {eventScoped.length}건
+            {eventFilter !== 'all' && <span className="text-text-tertiary"> · 아래 통계는 이 행사 기준</span>}
+            {' '}· 신청자 카드에서 [세부정보]로 매장·메뉴·부스사진·서류를 확인한 뒤 승인하세요.
+          </div>
         </div>
 
-        {/* 상태별 요약 */}
+        {/* 행사 선택 (여러 행사 등록 시) — 아래 요약·목록의 집계 기준 */}
+        {events.length > 1 && (
+          <select value={eventFilter} onChange={(e) => setEventFilter(e.target.value)} className="input mb-4 max-w-[360px]">
+            <option value="all">모든 행사</option>
+            {events.map((e) => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+        )}
+
+        {/* 상태별 요약 (선택 행사 기준) */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           <CountTile label="승인 대기" n={statusCounts.pending} tone="warning" />
           <CountTile label="승인" n={statusCounts.approved} tone="success" />
           <CountTile label="반려" n={statusCounts.rejected} tone="danger" />
         </div>
 
-        {/* 필터 */}
-        <div className="flex flex-wrap gap-2 mb-3">
+        {/* 상태 필터 */}
+        <div className="flex flex-wrap gap-2 mb-5">
           {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => {
-            const cnt = s === 'all' ? apps.length : statusCounts[s];
+            const cnt = s === 'all' ? eventScoped.length : statusCounts[s];
             return (
               <button key={s} onClick={() => setStatusFilter(s)} className={`chip ${statusFilter === s ? 'selected' : ''}`}>
                 {s === 'all' ? '전체' : STATUS_META[s].label} {cnt}
@@ -166,14 +181,6 @@ function HostApplicantsInner() {
             );
           })}
         </div>
-        {events.length > 1 && (
-          <select value={eventFilter} onChange={(e) => setEventFilter(e.target.value)} className="input mb-5 max-w-[360px]">
-            <option value="all">모든 행사</option>
-            {events.map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </select>
-        )}
 
         {filtered.length === 0 ? (
           <div className="card text-center py-16">
