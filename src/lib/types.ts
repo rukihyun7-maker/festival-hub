@@ -189,6 +189,8 @@ export interface EventRow {
   notice_url?: string | null;        // v40: 모집공고문 파일 URL
   notice_name?: string | null;       // v40: 모집공고문 원본 파일명
   operating_days?: string[];         // v41: 운영 요일(예: ['금','토','일']) · 비우면 매일
+  delete_requested_at?: string | null; // v43: 주최의 삭제 요청 시각 (관리자 승인 후 실삭제)
+  delete_reason?: string | null;       // v43: 삭제 요청 사유
   demand_score?: number | null;     // v14: 입지 수요점수 (반경 1km 인근시설 기반, 0~100)
   demand_tags?: string[] | null;    // v14: 입지 태그 (역세권·대학가·주거밀집·상업지)
   lat?: number | null;              // v5: 위도 (지오코딩)

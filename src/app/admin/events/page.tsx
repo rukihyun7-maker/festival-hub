@@ -13,6 +13,8 @@ import {
   rejectEvent,
   fetchProfileById,
   fetchSimilarEvents,
+  fetchDeletionRequests,
+  dismissEventDeletion,
 } from '@/lib/supabase/queries';
 import { periodLabel, deadlineLabel, feeLabel } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
@@ -33,14 +35,36 @@ export default function AdminEventsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [pending, setPending] = useState<EventRow[]>([]);
+  const [delReqs, setDelReqs] = useState<EventRow[]>([]);
 
   useEffect(() => {
     (async () => {
       const p = await fetchMyProfile();
       setMe(p);
       try { setPending(await fetchPendingEvents()); } catch { /* 컬럼 미생성 등 무시 */ }
+      try { setDelReqs(await fetchDeletionRequests()); } catch { /* 컬럼 미생성 등 무시 */ }
     })();
   }, []);
+
+  async function handleApproveDeletion(id: string, name: string) {
+    if (!confirm(`"${name}" 삭제 요청을 승인합니다.\n행사와 관련 신청·매출이 함께 삭제됩니다 (되돌릴 수 없음).`)) return;
+    setActionId(id);
+    try {
+      await deleteEvent(id);
+      setDelReqs((prev) => prev.filter((e) => e.id !== id));
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+    } catch (e) { alert('삭제 실패: ' + (e as Error).message); }
+    finally { setActionId(null); }
+  }
+
+  async function handleDismissDeletion(id: string) {
+    setActionId(id);
+    try {
+      await dismissEventDeletion(id);
+      setDelReqs((prev) => prev.filter((e) => e.id !== id));
+    } catch (e) { alert('요청 반려 실패: ' + (e as Error).message); }
+    finally { setActionId(null); }
+  }
 
   async function handleApprove(id: string) {
     setActionId(id);
@@ -176,6 +200,38 @@ export default function AdminEventsPage() {
           )}
         </section>
 
+        {/* 주최 삭제 요청 (관리자 승인) */}
+        {delReqs.length > 0 && (
+          <section className="mb-10">
+            <div className="t-section mb-3">행사 삭제 요청 <span className="text-danger">{delReqs.length}</span></div>
+            <div className="space-y-3">
+              {delReqs.map((e) => (
+                <div key={e.id} className="card" style={{ borderColor: 'var(--danger, #C7503E)' }}>
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="badge badge-danger">삭제 요청</span>
+                        <StatusBadge status={e.status} />
+                        <span className="badge">{e.category}</span>
+                      </div>
+                      <Link href={`/events/${e.id}`} className="text-[15px] font-extrabold text-ink hover:underline">{e.name}</Link>
+                      <div className="text-[12px] text-text-secondary mt-1">{e.organizer} · {periodLabel(e.start_date, e.end_date)} · {e.region}</div>
+                      {e.delete_reason && <div className="text-[12px] text-text-secondary mt-1.5">사유: <span className="text-ink font-semibold">{e.delete_reason}</span></div>}
+                      {e.delete_requested_at && <div className="text-[11px] text-text-tertiary mt-0.5">요청 {new Date(e.delete_requested_at).toLocaleString('ko-KR')}</div>}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => handleApproveDeletion(e.id, e.name)} disabled={actionId === e.id} className="btn-primary text-[13px] py-2" style={{ background: 'var(--danger, #C7503E)', borderColor: 'var(--danger, #C7503E)' }}>
+                        {actionId === e.id ? '처리 중…' : '삭제 승인'}
+                      </button>
+                      <button onClick={() => handleDismissDeletion(e.id)} disabled={actionId === e.id} className="btn-secondary text-[13px] py-2">요청 반려</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <div className="t-section mb-3">전체 행사 관리</div>
 
         {/* 검색 + 필터 */}
@@ -228,6 +284,7 @@ export default function AdminEventsPage() {
                       </Link>
                       <StatusBadge status={e.status} />
                       <span className="badge">{e.category}</span>
+                      {e.delete_requested_at && <span className="badge badge-danger">삭제 요청</span>}
                       {e.deadline && <span className="text-[10px] font-bold text-warning">{deadlineLabel(e.deadline)}</span>}
                     </div>
                     <div className="text-[12px] text-text-secondary mb-1">

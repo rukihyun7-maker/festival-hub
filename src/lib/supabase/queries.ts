@@ -882,6 +882,52 @@ export async function deleteEvent(id: string): Promise<void> {
 }
 
 // ============================================
+// v43 · 행사 삭제 요청 (주최) → 관리자 승인 후 실삭제
+// ============================================
+
+/** 주최: 삭제 요청 (사유 포함) · 실삭제는 관리자 승인 후 */
+export async function requestEventDeletion(id: string, reason: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('events')
+    .update({ delete_requested_at: new Date().toISOString(), delete_reason: reason || null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** 주최: 삭제 요청 철회 */
+export async function withdrawEventDeletion(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('events')
+    .update({ delete_requested_at: null, delete_reason: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** 관리자: 삭제 요청 대기 목록 */
+export async function fetchDeletionRequests(): Promise<EventRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .not('delete_requested_at', 'is', null)
+    .order('delete_requested_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as EventRow[];
+}
+
+/** 관리자: 삭제 요청 반려(요청 취소, 행사 유지) */
+export async function dismissEventDeletion(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('events')
+    .update({ delete_requested_at: null, delete_reason: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// ============================================
 // v8 · 행사 등록 요청 승인 (관리자) / 입점 파트너 가입 심사
 // ============================================
 

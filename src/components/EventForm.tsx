@@ -127,11 +127,13 @@ interface EventFormProps {
   ownerId?: string; // v40: 모집공고문 업로드용
   categories?: string[]; // v42: 관리자 편집 카테고리 (없으면 기본)
   lockCore?: boolean; // 승인 완료된 행사: 핵심 거래 조건(일정·장소·참가비·모집 부문) 수정 잠금 (사고 방지)
+  deleteLabel?: string; // v43: 삭제 버튼 라벨 (승인 행사=삭제 요청)
+  deleteHint?: string;  // v43: 삭제 버튼 옆 안내
   onSubmit: (values: EventFormValues) => Promise<void>;
   onDelete?: () => Promise<void>;
 }
 
-export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, ownerId, categories, lockCore = false, onSubmit, onDelete }: EventFormProps) {
+export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, ownerId, categories, lockCore = false, deleteLabel = '행사 삭제', deleteHint, onSubmit, onDelete }: EventFormProps) {
   const [v, setV] = useState<EventFormValues>(initial);
   const catOptions = (categories && categories.length ? categories : EVENT_CATEGORIES).filter((c) => c.trim());
   const [noticeUploading, setNoticeUploading] = useState(false);
@@ -483,15 +485,18 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           {showDelete && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="text-[13px] text-danger hover:underline font-semibold px-3 mr-auto"
-            >
-              행사 삭제
-            </button>
+            <div className="mr-auto flex flex-col gap-0.5">
+              <button
+                type="button"
+                onClick={onDelete}
+                className="text-[13px] text-danger hover:underline font-semibold px-3 text-left"
+              >
+                {deleteLabel}
+              </button>
+              {deleteHint && <span className="text-[11px] text-text-tertiary px-3">{deleteHint}</span>}
+            </div>
           )}
           <Link href={cancelHref} className="btn-secondary flex-1 text-center max-w-[200px]">취소</Link>
           <button type="submit" disabled={submitting} className="btn-primary flex-1 py-3.5 max-w-[240px]">

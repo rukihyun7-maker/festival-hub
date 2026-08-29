@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import EventForm, { toFormValues, type EventFormValues } from '@/components/EventForm';
-import { deleteEvent, fetchEventById, fetchEventContact, fetchMyProfile, updateEvent, fetchPlatformSettings } from '@/lib/supabase/queries';
+import { deleteEvent, fetchEventById, fetchEventContact, fetchMyProfile, updateEvent, fetchPlatformSettings, requestEventDeletion, withdrawEventDeletion } from '@/lib/supabase/queries';
 import { compactSiteDetails } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
 
@@ -97,6 +97,36 @@ export default function EditEventPage() {
     }
   }
 
+  // 승인된 행사(파트너에게 공개됨)는 주최가 바로 삭제할 수 없고 관리자 승인을 받아야 함 (사고 방지)
+  async function handleRequestDeletion() {
+    if (!event) return;
+    const reason = prompt('삭제를 요청하는 사유를 입력해 주세요. 관리자 검토 후 삭제됩니다.\n(신청한 파트너가 있으면 함께 정리됩니다)');
+    if (reason === null) return;
+    setDeleting(true);
+    try {
+      await requestEventDeletion(event.id, reason.trim());
+      setEvent({ ...event, delete_requested_at: new Date().toISOString(), delete_reason: reason.trim() || null });
+      alert('삭제 요청이 접수되었습니다. 관리자 검토 후 처리됩니다.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleWithdrawDeletion() {
+    if (!event) return;
+    setDeleting(true);
+    try {
+      await withdrawEventDeletion(event.id);
+      setEvent({ ...event, delete_requested_at: null, delete_reason: null });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-page">
@@ -129,6 +159,14 @@ export default function EditEventPage() {
   const isOwner = me?.id === event.owner_id;
   const isAdmin = me?.role === 'admin';
   const canEdit = isOwner || isAdmin;
+  // 승인(공개)된 행사는 주최가 직접 삭제 불가 → 관리자 승인 절차. 관리자는 즉시 삭제.
+  const needsApproval = event.review_status !== 'pending' && event.review_status !== 'rejected' && !isAdmin;
+  const deletionRequested = !!event.delete_requested_at;
+  const deleteAction = !needsApproval ? handleDelete : deletionRequested ? handleWithdrawDeletion : handleRequestDeletion;
+  const deleteLabel = !needsApproval ? '행사 삭제' : deletionRequested ? '삭제 요청 철회' : '행사 삭제 요청';
+  const deleteHint = !needsApproval
+    ? (isAdmin ? '관리자 권한 · 즉시 삭제됩니다' : undefined)
+    : deletionRequested ? '관리자 검토 중입니다' : '승인된 행사는 관리자 승인 후 삭제됩니다';
 
   if (!canEdit) {
     return (
@@ -175,6 +213,15 @@ export default function EditEventPage() {
           </Link>
         </div>
 
+        {deletionRequested && (
+          <div className="rounded-card p-4 mb-6 border" style={{ background: 'var(--danger-bg, #FCEDEA)', borderColor: 'var(--danger, #C7503E)' }}>
+            <div className="text-[13px] font-bold text-danger mb-1">🗑️ 삭제 요청됨 · 관리자 검토 중</div>
+            <div className="text-[12px] text-text-secondary leading-relaxed">
+              관리자가 승인하면 이 행사와 관련 신청·매출이 삭제됩니다.{event.delete_reason ? ` 요청 사유: “${event.delete_reason}”` : ''} 취소하려면 아래 <b>삭제 요청 철회</b>를 누르세요.
+            </div>
+          </div>
+        )}
+
         <EventForm
           mode="edit"
           initial={{ ...toFormValues(event), contact: contact?.contact ?? '', phone: contact?.phone ?? '' }}
@@ -184,9 +231,11 @@ export default function EditEventPage() {
           showDelete
           ownerId={event.owner_id}
           categories={categories}
-          lockCore={event.review_status !== 'pending' && event.review_status !== 'rejected' && !isAdmin}
+          lockCore={needsApproval}
+          deleteLabel={deleteLabel}
+          deleteHint={deleteHint}
           onSubmit={handleSubmit}
-          onDelete={handleDelete}
+          onDelete={deleteAction}
         />
       </div>
     </main>
