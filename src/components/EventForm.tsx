@@ -43,6 +43,7 @@ export interface EventFormValues {
   required_docs: EventRequiredDocs; // v39: 행사별 필수서류
   notice_url: string;   // v40: 모집공고문 URL
   notice_name: string;  // v40: 모집공고문 파일명
+  operating_days: string[]; // v41: 운영 요일
 }
 
 export function toFormValues(row: EventRow): EventFormValues {
@@ -78,6 +79,7 @@ export function toFormValues(row: EventRow): EventFormValues {
     },
     notice_url: row.notice_url ?? '',
     notice_name: row.notice_name ?? '',
+    operating_days: row.operating_days ?? [],
   };
 }
 
@@ -111,6 +113,7 @@ export function initialFormValues(profile: Profile | null): EventFormValues {
     required_docs: { standard: [...REQUIRED_DOC_KINDS], extra: [] },
     notice_url: '',
     notice_name: '',
+    operating_days: [],
   };
 }
 
@@ -129,6 +132,7 @@ interface EventFormProps {
 export default function EventForm({ mode, initial, submitting, error, cancelHref, showDelete, ownerId, onSubmit, onDelete }: EventFormProps) {
   const [v, setV] = useState<EventFormValues>(initial);
   const [noticeUploading, setNoticeUploading] = useState(false);
+  const todayStr = (() => { const dt = new Date(); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; })();
 
   async function handleNotice(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -200,19 +204,39 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
 
         <Section title="2. 일정 & 장소">
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-            <Field label="시작일" required>
-              <input required type="date" value={v.start_date} onChange={(e) => set('start_date', e.target.value)} className="input" />
+            <Field label="행사 시작일" required>
+              <input required type="date" min={todayStr} value={v.start_date} onChange={(e) => { const s = e.target.value; setV((p) => ({ ...p, start_date: s, end_date: p.end_date && p.end_date < s ? s : p.end_date })); }} className="input" />
             </Field>
-            <Field label="종료일" required>
-              <input required type="date" value={v.end_date} onChange={(e) => set('end_date', e.target.value)} className="input" />
+            <Field label="행사 종료일" required>
+              <input required type="date" min={v.start_date || todayStr} value={v.end_date} onChange={(e) => set('end_date', e.target.value)} className="input" />
             </Field>
             <Field label="신청 마감일">
-              <input type="date" value={v.deadline} onChange={(e) => set('deadline', e.target.value)} className="input" />
+              <input type="date" min={todayStr} max={v.start_date || undefined} value={v.deadline} onChange={(e) => set('deadline', e.target.value)} className="input" />
               <div className="text-[11px] text-text-tertiary mt-1 leading-relaxed">
                 입점 파트너가 <b>이 날까지</b> 신청할 수 있어요. 보통 <b>행사 시작 1~2주 전</b>으로 설정하면 검토·준비 시간이 넉넉합니다. (비우면 상시 모집)
               </div>
             </Field>
           </div>
+
+          {/* 운영 요일 (선택) */}
+          <div>
+            <div className="text-[12px] font-semibold text-ink-soft mb-1">운영 요일 <span className="text-text-tertiary font-normal ml-1">· 선택 (기간 중 특정 요일만 운영할 때)</span></div>
+            <div className="text-[11px] text-text-tertiary mb-2">예: 9/1~9/30 중 <b>금·토·일만</b> 운영. 비우면 기간 내 매일 운영으로 안내됩니다.</div>
+            <div className="flex flex-wrap gap-1.5">
+              {['월', '화', '수', '목', '금', '토', '일'].map((w) => {
+                const on = v.operating_days.includes(w);
+                return (
+                  <button type="button" key={w}
+                    onClick={() => set('operating_days', on ? v.operating_days.filter((x) => x !== w) : [...v.operating_days, w])}
+                    className={`chip ${on ? 'selected' : ''}`}>{w}</button>
+                );
+              })}
+              {['주말(토·일)', '금·토·일'].map((preset) => (
+                <button type="button" key={preset} onClick={() => set('operating_days', preset === '주말(토·일)' ? ['토', '일'] : ['금', '토', '일'])} className="chip">{preset}</button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid gap-3" style={{ gridTemplateColumns: 'minmax(120px, auto) minmax(200px, 1fr)' }}>
             <Field label="지역" required>
               <select value={v.region} onChange={(e) => set('region', e.target.value)} className="input">

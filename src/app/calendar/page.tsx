@@ -23,6 +23,15 @@ type CalView = 'mine' | 'all';
 const pad = (n: number) => String(n).padStart(2, '0');
 const dstr = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+// 대한민국 공휴일 (2026~2027 · 대체공휴일 포함 · 근사) — 캘린더 색상 구분용
+const HOLIDAYS = new Set<string>([
+  '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-03-01', '2026-03-02',
+  '2026-05-05', '2026-05-24', '2026-05-25', '2026-06-06', '2026-08-15', '2026-08-17',
+  '2026-09-24', '2026-09-25', '2026-09-26', '2026-10-03', '2026-10-05', '2026-10-09', '2026-12-25',
+  '2027-01-01', '2027-02-06', '2027-02-07', '2027-02-08', '2027-02-09', '2027-03-01',
+  '2027-05-05', '2027-05-13', '2027-06-06', '2027-08-15', '2027-08-16', '2027-09-14', '2027-09-15', '2027-09-16',
+  '2027-10-03', '2027-10-04', '2027-10-09', '2027-10-11', '2027-12-25',
+]);
 const TONE: Record<CalTone, { bg: string; fg: string; label: string }> = {
   approved: { bg: '#E2F3E4', fg: '#1D6B2A', label: '승인' },
   pending: { bg: '#FFF3C4', fg: '#7A5B00', label: '대기' },
@@ -255,7 +264,7 @@ export default function CalendarPage() {
                         outlineOffset: '-2px',
                       }}
                     >
-                      <div className={`text-[11px] font-bold mb-0.5 ${i % 7 === 0 ? 'text-danger' : i % 7 === 6 ? 'text-info' : 'text-text-secondary'}`}>{day}</div>
+                      <div className={`text-[11px] font-bold mb-0.5 ${(i % 7 === 0 || HOLIDAYS.has(dstr(cursor.y, cursor.m, day))) ? 'text-danger' : i % 7 === 6 ? 'text-info' : 'text-text-secondary'}`}>{day}</div>
                       <div className="space-y-0.5">
                         {dayEv.slice(0, 3).map((e) => (
                           <div key={e.id + (e.pid ?? '')} className="truncate text-[10px] font-semibold px-1 py-0.5 rounded" style={{ background: TONE[e.tone].bg, color: TONE[e.tone].fg }} title={e.name}>

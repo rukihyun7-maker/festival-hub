@@ -142,7 +142,7 @@ export async function flushPendingBusinessCard(profileId: string): Promise<strin
 export async function uploadEventNotice(ownerId: string, file: File): Promise<string> {
   const supabase = createClient();
   const ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf';
-  const path = `event-notice/${ownerId}/${Date.now()}.${ext}`;
+  const path = `${ownerId}/event-notice/${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('menu-photos').upload(path, file, { upsert: true, contentType: file.type || undefined });
   if (error) throw error;
   const { data } = supabase.storage.from('menu-photos').getPublicUrl(path);

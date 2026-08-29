@@ -69,6 +69,7 @@ export default function CreateEventPage() {
         required_docs: { standard: v.required_docs.standard ?? [], extra: (v.required_docs.extra ?? []).filter((d) => d.label.trim()) },
         notice_url: v.notice_url || null,
         notice_name: v.notice_name || null,
+        operating_days: v.operating_days,
         review_status: me.role === 'admin' ? 'approved' : 'pending', // 주최=승인 대기 / 관리자=즉시 공개
       });
 

@@ -73,6 +73,7 @@ export default function EditEventPage() {
         required_docs: { standard: v.required_docs.standard ?? [], extra: (v.required_docs.extra ?? []).filter((d) => d.label.trim()) },
         notice_url: v.notice_url || null,
         notice_name: v.notice_name || null,
+        operating_days: v.operating_days,
       });
       router.push(`/events/${event.id}`);
     } catch (err) {

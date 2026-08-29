@@ -236,6 +236,9 @@ export default function EventDetailPage() {
               <div className="t-section mb-4">기본 정보</div>
               <div className="grid gap-3">
                 <InfoRow label="일정" value={`${periodLabel(event.start_date, event.end_date)} · ${days}일간`} />
+                {(event.operating_days?.length ?? 0) > 0 && (
+                  <InfoRow label="운영 요일" value={`매주 ${['월', '화', '수', '목', '금', '토', '일'].filter((w) => event.operating_days!.includes(w)).join('·')}`} />
+                )}
                 <InfoRow label="장소" value={event.address} />
                 {event.visitors && <InfoRow label="유동인구" value={event.visitors} />}
                 {event.capacity && <InfoRow label="자리" value={event.capacity} />}
