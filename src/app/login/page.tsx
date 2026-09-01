@@ -25,6 +25,9 @@ const DEMO_ACCOUNTS = [
   { role: '관리자', email: 'admin@festival.demo', pw: 'festival2026', dest: '/admin', desc: '전체 관제' },
 ];
 
+// 데모 원클릭 로그인은 NEXT_PUBLIC_ENABLE_DEMO=1 일 때만 노출 (정식 배포 시 기본 숨김 · 보안)
+const DEMO_ENABLED = process.env.NEXT_PUBLIC_ENABLE_DEMO === '1';
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -186,7 +189,8 @@ export default function LoginPage() {
               <Link href="/signup" className="text-ink font-bold hover:underline">회원가입 →</Link>
             </p>
 
-            {/* 데모 계정 3개 원클릭 */}
+            {/* 데모 계정 3개 원클릭 · 정식 배포 시 숨김(NEXT_PUBLIC_ENABLE_DEMO=1일 때만) */}
+            {DEMO_ENABLED && (
             <div className="mt-8 pt-6 border-t border-line">
               <div className="text-[11px] font-semibold tracking-[0.05em] text-text-tertiary uppercase mb-3">
                 데모 계정으로 빠른 체험
@@ -217,6 +221,7 @@ export default function LoginPage() {
                 데모 계정이 보이지 않으면 관리자에게 문의해 주세요.
               </p>
             </div>
+            )}
           </div>
         </section>
       </div>
