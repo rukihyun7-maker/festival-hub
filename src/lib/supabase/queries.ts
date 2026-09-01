@@ -1017,7 +1017,8 @@ export async function createUserByAdmin(input: {
   business_no?: string;
   position?: string;
   phone?: string;
-}): Promise<{ userId: string }> {
+  overwrite?: boolean; // 이미 있는 이메일이면 그 계정을 테스트용으로 덮어쓰기
+}): Promise<{ userId: string; overwritten: boolean }> {
   const res = await fetch('/api/admin/create-user', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1025,7 +1026,7 @@ export async function createUserByAdmin(input: {
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error || `생성 실패 (${res.status})`);
-  return { userId: j.userId as string };
+  return { userId: j.userId as string, overwritten: !!j.overwritten };
 }
 
 /** 입점 파트너 가입 심사/정지 상태 변경 (관리자) */

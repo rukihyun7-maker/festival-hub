@@ -30,6 +30,7 @@ export async function POST(req: Request) {
   const business_no = String(body.business_no ?? '').trim() || null;
   const position = String(body.position ?? '').trim() || null;
   const phone = String(body.phone ?? '').trim() || null;
+  const overwrite = body.overwrite === true; // 이미 있는 이메일이면 그 계정을 테스트용으로 덮어쓰기
 
   // 입력 검증
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ error: '올바른 이메일을 입력해 주세요.' }, { status: 400 });
@@ -43,41 +44,59 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '서버에 SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되어야 합니다.' }, { status: 500 });
   }
   const admin = createAdminClient(url, svc, { auth: { persistSession: false, autoRefreshToken: false } });
+  const meta = { name, role, business_name, business_no, position, phone };
+  const profileRow = { email, name, role, status: '정상', business_name, business_no, position, phone };
 
-  // 1) Auth 사용자 생성 (이메일 인증 완료 상태 · 메타데이터로 트리거가 프로필 생성)
+  // 이미 존재하는 이메일 찾기 (프로필 기준 · 없으면 신규 생성)
+  const { data: existing } = await admin.from('profiles').select('id, role').eq('email', email).maybeSingle();
+
+  if (existing) {
+    // 동일 이메일 예외처리: overwrite=true 일 때만 그 계정을 테스트용으로 덮어쓰기
+    if (!overwrite) {
+      return NextResponse.json({ error: '이미 가입된 이메일입니다. 같은 이메일을 재사용하려면 "덮어쓰기"를 켜세요.' }, { status: 409 });
+    }
+    if (existing.role === 'admin') {
+      return NextResponse.json({ error: '관리자 계정은 덮어쓸 수 없습니다.' }, { status: 400 });
+    }
+    // Auth 사용자 갱신(비번·이메일 인증·메타) + 프로필 재설정
+    const { error: uErr } = await admin.auth.admin.updateUserById(existing.id, {
+      password, email_confirm: true, user_metadata: meta,
+    });
+    if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+    const { error: pErr } = await admin.from('profiles').upsert({ id: existing.id, ...profileRow }, { onConflict: 'id' });
+    if (pErr) return NextResponse.json({ error: '프로필 갱신 실패: ' + pErr.message }, { status: 500 });
+    return NextResponse.json({ ok: true, userId: existing.id, overwritten: true });
+  }
+
+  // 신규 Auth 사용자 생성 (이메일 인증 완료 · 메타데이터로 트리거가 프로필 생성)
   const { data: created, error: cErr } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { name, role, business_name, business_no, position, phone },
+    email, password, email_confirm: true, user_metadata: meta,
   });
   if (cErr || !created?.user) {
     const msg = (cErr?.message || '').toLowerCase();
+    // 프로필은 없지만 Auth에는 존재하는 경우(희귀) → overwrite면 Auth에서 찾아 갱신
     if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
-      return NextResponse.json({ error: '이미 가입된 이메일입니다.' }, { status: 409 });
+      if (!overwrite) {
+        return NextResponse.json({ error: '이미 가입된 이메일입니다. 같은 이메일을 재사용하려면 "덮어쓰기"를 켜세요.' }, { status: 409 });
+      }
+      const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const found = list?.users?.find((u) => (u.email || '').toLowerCase() === email);
+      if (!found) return NextResponse.json({ error: '이미 가입된 이메일이지만 대상 계정을 찾지 못했습니다.' }, { status: 409 });
+      const { error: uErr } = await admin.auth.admin.updateUserById(found.id, { password, email_confirm: true, user_metadata: meta });
+      if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+      const { error: pErr } = await admin.from('profiles').upsert({ id: found.id, ...profileRow }, { onConflict: 'id' });
+      if (pErr) return NextResponse.json({ error: '프로필 갱신 실패: ' + pErr.message }, { status: 500 });
+      return NextResponse.json({ ok: true, userId: found.id, overwritten: true });
     }
     return NextResponse.json({ error: cErr?.message || '계정 생성에 실패했습니다.' }, { status: 500 });
   }
 
   const userId = created.user.id;
-
-  // 2) 프로필을 '정상'으로 보정(트리거가 만든 프로필 위에 upsert · 즉시 사용 가능)
-  const { error: pErr } = await admin.from('profiles').upsert({
-    id: userId,
-    email,
-    name,
-    role,
-    status: '정상',
-    business_name,
-    business_no,
-    position,
-    phone,
-  }, { onConflict: 'id' });
+  // 프로필을 '정상'으로 보정(트리거가 만든 프로필 위에 upsert · 즉시 사용 가능)
+  const { error: pErr } = await admin.from('profiles').upsert({ id: userId, ...profileRow }, { onConflict: 'id' });
   if (pErr) {
-    // 프로필 보정 실패 시 생성한 Auth 사용자 롤백(고아 계정 방지)
-    await admin.auth.admin.deleteUser(userId);
+    await admin.auth.admin.deleteUser(userId); // 프로필 실패 시 롤백(고아 계정 방지)
     return NextResponse.json({ error: '프로필 생성에 실패했습니다: ' + pErr.message }, { status: 500 });
   }
-
-  return NextResponse.json({ ok: true, userId });
+  return NextResponse.json({ ok: true, userId, overwritten: false });
 }

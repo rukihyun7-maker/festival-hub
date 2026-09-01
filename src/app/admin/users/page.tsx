@@ -651,6 +651,7 @@ function CreateUserCard({ onCreated, onClose }: { onCreated: () => void; onClose
   const [businessNo, setBusinessNo] = useState('');
   const [phone, setPhone] = useState('');
   const [position, setPosition] = useState('');
+  const [overwrite, setOverwrite] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -662,14 +663,18 @@ function CreateUserCard({ onCreated, onClose }: { onCreated: () => void; onClose
     }
     setSaving(true);
     try {
-      await createUserByAdmin({
+      const r = await createUserByAdmin({
         email: email.trim(), password, role, name: name.trim(),
         business_name: businessName.trim() || undefined,
         business_no: businessNo.trim() || undefined,
         position: position.trim() || undefined,
         phone: phone.trim() || undefined,
+        overwrite,
       });
-      setMsg({ ok: true, text: `${role === 'host' ? '주최' : '입점 파트너'} 계정을 만들었습니다. 바로 로그인할 수 있어요.` });
+      const label = role === 'host' ? '주최' : '입점 파트너';
+      setMsg({ ok: true, text: r.overwritten
+        ? `기존 계정을 ${label} 테스트 계정으로 초기화했습니다. 입력한 비밀번호로 바로 로그인할 수 있어요.`
+        : `${label} 계정을 만들었습니다. 바로 로그인할 수 있어요.` });
       setEmail(''); setPassword(''); setName(''); setBusinessName(''); setBusinessNo(''); setPhone(''); setPosition('');
       onCreated();
     } catch (e) {
@@ -706,6 +711,13 @@ function CreateUserCard({ onCreated, onClose }: { onCreated: () => void; onClose
         <Labeled label="연락처"><input value={phone} onChange={(e) => setPhone(e.target.value)} className="input" placeholder="010-0000-0000" /></Labeled>
         {role === 'host' && <Labeled label="직책"><input value={position} onChange={(e) => setPosition(e.target.value)} className="input" placeholder="예: 문화체육과 주무관" /></Labeled>}
       </div>
+
+      <label className="flex items-start gap-2 mt-4 cursor-pointer">
+        <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} className="mt-0.5" />
+        <span className="text-[12px] text-ink-soft leading-relaxed">
+          <b>이미 가입된 이메일이면 덮어쓰기</b> — 같은 이메일을 재사용할 때, 기존 계정을 이 입력값(역할·비밀번호)으로 초기화합니다. <span className="text-text-tertiary">(관리자 계정은 제외)</span>
+        </span>
+      </label>
 
       {msg && (
         <div className={`mt-4 text-[13px] font-semibold rounded-input px-3 py-2.5 ${msg.ok ? 'text-success bg-success-bg' : 'text-danger bg-danger-bg'}`}>
