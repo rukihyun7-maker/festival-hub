@@ -94,14 +94,14 @@ export default function FavoritesPage() {
       <AppNav role="seller" />
       <div className="container-app py-8 max-w-[760px]">
         <div className="mb-6">
-          <div className="t-section text-[20px]">찜한 행사</div>
+          <div className="t-section text-[20px]">관심 행사</div>
           <div className="t-sub mt-1">마감 임박 순으로 정렬됩니다. 알림을 켜면 마감 전에 미리 받아볼 수 있어요.</div>
         </div>
 
         {sorted.length === 0 ? (
           <div className="card text-center py-16">
-            <div className="text-[15px] font-bold text-ink mb-1">찜한 행사가 없습니다</div>
-            <div className="t-sub mb-5">관심 있는 행사를 찜해두면 마감 알림을 받을 수 있어요.</div>
+            <div className="text-[15px] font-bold text-ink mb-1">관심 행사가 없습니다</div>
+            <div className="t-sub mb-5">관심 있는 행사를 등록해두면 마감 알림을 받을 수 있어요.</div>
             <Link href="/events" className="btn-primary inline-flex">행사 찾기</Link>
           </div>
         ) : (
@@ -128,9 +128,9 @@ export default function FavoritesPage() {
                     <button
                       onClick={() => unfavorite(f)}
                       disabled={busy === f.id}
-                      aria-label="찜 해제"
+                      aria-label="관심 해제"
                       className="text-[18px] text-accent shrink-0 leading-none"
-                      title="찜 해제"
+                      title="관심 해제"
                     >
                       ★
                     </button>

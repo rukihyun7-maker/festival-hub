@@ -147,7 +147,7 @@ export default function SettingsPage() {
               {role === 'seller' && (
                 <>
                   <Toggle label="서류 상태" desc="검증 결과·만료 예정" on={notif.docs} onChange={(v) => setNotif({ ...notif, docs: v })} />
-                  <Toggle label="관심 행사 알림" desc="관심 등록(찜)한 행사의 새 소식·변경 알림" on={notif.new_event} onChange={(v) => setNotif({ ...notif, new_event: v })} />
+                  <Toggle label="관심 행사 알림" desc="관심 등록한 행사의 새 소식·변경 알림" on={notif.new_event} onChange={(v) => setNotif({ ...notif, new_event: v })} />
                 </>
               )}
               <div className="mt-4 pt-4 border-t border-line-faint">

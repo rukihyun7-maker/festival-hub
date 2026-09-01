@@ -20,7 +20,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard': '홈',
   '/events': '행사 찾기',
   '/seller': '마이페이지',
-  '/seller/favorites': '찜한 행사',
+  '/seller/favorites': '관심 행사',
   '/seller/applications': '내 신청',
   '/seller/simulator': '손익 시뮬레이터',
   '/seller/documents': '서류 관리',
@@ -125,7 +125,7 @@ export default function AppNav({ role = 'seller' as Role }) {
     : [
         { href: '/dashboard', label: '홈' },
         { href: '/events', label: '행사 찾기' },
-        { href: '/seller/favorites', label: '찜' },
+        { href: '/seller/favorites', label: '관심' },
         { href: '/seller/applications', label: '내 신청' },
         { href: '/calendar', label: '일정' },
         { href: '/seller', label: '내 참여' },
@@ -289,7 +289,7 @@ const BOTTOM_TABS: Record<'seller' | 'host', { href: string; label: string; icon
   seller: [
     { href: '/dashboard', label: '홈', icon: 'home' },
     { href: '/events', label: '찾기', icon: 'search' },
-    { href: '/seller/favorites', label: '찜', icon: 'star' },
+    { href: '/seller/favorites', label: '관심', icon: 'star' },
     { href: '/seller/applications', label: '신청', icon: 'list' },
     { href: '/seller', label: '마이', icon: 'user' },
   ],
