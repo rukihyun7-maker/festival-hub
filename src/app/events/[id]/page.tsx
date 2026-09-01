@@ -455,9 +455,9 @@ export default function EventDetailPage() {
               /* 정보형: 신청 대상 아님 · 정보만 */
               <div className="card" style={{ borderColor: 'var(--info-bar, #8FA6DE)' }}>
                 <span className="badge badge-info mb-3 inline-flex">정보 제공 행사</span>
-                <div className="text-[15px] font-extrabold text-ink mb-2">신청 대상이 아닙니다</div>
+                <div className="text-[15px] font-extrabold text-ink mb-2">직접 신청할 수 있는 등록 행사가 아닙니다</div>
                 <p className="t-sub leading-relaxed mb-4">
-                  이 행사는 공개 정보로 제공됩니다. 플랫폼을 통한 자리 신청 대상이 아니며, 참가·부스 문의는 주최 측에 직접 하세요.
+                  이 행사는 참고용 공개 정보로 제공됩니다. 플랫폼에서 자리 신청을 받는 등록 행사가 아니며, 참가·부스 문의는 주최 측에 직접 해주세요.
                 </p>
                 {event.source && <div className="text-[12px] text-text-tertiary mb-3">출처 · {event.source}</div>}
                 {profile?.role === 'seller' && (
