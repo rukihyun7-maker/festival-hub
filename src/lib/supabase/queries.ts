@@ -1007,6 +1007,27 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   }
 }
 
+/** 임의 계정 생성 (관리자) · 주최/입점 파트너 테스트 계정을 즉시 승인 상태로 생성 */
+export async function createUserByAdmin(input: {
+  email: string;
+  password: string;
+  role: 'host' | 'seller';
+  name: string;
+  business_name?: string;
+  business_no?: string;
+  position?: string;
+  phone?: string;
+}): Promise<{ userId: string }> {
+  const res = await fetch('/api/admin/create-user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `생성 실패 (${res.status})`);
+  return { userId: j.userId as string };
+}
+
 /** 입점 파트너 가입 심사/정지 상태 변경 (관리자) */
 export async function updateProfileStatus(id: string, status: '정상' | '가입 심사' | '정지' | '반려'): Promise<void> {
   const supabase = createClient();

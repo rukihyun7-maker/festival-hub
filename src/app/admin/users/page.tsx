@@ -6,7 +6,7 @@ import AppNav from '@/components/AppNav';
 import {
   fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus, deleteHostAccount, deleteUserAccount,
   fetchMyDocumentSlots, fetchMyMenus, getSignedDocumentUrl, reviewDocument, countVerified,
-  fetchSellerHistory, fetchRatingSummary, fetchMyHostEvents, notifyAccountDecision,
+  fetchSellerHistory, fetchRatingSummary, fetchMyHostEvents, notifyAccountDecision, createUserByAdmin,
 } from '@/lib/supabase/queries';
 import type { Profile, SellerStatus, DocumentSlot, Menu, SellerHistory, RatingSummary, EventRow } from '@/lib/types';
 
@@ -26,6 +26,8 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [bump, setBump] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -48,7 +50,7 @@ export default function AdminUsersPage() {
       }
     }, 250); // debounce
     return () => { cancelled = true; clearTimeout(t); };
-  }, [q, roleFilter]);
+  }, [q, roleFilter, bump]);
 
   async function changeRole(profileId: string, role: 'seller' | 'host' | 'admin') {
     if (!confirm(`이 계정의 권한을 ${role}로 변경하시겠어요?`)) return;
@@ -136,14 +138,24 @@ export default function AdminUsersPage() {
           <span className="text-ink">사용자 관리</span>
         </nav>
 
-        <div className="flex items-end justify-between mb-8">
+        <div className="flex items-end justify-between mb-6 gap-3">
           <div>
             <h1 className="t-title mb-1">사용자 관리</h1>
             <p className="t-sub">
               전체 {profiles.length}명 · 파트너 {counts.seller} · 주최 {counts.host} · 관리자 {counts.admin}
             </p>
           </div>
+          <button onClick={() => setCreateOpen((v) => !v)} className="btn-primary shrink-0 text-[13px] py-2.5">
+            {createOpen ? '닫기' : '+ 테스트 계정 생성'}
+          </button>
         </div>
+
+        {createOpen && (
+          <CreateUserCard
+            onCreated={() => { setBump((b) => b + 1); }}
+            onClose={() => setCreateOpen(false)}
+          />
+        )}
 
         {/* 검색 + 필터 */}
         <div className="card mb-6">
@@ -627,4 +639,94 @@ function DocStatusPill({ status }: { status: string }) {
   };
   const b = map[status] ?? map.missing;
   return <span className={`badge ${b.cls} shrink-0`} style={{ fontSize: 10 }}>{b.label}</span>;
+}
+
+/** 임의 계정 생성 (관리자 · 테스트용) */
+function CreateUserCard({ onCreated, onClose }: { onCreated: () => void; onClose: () => void }) {
+  const [role, setRole] = useState<'seller' | 'host'>('seller');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [businessNo, setBusinessNo] = useState('');
+  const [phone, setPhone] = useState('');
+  const [position, setPosition] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function submit() {
+    setMsg(null);
+    if (!email.trim() || password.length < 6 || !name.trim()) {
+      setMsg({ ok: false, text: '이메일·이름·비밀번호(6자 이상)를 입력해 주세요.' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await createUserByAdmin({
+        email: email.trim(), password, role, name: name.trim(),
+        business_name: businessName.trim() || undefined,
+        business_no: businessNo.trim() || undefined,
+        position: position.trim() || undefined,
+        phone: phone.trim() || undefined,
+      });
+      setMsg({ ok: true, text: `${role === 'host' ? '주최' : '입점 파트너'} 계정을 만들었습니다. 바로 로그인할 수 있어요.` });
+      setEmail(''); setPassword(''); setName(''); setBusinessName(''); setBusinessNo(''); setPhone(''); setPosition('');
+      onCreated();
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card mb-6" style={{ borderColor: 'var(--accent, #FFC800)' }}>
+      <div className="flex items-center justify-between mb-1">
+        <div className="t-section">테스트 계정 생성</div>
+        <button onClick={onClose} className="text-[12px] text-text-tertiary hover:text-ink">닫기</button>
+      </div>
+      <div className="t-sub mb-4">이메일 인증을 건너뛰고 <b>바로 로그인 가능한 승인 상태</b>로 만듭니다. 실제 운영 계정이 아닌 테스트 용도로만 사용하세요.</div>
+
+      {/* 역할 */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {([['seller', '입점 파트너'], ['host', '행사 주최']] as const).map(([val, label]) => (
+          <button key={val} type="button" onClick={() => setRole(val)}
+            className={`p-3 rounded-input border-2 text-[13px] font-bold transition-all ${role === val ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+        <Labeled label="이메일 *"><input value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="test@example.com" /></Labeled>
+        <Labeled label="비밀번호 * (6자 이상)"><input value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="비밀번호" /></Labeled>
+        <Labeled label={role === 'host' ? '담당자 이름 *' : '대표자 이름 *'}><input value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="홍길동" /></Labeled>
+        <Labeled label={role === 'host' ? '소속(기관·단체·회사명)' : '상호(매장명)'}><input value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="input" placeholder={role === 'host' ? '예: 성동구청' : '예: 라이트분식'} /></Labeled>
+        <Labeled label="사업자등록번호"><input value={businessNo} onChange={(e) => setBusinessNo(e.target.value)} className="input" placeholder="000-00-00000" /></Labeled>
+        <Labeled label="연락처"><input value={phone} onChange={(e) => setPhone(e.target.value)} className="input" placeholder="010-0000-0000" /></Labeled>
+        {role === 'host' && <Labeled label="직책"><input value={position} onChange={(e) => setPosition(e.target.value)} className="input" placeholder="예: 문화체육과 주무관" /></Labeled>}
+      </div>
+
+      {msg && (
+        <div className={`mt-4 text-[13px] font-semibold rounded-input px-3 py-2.5 ${msg.ok ? 'text-success bg-success-bg' : 'text-danger bg-danger-bg'}`}>
+          {msg.text}
+        </div>
+      )}
+
+      <div className="flex gap-2 mt-4">
+        <button onClick={submit} disabled={saving} className="btn-primary flex-1 max-w-[220px]">
+          {saving ? '생성 중…' : '계정 생성'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[12px] font-semibold text-ink-soft">{label}</span>
+      {children}
+    </label>
+  );
 }
