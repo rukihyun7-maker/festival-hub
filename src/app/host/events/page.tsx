@@ -140,14 +140,14 @@ export default function HostEventsPage() {
                         {periodLabel(e.start_date, e.end_date)} · {e.region}
                       </div>
                       <div className="text-[12px] text-text-tertiary mt-0.5">
-                        참가비 {feeLabel(e.fee, e.fee_rate)}{e.capacity ? ` · 정원 ${e.capacity}` : ''}
+                        참가비 {feeLabel(e.fee, e.fee_rate)}{e.capacity ? ` · 자리 ${e.capacity}` : ''}
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4 pt-4 border-t border-line-faint">
                     {e.review_status === 'pending' || e.review_status === 'rejected' ? (
                       <span className="btn-secondary flex-1 text-center opacity-50 cursor-not-allowed" aria-disabled="true" title="승인 후 신청을 받을 수 있습니다">
-                        {e.review_status === 'pending' ? '승인 후 신청 접수' : '반려 상태'}
+                        {e.review_status === 'pending' ? '승인 후 신청 접수' : '반려됨 (신청 불가)'}
                       </span>
                     ) : (
                       <Link href={`/host/applicants?event=${e.id}`} className="btn-secondary flex-1 text-center">신청자 관리</Link>

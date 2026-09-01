@@ -89,7 +89,7 @@ export default function SellerDocumentsPage() {
 
         <div className="mb-6">
           <h1 className="t-title mb-1">필수 서류 관리</h1>
-          <p className="t-sub">모든 항목이 검증되면 행사 신청 시 자동 첨부됩니다. (서류 + 부스/트럭 사진 3컷)</p>
+          <p className="t-sub">모든 항목이 검증되면 행사 신청 시 자동 첨부됩니다. (서류 + 부스·트럭 사진 3장)</p>
           <div className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--info-soft,#F4F7FE)', color: 'var(--info,#2B4B9B)' }}>
             🔔 만료일이 다가오면 미리 알려드립니다 — 서류 걱정 없이 운영하세요
           </div>
@@ -169,7 +169,7 @@ export default function SellerDocumentsPage() {
         <div className="mt-8 p-4 rounded-card bg-surface-sunken border border-line-faint">
           <div className="text-[12px] font-bold text-ink mb-1">파일 저장 방식</div>
           <div className="text-[11px] text-text-secondary leading-[1.6]">
-            업로드된 파일은 Supabase Storage private 버킷 <code className="bg-muted px-1 rounded">documents</code>에 저장됩니다. 본인과 관리자만 접근 가능하며, 다운로드 시 1시간 유효한 서명 URL이 발급됩니다. 관리자는 검토 후 승인/반려 처리합니다.
+            업로드한 파일은 안전하게 암호화되어 저장되며, 본인과 관리자만 볼 수 있습니다. 다운로드 링크는 열람 후 1시간까지만 유효합니다. 관리자가 확인한 뒤 승인 또는 반려 처리합니다.
           </div>
         </div>
       </div>
@@ -361,7 +361,7 @@ function DocCard({
                   onChange={(e) => setExpiresAt(e.target.value)}
                   className="input"
                 />
-                <span className="text-[11px] text-text-tertiary">14일 이내 시 자동 &apos;만료 임박&apos; 표시</span>
+                <span className="text-[11px] text-text-tertiary">만료 14일 전부터 &apos;만료 임박&apos;으로 표시됩니다</span>
               </div>
             )}
           </div>

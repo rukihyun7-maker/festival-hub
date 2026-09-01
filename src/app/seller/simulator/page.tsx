@@ -147,7 +147,7 @@ export default function SimulatorPage() {
             </select>
             {!docReady ? (
               <div className="text-[12px] text-warning mt-1 leading-relaxed">
-                🔒 등록 행사 선택은 <b>필수 서류 80% 이상</b>부터 가능합니다 (현재 {docPct}%). 지금은 <b>직접 입력(임의 시뮬레이션)</b>만 가능합니다.{' '}
+                🔒 등록 행사 선택은 <b>필수 서류 80% 이상</b>부터 가능합니다 (현재 {docPct}%). 지금은 <b>값을 직접 입력해 계산</b>하는 것만 가능합니다.{' '}
                 <Link href="/seller/documents" className="text-info font-semibold underline">서류 등록 →</Link>
               </div>
             ) : selectedEvent && (
@@ -172,7 +172,7 @@ export default function SimulatorPage() {
                 <div className="space-y-5">
                   <NumInput label="재료비율" unit="%" value={materialRate} onChange={setMaterialRate} min={0} max={90} step={1} note="매출 대비 재료비" />
                   <NumInput label="일 참가비 (고정)" unit="원/일" value={fixedFee} onChange={setFixedFee} min={0} max={1_000_000} step={10_000} />
-                  <NumInput label="매출 수수료율" unit="%" value={salesFeeRate} onChange={setSalesFeeRate} min={0} max={30} step={0.5} note="주최 지급 %" />
+                  <NumInput label="매출 수수료율" unit="%" value={salesFeeRate} onChange={setSalesFeeRate} min={0} max={30} step={0.5} note="매출 중 주최에 내는 비율" />
                   <NumInput label="기타 일일 비용" unit="원/일" value={otherCost} onChange={setOtherCost} min={0} max={500_000} step={5_000} note="인건비·전기·연료" />
                 </div>
               </div>

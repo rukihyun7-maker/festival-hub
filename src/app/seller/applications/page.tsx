@@ -153,7 +153,7 @@ export default function SellerApplicationsPage() {
                   {/* 주최 코멘트 */}
                   {a.memo && (
                     <div className="mt-4 p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
-                      <div className="text-[11px] font-bold text-text-tertiary mb-1">주최 코멘트</div>
+                      <div className="text-[11px] font-bold text-text-tertiary mb-1">주최 의견</div>
                       <div className="text-[13px] text-ink-soft leading-relaxed">{a.memo}</div>
                     </div>
                   )}

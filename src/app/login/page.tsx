@@ -47,7 +47,7 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (captchaEnabled && !captchaToken) { setError('사람인지 확인(보안 인증)을 완료해주세요.'); return; }
+    if (captchaEnabled && !captchaToken) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
@@ -60,7 +60,7 @@ export default function LoginPage() {
       if (msg.includes('not confirmed') || (error as { code?: string }).code === 'email_not_confirmed') {
         return setError('이메일 인증이 완료되지 않았습니다. 받은 인증 메일의 링크를 먼저 눌러 인증을 마쳐주세요.');
       }
-      return setError('이메일 또는 비밀번호가 일치하지 않습니다.');
+      return setError('이메일 또는 비밀번호가 올바르지 않습니다. 다시 확인해 주세요.');
     }
     // 로그인 성공 후 실제 프로필 role 조회해서 알맞은 진입점으로
     const p = await fetchMyProfile();
@@ -76,7 +76,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
     setDemoLoading(null);
     if (error) {
-      setError('데모 계정 로그인 실패 · SETUP.md 시드 실행 필요');
+      setError('데모 계정으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
       return;
     }
     router.push(dest);
@@ -155,7 +155,7 @@ export default function LoginPage() {
             </div>
 
             <h2 className="t-title mb-2">다시 만나서 반갑습니다</h2>
-            <p className="t-sub mb-8">계정 정보로 계속하세요</p>
+            <p className="t-sub mb-8">가입하신 이메일과 비밀번호를 입력해 주세요</p>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <label className="flex flex-col gap-2">
@@ -214,7 +214,7 @@ export default function LoginPage() {
                 ))}
               </div>
               <p className="text-[11px] text-text-tertiary mt-3">
-                시드 실행이 안 됐다면 <code className="bg-muted px-1 py-0.5 rounded text-[10px]">SETUP.md</code>의 Step 2-3 확인
+                데모 계정이 보이지 않으면 관리자에게 문의해 주세요.
               </p>
             </div>
           </div>

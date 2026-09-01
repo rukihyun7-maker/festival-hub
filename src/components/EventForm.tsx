@@ -263,7 +263,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             </Field>
           </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-            <Field label="예상 유동인구" hint="숫자만 아닌 표현 가능">
+            <Field label="예상 유동인구" hint="숫자가 아니어도 괜찮아요">
               <input value={v.visitors} onChange={(e) => set('visitors', e.target.value)} className="input" placeholder="예: 일 평균 20,000명" />
             </Field>
             <Field label="파트너 자리 수" hint="'20자리' 또는 '공고 예정'">
@@ -425,7 +425,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
 
         <Section title="7. 이 행사 필수 서류">
           <p className="text-[12px] text-text-tertiary mb-3">표준 서류 중 확인할 항목을 고르고, 이 행사만의 추가 서류를 넣을 수 있어요. 열람·검증 기준(표준 6종)은 그대로 유지됩니다.</p>
-          <div className="text-[12px] font-semibold text-ink-soft mb-1.5">표준 서류 · 확인 요청</div>
+          <div className="text-[12px] font-semibold text-ink-soft mb-1.5">표준 서류 · 확인할 항목 선택</div>
           <div className="flex flex-wrap gap-1.5 mb-5">
             {REQUIRED_DOC_KINDS.map((k: DocKind) => {
               const on = v.required_docs.standard?.includes(k) ?? false;
@@ -455,8 +455,8 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             {(['open', 'upcoming', 'close', 'canceled'] as const).map((s) => {
               const info = {
                 open: { title: '모집 중', desc: '즉시 신청 가능' },
-                upcoming: { title: '예정', desc: '알림만 받음' },
-                close: { title: '종료', desc: '신청 마감' },
+                upcoming: { title: '예정', desc: '공개만 · 신청은 아직' },
+                close: { title: '마감', desc: '신청 받지 않음' },
                 canceled: { title: '취소', desc: '행사 취소' },
               }[s];
               // 등록 모드에선 open/upcoming만 노출
@@ -513,7 +513,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </div>
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <span className={`badge ${v.status === 'open' ? 'badge-warning' : v.status === 'upcoming' ? 'badge-info' : v.status === 'canceled' ? 'badge-danger' : ''}`}>
-              {v.status === 'open' ? '신청형' : v.status === 'upcoming' ? '정보형' : v.status === 'canceled' ? '취소' : '종료'}
+              {v.status === 'open' ? '모집 중' : v.status === 'upcoming' ? '예정' : v.status === 'canceled' ? '취소' : '마감'}
             </span>
             <span className="badge">{v.category}</span>
             {v.deadline && v.status === 'open' && (

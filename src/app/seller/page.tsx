@@ -103,14 +103,14 @@ export default function SellerMyPage() {
               {profile?.name ?? '로그인 필요'}{profile?.business_name && ` · ${profile.business_name}`}
             </h1>
             <div className="flex flex-wrap gap-2 items-center text-[13px]">
-              <span className="badge badge-success">인증 파트너</span>
+              <span className="badge badge-success">입점 파트너</span>
               <span className="text-text-secondary">참여 {sales.length}회 · {totalDays}일</span>
               {ratingSummary && ratingSummary.review_count > 0 && (
                 <span className="text-text-secondary">· ★ {ratingSummary.avg_score} ({ratingSummary.review_count})</span>
               )}
             </div>
           </div>
-          <button onClick={() => setTab('store')} className="btn-secondary hidden sm:inline-flex">프로필 수정</button>
+          <button onClick={() => setTab('store')} className="btn-secondary hidden sm:inline-flex">매장 정보 수정</button>
         </div>
 
         {error && (
@@ -282,9 +282,9 @@ function HistoryTab({
   ].sort((a, b) => b.date.localeCompare(a.date));
 
   const statusMeta: Record<'pending' | 'approved' | 'rejected' | 'canceled', { text: string; cls: string }> = {
-    pending: { text: '승인 대기', cls: 'badge-warning' },
+    pending: { text: '심사 중', cls: 'badge-warning' },
     approved: { text: '승인', cls: 'badge-info' },
-    rejected: { text: '거절', cls: 'badge-danger' },
+    rejected: { text: '반려', cls: 'badge-danger' },
     canceled: { text: '취소', cls: 'badge' },
   };
 
@@ -312,7 +312,7 @@ function HistoryTab({
               <div className="flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    {r.kind === 'sale' && <span className="badge badge-success">정산 완료</span>}
+                    {r.kind === 'sale' && <span className="badge badge-success">매출 기록됨</span>}
                     {r.kind === 'app' && <span className={`badge ${statusMeta[r.status].cls}`}>{statusMeta[r.status].text}</span>}
                     {r.kind === 'history' && <span className="badge">직접 등록</span>}
                   </div>
@@ -586,8 +586,8 @@ function MenuTab({
         <div className="flex items-center gap-2">
           {menus.length > 0 && (
             <div className="inline-flex rounded-input overflow-hidden border border-line-strong text-[12px] font-bold">
-              <button onClick={() => setView('grid')} className={`px-2.5 py-1.5 ${view === 'grid' ? 'bg-ink text-page/95' : 'bg-surface text-ink-soft'}`}>이미지형</button>
-              <button onClick={() => setView('list')} className={`px-2.5 py-1.5 ${view === 'list' ? 'bg-ink text-page/95' : 'bg-surface text-ink-soft'}`}>리스트형</button>
+              <button onClick={() => setView('grid')} className={`px-2.5 py-1.5 ${view === 'grid' ? 'bg-ink text-page/95' : 'bg-surface text-ink-soft'}`}>사진형</button>
+              <button onClick={() => setView('list')} className={`px-2.5 py-1.5 ${view === 'list' ? 'bg-ink text-page/95' : 'bg-surface text-ink-soft'}`}>목록형</button>
             </div>
           )}
           <button onClick={() => setShowForm((v) => !v)} className="btn-primary text-[13px] py-2 px-3">

@@ -52,7 +52,7 @@ export default function SettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
-      alert('저장 실패: ' + (e as Error).message);
+      alert('저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setSaving(false);
     }
@@ -127,7 +127,7 @@ export default function SettingsPage() {
         <section className="card mb-4">
           <div className="t-section mb-1">알림 채널</div>
           <div className="t-sub mb-4">받고 싶은 경로를 선택하세요.</div>
-          <Toggle label="앱 알림함" desc="플랫폼 내 알림 배지" on={notif.app} onChange={(v) => setNotif({ ...notif, app: v })} />
+          <Toggle label="앱 알림함" desc="앱 안에서 받는 알림" on={notif.app} onChange={(v) => setNotif({ ...notif, app: v })} />
           <Toggle label="이메일" desc={profile.email} on={notif.email} onChange={(v) => setNotif({ ...notif, email: v })} />
         </section>
 
@@ -166,13 +166,13 @@ export default function SettingsPage() {
         {role === 'seller' && (
           <section className="card mb-4">
             <div className="t-section mb-1">정보 공개 범위</div>
-            <div className="t-sub mb-4">행사 주최가 심사할 때 노출할 항목을 선택합니다. 끄면 심사자에게 표시되지 않습니다.</div>
+            <div className="t-sub mb-4">행사 주최가 신청을 검토할 때 보여줄 항목을 선택하세요. 끄면 주최에게 표시되지 않습니다.</div>
             <Toggle label="매출액" desc="참여이력의 신고 매출" on={!!share.sales_revenue} onChange={(v) => setShare({ ...share, sales_revenue: v })} />
             <Toggle label="판매 건수" desc="참여이력의 판매 건수" on={!!share.sales_count} onChange={(v) => setShare({ ...share, sales_count: v })} />
             <Toggle label="연락처" desc="전화번호" on={!!share.phone} onChange={(v) => setShare({ ...share, phone: v })} />
             <Toggle label="사업자번호" desc="사업자등록번호" on={!!share.biz_no} onChange={(v) => setShare({ ...share, biz_no: v })} />
-            <Toggle label="부스·트럭 사진" desc="배수·폐기물 포함 전체 사진" on={!!share.vehicle} onChange={(v) => setShare({ ...share, vehicle: v })} />
-            <Toggle label="위생 관리" desc="마스크·모자 등 착용 운영" on={!!share.hygiene_gear} onChange={(v) => setShare({ ...share, hygiene_gear: v })} />
+            <Toggle label="부스·트럭 사진" desc="배수시설·쓰레기 처리 모습까지 포함한 전체 사진" on={!!share.vehicle} onChange={(v) => setShare({ ...share, vehicle: v })} />
+            <Toggle label="위생 관리" desc="마스크·위생모 등 착용 여부" on={!!share.hygiene_gear} onChange={(v) => setShare({ ...share, hygiene_gear: v })} />
           </section>
         )}
 

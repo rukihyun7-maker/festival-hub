@@ -108,7 +108,7 @@ export default function HostRatingsPage() {
         {!ratingEnabled && (
           <div className="card mb-4" style={{ background: 'var(--warning-bg, #FFF3C4)' }}>
             <div className="text-[14px] font-bold text-ink mb-1">평가 기능이 잠겨 있습니다</div>
-            <div className="text-[13px] text-ink-soft">현재 플랫폼 정책상 주최 평가가 비활성화되어 있습니다. 관리자에게 문의하세요.</div>
+            <div className="text-[13px] text-ink-soft">지금은 평가 기능이 잠겨 있어요. 자세한 내용은 관리자에게 문의해 주세요.</div>
           </div>
         )}
 

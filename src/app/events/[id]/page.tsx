@@ -101,7 +101,7 @@ export default function EventDetailPage() {
       else await removeFavorite(profile.id, event.id);
     } catch (e) {
       setFav(!next); // 롤백
-      alert('찜 변경 실패: ' + (e as Error).message);
+      alert('관심 등록을 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setFavBusy(false);
     }
@@ -178,7 +178,7 @@ export default function EventDetailPage() {
           <h1 className="t-title mb-6">{event.name}</h1>
           <div className="card text-center py-12">
             <div className="text-[28px] mb-2">🔒</div>
-            <div className="text-[16px] font-extrabold text-ink mb-1">검증된 파트너만 열람할 수 있는 신청형 행사입니다</div>
+            <div className="text-[16px] font-extrabold text-ink mb-1">검증된 입점 파트너만 볼 수 있는 신청 가능 행사예요</div>
             <p className="t-sub mb-1">가입 승인 + 필수 서류 6종 검증 완료 후 상세와 신청이 열립니다.</p>
             <p className="text-[13px] font-bold text-ink mb-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
               필수 서류 검증 {docsDone}/{REQUIRED_DOC_KINDS.length}
@@ -186,7 +186,7 @@ export default function EventDetailPage() {
             {isSeller ? (
               <div className="flex gap-2 justify-center">
                 <Link href="/seller/documents" className="btn-primary">필수 서류 등록·검증 →</Link>
-                <Link href="/events" className="btn-secondary">정보형 행사 보기</Link>
+                <Link href="/events" className="btn-secondary">정보 제공 행사 보기</Link>
               </div>
             ) : (
               <div className="flex gap-2 justify-center">
@@ -225,8 +225,8 @@ export default function EventDetailPage() {
               <button
                 onClick={toggleFav}
                 disabled={favBusy}
-                aria-label={fav ? '찜 해제' : '찜하기'}
-                title={fav ? '찜 해제' : '찜하기'}
+                aria-label={fav ? '관심 해제' : '관심 등록'}
+                title={fav ? '관심 해제' : '관심 등록'}
                 className="shrink-0 text-[24px] leading-none mt-1"
                 style={{ color: fav ? 'var(--accent, #FFC800)' : 'var(--text-disabled, #B5AC98)' }}
               >
@@ -383,7 +383,7 @@ export default function EventDetailPage() {
               return (
                 <div className="card">
                   <div className="t-section mb-1">내 트럭과 이 자리 적합도</div>
-                  <p className="text-[12px] text-text-tertiary mb-4">등록하신 스펙과 자리 조건을 대조했습니다. 참고용이며 최종 확인은 직접 하세요.</p>
+                  <p className="text-[12px] text-text-tertiary mb-4">등록하신 정보와 자리 조건을 맞춰봤어요. 참고용이니, 최종 확인은 직접 해주세요.</p>
 
                   {fit.warnings.length > 0 ? (
                     <div className="rounded-input p-3 mb-4" style={{ background: 'var(--danger-bg, #FBEDEA)', border: '1px solid #E5B8AE' }}>
@@ -422,7 +422,7 @@ export default function EventDetailPage() {
 
                   {!fit.hasMine && (
                     <div className="text-[12px] text-text-secondary mt-3 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
-                      내 차량·전기·조리 스펙을 등록하면 자동 대조가 정확해집니다.{' '}
+                      내 차량·전기·조리 정보를 등록하면 자동 대조가 정확해집니다.{' '}
                       <Link href="/seller" className="text-info font-semibold underline">프로필에서 등록 →</Link>
                     </div>
                   )}
@@ -507,7 +507,7 @@ export default function EventDetailPage() {
               ) : applied ? (
                 <div className="text-center py-3">
                   <div className="text-[16px] font-extrabold text-success mb-1">{myAppStatus === 'approved' ? '✓ 승인됨' : '✓ 신청 완료'}</div>
-                  <div className="text-[12px] text-text-secondary">{myAppStatus === 'approved' ? '주최 승인이 완료된 행사입니다' : '이미 신청한 행사입니다 · 주최 검토 후 알림'}</div>
+                  <div className="text-[12px] text-text-secondary">{myAppStatus === 'approved' ? '주최 승인이 완료된 행사입니다' : '이미 신청한 행사예요. 주최가 검토한 뒤 알려드릴게요.'}</div>
                   <Link href="/seller/applications" className="text-[12px] font-bold text-info hover:underline inline-block mt-2">내 신청 현황 보기 →</Link>
                 </div>
               ) : (
@@ -646,7 +646,7 @@ function ApplyModal({
           <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">참가비 소계{selSlot ? ` · ${selSlot.type}` : ''}</span><span className="font-semibold text-ink">₩{total.toLocaleString()}</span></div>
           <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">수수료</span><span className="font-semibold text-ink">{event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'}</span></div>
           <div className="pt-3 border-t border-line-faint flex justify-between">
-            <span className="text-[14px] font-bold text-ink">결제 예정</span>
+            <span className="text-[14px] font-bold text-ink">예상 참가비</span>
             <span className="text-[20px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{total.toLocaleString()}</span>
           </div>
         </div>

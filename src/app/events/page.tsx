@@ -17,7 +17,7 @@ import type { EventRow, Profile } from '@/lib/types';
 const REGIONS = ['전체', '서울', '경기', '인천', '강원', '충북', '충남', '대전', '세종', '전북', '전남', '광주', '경북', '경남', '대구', '부산', '울산', '제주'];
 const TYPES = [
   { key: 'all' as const, label: '전체' },
-  { key: 'apply' as const, label: '신청형' },
+  { key: 'apply' as const, label: '신청 가능' },
   { key: 'festival' as const, label: '축제' },
   { key: 'event' as const, label: '행사' },
 ];
@@ -36,13 +36,13 @@ type Phase = 'ongoing' | 'upcoming' | 'ended';
 const STATUSES = [
   { key: 'all' as const, label: '전체' },
   { key: 'ongoing' as const, label: '진행중' },
-  { key: 'upcoming' as const, label: '진행전' },
+  { key: 'upcoming' as const, label: '진행 예정' },
   { key: 'ended' as const, label: '종료' },
 ];
 type StatusKey = 'all' | Phase;
 const PHASE_META: Record<Phase, { label: string; bg: string; fg: string }> = {
   ongoing: { label: '진행중', bg: '#EAF3EC', fg: '#2E7D46' },
-  upcoming: { label: '진행전', bg: '#F4F7FE', fg: '#2B4B9B' },
+  upcoming: { label: '진행 예정', bg: '#F4F7FE', fg: '#2B4B9B' },
   ended: { label: '종료', bg: '#F0ECE1', fg: '#8A8272' },
 };
 function phaseOf(e: EventRow, today: string): Phase {
@@ -307,11 +307,11 @@ export default function EventsListPage() {
         {/* 자격 미충족 → 정보형만 열람 안내 */}
         {restrictInfo && (
           <div className="card mb-6" style={{ background: 'var(--warning-bg, #FFF9E6)', borderColor: '#E7DCA8' }}>
-            <div className="text-[13px] font-bold text-ink mb-1">🔒 정보형 행사만 열람 중</div>
+            <div className="text-[13px] font-bold text-ink mb-1">🔒 정보 제공 행사만 볼 수 있어요</div>
             <div className="text-[12px] text-text-secondary">
               {gate?.role === 'seller'
-                ? <>필수 서류 6종을 관리자 검증까지 마치면 <b>신청형 행사</b> 상세와 신청이 열립니다. 서류 검증 {gate.docsDone}/{REQUIRED_DOC_KINDS.length} · <Link href="/seller/documents" className="text-info font-semibold underline">서류 등록 →</Link></>
-                : <>신청형 행사는 검증된 입점 파트너만 열람할 수 있습니다. <Link href="/signup" className="text-info font-semibold underline">입점 파트너 가입 →</Link></>}
+                ? <>필수 서류 6종을 관리자 검증까지 마치면 <b>신청 가능 행사</b>의 상세와 신청이 열립니다. 서류 검증 {gate.docsDone}/{REQUIRED_DOC_KINDS.length} · <Link href="/seller/documents" className="text-info font-semibold underline">서류 등록 →</Link></>
+                : <>신청 가능 행사는 검증된 입점 파트너만 볼 수 있습니다. <Link href="/signup" className="text-info font-semibold underline">입점 파트너 가입 →</Link></>}
             </div>
           </div>
         )}
@@ -319,9 +319,9 @@ export default function EventsListPage() {
         {/* 에러 알림 */}
         {error && (
           <div className="card mb-6" style={{ borderColor: '#E0DACB' }}>
-            <div className="text-[13px] font-bold text-warning mb-1">Supabase 연결 확인 필요</div>
+            <div className="text-[13px] font-bold text-warning mb-1">행사 목록을 불러오지 못했습니다</div>
             <div className="text-[12px] text-text-secondary">
-              {error} · <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">SETUP.md</code> 참고
+              잠시 후 다시 시도해 주세요. 문제가 계속되면 운영팀에 알려주세요.
             </div>
           </div>
         )}
@@ -348,7 +348,7 @@ export default function EventsListPage() {
         ) : filtered.length === 0 ? (
           <div className="card text-center py-16">
             <div className="text-[15px] font-semibold text-ink mb-2">조건에 맞는 행사가 없습니다</div>
-            <div className="t-sub">필터를 조정하거나 알림 신청을 등록해두세요</div>
+            <div className="t-sub">검색어나 필터를 바꿔 다시 찾아보세요</div>
           </div>
         ) : (
           <>
@@ -405,7 +405,7 @@ function EventCard({ event: e, phase }: { event: EventRow; phase: Phase }) {
         ) : (
           <>
             <span className="text-[11px] text-text-tertiary">정보 제공</span>
-            <span className="text-[12px] font-semibold text-text-secondary">참가·부스는 주최 확인</span>
+            <span className="text-[12px] font-semibold text-text-secondary">참가·자리는 주최에 문의</span>
           </>
         )}
       </div>

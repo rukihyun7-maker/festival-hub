@@ -149,7 +149,7 @@ function HostApplicantsInner() {
           <div className="t-sub mt-1">
             {eventFilter === 'all' ? '전체' : (events.find((e) => e.id === eventFilter)?.name ?? '선택 행사')} {eventScoped.length}건
             {eventFilter !== 'all' && <span className="text-text-tertiary"> · 아래 통계는 이 행사 기준</span>}
-            {' '}· 신청자 카드에서 [세부정보]로 매장·메뉴·부스사진·서류를 확인한 뒤 승인하세요.
+            {' '}· 신청자 카드에서 [세부정보]로 파트너 정보·메뉴·부스 사진·서류를 확인한 뒤 승인하세요.
           </div>
         </div>
 
@@ -426,7 +426,7 @@ function ApplicantCard({
               <div>
                 <div className="text-[12px] font-bold text-ink-soft mb-2">
                   제출 서류 {docs.length > 0 && `${docs.filter((d) => d.urgency === 'verified' || d.urgency === 'expiring').length}/${docs.length}`}
-                  {!docDownload && <span className="ml-1 font-normal text-text-tertiary">· 상태만 (관리자 검증)</span>}
+                  {!docDownload && <span className="ml-1 font-normal text-text-tertiary">· 제출 상태만 표시 (검증은 관리자 담당)</span>}
                 </div>
                 {docs.length === 0 ? (
                   <div className="text-[12px] text-text-tertiary">서류 정보를 불러올 수 없습니다.</div>

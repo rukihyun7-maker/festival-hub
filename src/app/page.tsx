@@ -22,7 +22,7 @@ export default function Home() {
 
       {/* 히어로 */}
       <section className="container-app pt-16 pb-14 text-center">
-        <span className="badge badge-warning mb-6 inline-flex">BETA · 야외행사 매칭 플랫폼</span>
+        <span className="badge badge-warning mb-6 inline-flex">베타 · 야외행사 매칭 플랫폼</span>
         <h1
           className="font-extrabold tracking-[-0.03em] leading-[1.12] mb-5"
           style={{ fontSize: 'clamp(32px, 6vw, 56px)' }}
@@ -36,7 +36,7 @@ export default function Home() {
         >
           푸드트럭·음식부스에게는 <b className="text-ink">상권·예상 수익</b>까지 보이는 행사 자리를,
           행사 주최에게는 <b className="text-ink">서류·이력이 검증된 파트너</b>를 연결합니다.
-          도입비 0원, 필요할 때만.
+          가입·등록 무료, 수수료는 거래가 있을 때만.
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
           <Link href="/signup" className="btn-primary">무료로 시작하기</Link>
@@ -65,7 +65,7 @@ export default function Home() {
           <RoleCard
             mark="운"
             title="플랫폼 운영"
-            desc="관리자 (웹)"
+            desc="서비스 관리자 전용"
             points={['필수 서류 5종 검증', '행사·사용자 관제', '전체 인사이트 지표']}
           />
         </div>
@@ -81,7 +81,7 @@ export default function Home() {
             <Feature title="손익 시뮬레이터" desc="나가기 전에 순익부터. 방문객·객단가만 넣으면 최악·현실·최상 3가지 결과를 즉시 계산합니다." />
             <Feature title="사업자 서류 관리" desc="사업자·보험·위생교육 등 5종을 한 번 등록하면 행사 신청 시 자동 첨부·우선 노출됩니다." />
             <Feature title="이메일 인증 가입" desc="인증번호로 본인을 확인해 가입자의 신빙성을 확보합니다." />
-            <Feature title="개별 지급 정산" desc="복잡한 PG 계약 없이 행사 주최가 파트너에게 직접 지급합니다." />
+            <Feature title="개별 지급 정산" desc="복잡한 결제대행 계약 없이 행사 주최가 파트너에게 직접 지급합니다." />
           </div>
         </div>
       </section>

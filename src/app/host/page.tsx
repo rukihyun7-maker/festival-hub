@@ -165,7 +165,7 @@ export default function HostDashboardPage() {
 
         {error && (
           <div className="card mb-6" style={{ borderColor: '#E0DACB' }}>
-            <div className="text-[13px] font-bold text-warning mb-1">데이터 로드 오류</div>
+            <div className="text-[13px] font-bold text-warning mb-1">정보를 불러오지 못했어요</div>
             <div className="text-[12px] text-text-secondary">{error}</div>
           </div>
         )}
@@ -222,7 +222,7 @@ export default function HostDashboardPage() {
             ) : applications.length === 0 ? (
               <div className="p-12 text-center">
                 <div className="text-[14px] font-semibold text-ink mb-1">아직 신청이 없습니다</div>
-                <div className="t-sub">공고를 공유하거나 마감일을 늘려보세요</div>
+                <div className="t-sub">공고를 공유하거나 신청 마감일을 미뤄보세요</div>
               </div>
             ) : (
               applications.map((a, i) => {
@@ -245,7 +245,7 @@ export default function HostDashboardPage() {
                         {seller?.category ?? '업종 미기재'}{seller?.region ? ` · ${seller.region}` : ''} · 신청 {new Date(a.applied_at).toLocaleDateString('ko-KR')}
                       </div>
                     </div>
-                    <span className="text-[12px] font-bold text-info shrink-0">세부정보 →</span>
+                    <span className="text-[12px] font-bold text-info shrink-0">신청자 관리에서 보기 →</span>
                   </Link>
                 );
               })

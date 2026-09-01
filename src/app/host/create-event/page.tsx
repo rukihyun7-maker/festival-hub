@@ -176,7 +176,7 @@ export default function CreateEventPage() {
                   <SummaryTile icon="🎓" label="대학교" n={s!.university} />
                   <SummaryTile icon="🛒" label="대형마트" n={s!.commercial} />
                 </div>
-                <div className="text-[11px] text-text-tertiary mt-2">주변 유동인구가 많을수록 파트너 지원이 늘어납니다. · 출처 카카오맵</div>
+                <div className="text-[11px] text-text-tertiary mt-2">주변 유동인구가 많을수록 파트너 신청이 늘어납니다. · 출처 카카오맵</div>
               </div>
             ) : done.located ? (
               <div className="text-[12px] text-text-secondary mb-5 p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
@@ -213,7 +213,7 @@ export default function CreateEventPage() {
 
         <div className="mb-8">
           <h1 className="t-title mb-2">새 행사 등록</h1>
-          <p className="t-sub">필수 항목을 입력하면 파트너가 즉시 신청 가능합니다.</p>
+          <p className="t-sub">필수 항목을 입력하고 등록하면, 관리자 검수를 거쳐 입점 파트너에게 공개됩니다.</p>
         </div>
 
         <EventForm

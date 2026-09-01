@@ -304,7 +304,7 @@ export default function CalendarPage() {
                   {listEvents.length === 0 ? (
                     <div className="card text-center py-10">
                       <div className="text-[14px] font-semibold text-ink mb-1">{selectedDay ? '이 날 일정이 없습니다' : view === 'all' ? '이 달 행사가 없습니다' : '이 달 일정이 없습니다'}</div>
-                      <div className="t-sub">{view === 'all' ? '다른 날짜나 달을 확인해보세요.' : '‘+ 일정 추가’로 직접 등록하거나, 플랫폼 행사를 신청해보세요.'}</div>
+                      <div className="t-sub">{view === 'all' ? '다른 날짜나 달을 확인해보세요.' : '‘+ 일정 추가’로 직접 넣거나, 행사 찾기에서 신청해보세요.'}</div>
                     </div>
                   ) : (
                     <div className="card p-0 overflow-hidden">

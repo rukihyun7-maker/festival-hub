@@ -148,7 +148,18 @@ export default function SignupPage() {
     });
     if (error) {
       setLoading(false);
-      setError(error.message);
+      const m = (error.message || '').toLowerCase();
+      if (m.includes('password') && (m.includes('6') || m.includes('short') || m.includes('at least'))) {
+        setError('비밀번호는 6자 이상으로 입력해 주세요.');
+      } else if (m.includes('email') && (m.includes('invalid') || m.includes('valid'))) {
+        setError('이메일 형식을 다시 확인해 주세요.');
+      } else if (m.includes('already') || m.includes('registered')) {
+        setError('이미 가입된 이메일입니다. 로그인 화면을 이용해 주세요.');
+      } else if (m.includes('rate') || m.includes('too many')) {
+        setError('요청이 많습니다. 잠시 후 다시 시도해 주세요.');
+      } else {
+        setError('가입 중 문제가 발생했습니다. 입력 정보를 확인하고 다시 시도해 주세요.');
+      }
       return;
     }
     // 이미 가입된 이메일 (Supabase 보안상 identities가 빈 배열로 옴)
@@ -237,7 +248,7 @@ export default function SignupPage() {
           <span className="font-extrabold text-[15px] tracking-[-0.02em] text-ink">Festival Hub</span>
         </div>
         <h1 className="t-title mb-1">회원가입</h1>
-        <p className="t-sub mb-6">역할을 선택하고 1분 만에 시작하세요.</p>
+        <p className="t-sub mb-6">역할을 선택하고 시작하세요.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* 역할 선택 */}
@@ -270,7 +281,7 @@ export default function SignupPage() {
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-semibold text-ink-soft">{role === 'host' ? '담당자 이름' : '이름 / 담당자'}</span>
+            <span className="text-[12px] font-semibold text-ink-soft">{role === 'host' ? '담당자 이름' : '대표자 이름'}</span>
             <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="홍길동" />
           </label>
 
@@ -278,7 +289,7 @@ export default function SignupPage() {
           {role === 'host' && (
             <>
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-ink-soft">소속 (주최사·기관·단체명)</span>
+                <span className="text-[12px] font-semibold text-ink-soft">소속 (기관·단체·회사명)</span>
                 <input type="text" required value={orgName} onChange={(e) => setOrgName(e.target.value)} className="input" placeholder="예: 서울숲재단" />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -382,7 +393,7 @@ export default function SignupPage() {
           )}
 
           <button type="submit" disabled={loading || !agreeTerms || !agreePrivacy} className="btn-primary w-full">
-            {loading ? '가입 중…' : '무료로 시작하기'}
+            {loading ? '가입 중…' : '동의하고 가입하기'}
           </button>
         </form>
 
