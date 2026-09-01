@@ -81,29 +81,11 @@ export default function SignupPage() {
   const [needConfirm, setNeedConfirm] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
-  // 약관/개인정보 열람 후 돌아와도 입력값 유지 (파일 제외)
+  // 이전 버전이 sessionStorage에 저장했던 입력값(비밀번호 포함) 정리 · 재진입 시 폼은 항상 빈 값으로 시작
+  // (약관·개인정보 링크는 새 탭으로 열려 입력값이 유지되므로 별도 저장이 불필요)
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem('fh_signup');
-      if (!raw) return;
-      const d = JSON.parse(raw);
-      if (d.name) setName(d.name);
-      if (d.email) setEmail(d.email);
-      if (d.password) setPassword(d.password);
-      if (d.role) setRole(d.role);
-      if (d.bizNo) setBizNo(d.bizNo);
-      if (d.orgName) setOrgName(d.orgName);
-      if (d.position) setPosition(d.position);
-      if (d.phone) setPhone(d.phone);
-      if (d.agreeTerms) setAgreeTerms(true);
-      if (d.agreePrivacy) setAgreePrivacy(true);
-    } catch { /* noop */ }
+    try { sessionStorage.removeItem('fh_signup'); } catch { /* noop */ }
   }, []);
-  useEffect(() => {
-    try {
-      sessionStorage.setItem('fh_signup', JSON.stringify({ name, email, password, role, bizNo, orgName, position, phone, agreeTerms, agreePrivacy }));
-    } catch { /* noop */ }
-  }, [name, email, password, role, bizNo, orgName, position, phone, agreeTerms, agreePrivacy]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -112,7 +94,7 @@ export default function SignupPage() {
       setError('이용약관과 개인정보 수집·이용에 동의해 주세요. (필수)');
       return;
     }
-    if (captchaEnabled && !captchaToken) { setError('사람인지 확인(보안 인증)을 완료해주세요.'); return; }
+    if (captchaEnabled && !captchaToken) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
     if (role === 'host' && !cardFile) { setError('명함 이미지를 첨부해주세요. (주최 가입 필수)'); return; }
     if (role === 'host' && bizNo.replace(/\D/g, '').length < 10) { setError('사업자등록번호를 정확히 입력해 주세요. (주최 가입 필수)'); return; }
     if (bizFile) { const fe = fileError(bizFile); if (fe) { setError(fe); return; } }
@@ -321,11 +303,11 @@ export default function SignupPage() {
 
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-semibold text-ink-soft">이메일</span>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="you@example.com" />
+            <input type="email" required autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="you@example.com" />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-semibold text-ink-soft">비밀번호</span>
-            <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="6자 이상" />
+            <input type="password" required minLength={6} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="6자 이상" />
           </label>
 
           {/* 입점 파트너 사업자등록번호 + 사업자등록증(선택 첨부) */}
