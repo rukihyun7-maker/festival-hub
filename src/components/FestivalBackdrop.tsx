@@ -5,7 +5,28 @@
  * tone='light' : 랜딩 페이퍼 배경용(은은하게)
  * 부모에 position:relative 필요. 콘텐츠는 relative(z 위)로 두어 이 배경 위에 표시.
  */
-export default function FestivalBackdrop({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
+export default function FestivalBackdrop({ tone = 'dark', image }: { tone?: 'dark' | 'light'; image?: string }) {
+  // 이미지 모드 · 하단 앵커 축제 일러스트 + 상단 페이드(헤드라인 영역 확보). 파일 없으면 배경색만 보임(우아하게 폴백).
+  if (image) {
+    return (
+      <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+        <div
+          className="absolute inset-x-0 bottom-0"
+          style={{
+            height: '86%',
+            backgroundImage: `url("${image}")`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center bottom',
+            backgroundRepeat: 'no-repeat',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 30%, black 55%)',
+            maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 30%, black 55%)',
+            opacity: tone === 'dark' ? 0.42 : 1,
+          }}
+        />
+      </div>
+    );
+  }
+
   const dark = tone === 'dark';
   const wire = dark ? 'rgba(255,255,255,0.16)' : 'rgba(20,18,14,0.12)';
   const ring = dark ? 'rgba(255,255,255,0.07)' : 'rgba(20,18,14,0.06)';

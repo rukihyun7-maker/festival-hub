@@ -22,9 +22,9 @@ export default function Home() {
       </header>
 
       {/* 히어로 */}
-      <section className="relative overflow-hidden container-app pt-16 pb-14 text-center">
-        <FestivalBackdrop tone="light" />
-        <div className="relative">
+      <section className="relative overflow-hidden pt-16 pb-40 text-center">
+        <FestivalBackdrop tone="light" image="/hero/festival-landing.png" />
+        <div className="relative container-app">
           <span className="badge badge-warning mb-6 inline-flex">야외행사 매칭 플랫폼</span>
           <h1
             className="font-extrabold tracking-[-0.03em] leading-[1.12] mb-5"
