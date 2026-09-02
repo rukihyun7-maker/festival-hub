@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { fetchMyProfile, fetchPlatformSettings } from '@/lib/supabase/queries';
 import Turnstile, { captchaEnabled } from '@/components/Turnstile';
+import FestivalBackdrop from '@/components/FestivalBackdrop';
 import type { Role } from '@/lib/types';
 
 function destForRole(role: Role | undefined): string {
@@ -111,8 +112,9 @@ export default function LoginPage() {
     <main className="min-h-screen bg-page">
       <div className="grid min-h-screen" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' }}>
         {/* 좌측 · 히어로 패널 (따뜻한 딥차콜 그라디언트 · 가독성 개선) */}
-        <aside className="flex flex-col justify-between overflow-hidden" style={{ padding: 'clamp(32px, 5vw, 64px)', color: '#fff', background: 'linear-gradient(157deg, #2C271D 0%, #241F17 40%, #17140F 100%)' }}>
-          <div>
+        <aside className="relative flex flex-col justify-between overflow-hidden" style={{ padding: 'clamp(32px, 5vw, 64px)', color: '#fff', background: 'linear-gradient(157deg, #2C271D 0%, #241F17 40%, #17140F 100%)' }}>
+          <FestivalBackdrop tone="dark" />
+          <div className="relative">
             <div className="text-[13px] font-extrabold tracking-[0.16em] uppercase mb-6" style={{ color: 'var(--accent, #FFC800)' }}>Festival Hub</div>
             <h1 className="font-extrabold leading-[1.22] tracking-[-0.035em]" style={{ fontSize: 'clamp(28px, 4.2vw, 44px)', textWrap: 'balance' }}>
               좋은 행사 자리와<br />
@@ -125,14 +127,14 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mt-10 mb-6">
+          <div className="relative grid grid-cols-3 gap-3 mt-10 mb-6">
             <Stat n={stats.partners} unit="팀" label="입점 파트너" />
             <Stat n={stats.events} unit="건" label="등록 행사" />
             <Stat n={stats.recruiting} unit="건" label="지금 모집 중" />
           </div>
 
           {/* 3대 신뢰 메시지 */}
-          <div className="grid gap-2 mb-8">
+          <div className="relative grid gap-2 mb-8">
             {[
               '관리자 검증을 통과한 파트너·행사만',
               '연락처·사업자 정보는 승인 후에만 공개',
@@ -145,7 +147,7 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <div className="overflow-hidden -mx-2">
+          <div className="relative overflow-hidden -mx-2">
             <div className="text-[11px] font-bold tracking-[0.1em] uppercase mb-3 px-2" style={{ color: 'rgba(255,255,255,0.5)' }}>최근 등록 행사</div>
             <div className="whitespace-nowrap animate-marquee text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.68)' }}>
               <span className="inline-block px-6">서울숲 8월 플리마켓</span>

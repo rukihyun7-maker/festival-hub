@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import FestivalBackdrop from '@/components/FestivalBackdrop';
 
 /**
  * 랜딩 · 디자인 시스템 v2.0 (웜페이퍼 · 옐로우 CTA · 노그라디언트)
@@ -21,26 +22,29 @@ export default function Home() {
       </header>
 
       {/* 히어로 */}
-      <section className="container-app pt-16 pb-14 text-center">
-        <span className="badge badge-warning mb-6 inline-flex">야외행사 매칭 플랫폼</span>
-        <h1
-          className="font-extrabold tracking-[-0.03em] leading-[1.12] mb-5"
-          style={{ fontSize: 'clamp(32px, 6vw, 56px)' }}
-        >
-          야외행사, <span style={{ color: 'var(--accent-warm)' }}>검증된 파트너</span>와<br />
-          믿을 수 있는 주최를 잇다
-        </h1>
-        <p
-          className="text-text-secondary leading-[1.65] mx-auto mb-9"
-          style={{ fontSize: 'clamp(15px, 2.2vw, 18px)', maxWidth: '560px' }}
-        >
-          푸드트럭·음식부스에게는 <b className="text-ink">상권·예상 수익</b>까지 보이는 행사 자리를,
-          행사 주최에게는 <b className="text-ink">서류·이력이 검증된 파트너</b>를 연결합니다.
-          가입·등록 무료, 수수료는 거래가 있을 때만.
-        </p>
-        <div className="flex gap-3 justify-center flex-wrap">
-          <Link href="/signup" className="btn-primary">무료로 시작하기</Link>
-          <Link href="/tour" className="btn-secondary">시스템 둘러보기</Link>
+      <section className="relative overflow-hidden container-app pt-16 pb-14 text-center">
+        <FestivalBackdrop tone="light" />
+        <div className="relative">
+          <span className="badge badge-warning mb-6 inline-flex">야외행사 매칭 플랫폼</span>
+          <h1
+            className="font-extrabold tracking-[-0.03em] leading-[1.12] mb-5"
+            style={{ fontSize: 'clamp(32px, 6vw, 56px)' }}
+          >
+            야외행사, <span style={{ color: 'var(--accent-warm)' }}>검증된 파트너</span>와<br />
+            믿을 수 있는 주최를 잇다
+          </h1>
+          <p
+            className="text-text-secondary leading-[1.65] mx-auto mb-9"
+            style={{ fontSize: 'clamp(15px, 2.2vw, 18px)', maxWidth: '560px' }}
+          >
+            푸드트럭·음식부스에게는 <b className="text-ink">상권·예상 수익</b>까지 보이는 행사 자리를,
+            행사 주최에게는 <b className="text-ink">서류·이력이 검증된 파트너</b>를 연결합니다.
+            가입·등록 무료, 수수료는 거래가 있을 때만.
+          </p>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <Link href="/signup" className="btn-primary">무료로 시작하기</Link>
+            <Link href="/tour" className="btn-secondary">시스템 둘러보기</Link>
+          </div>
         </div>
       </section>
 
