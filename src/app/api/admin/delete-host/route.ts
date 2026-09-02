@@ -15,17 +15,21 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 });
 
   // 호출자 관리자 검증
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const { data: me } = await supabase.from('profiles').select('role, is_super_admin').eq('id', user.id).maybeSingle();
   if (me?.role !== 'admin') return NextResponse.json({ error: '관리자만 가능합니다' }, { status: 403 });
+  const isSuper = me?.is_super_admin === true;
 
   let hostId: string | undefined;
   try { const b = await req.json(); hostId = b?.hostId ?? b?.userId; } catch { /* no body */ }
   if (!hostId) return NextResponse.json({ error: '대상 id가 필요합니다' }, { status: 400 });
 
-  // 대상 역할 확인 (관리자 계정은 삭제 불가)
-  const { data: target } = await supabase.from('profiles').select('role').eq('id', hostId).maybeSingle();
+  // 대상 역할 확인 · 관리자 계정은 메인 관리자만 삭제 가능(서브 관리자에 한함), 메인 관리자는 삭제 불가
+  const { data: target } = await supabase.from('profiles').select('role, is_super_admin').eq('id', hostId).maybeSingle();
   if (!target) return NextResponse.json({ error: '대상 계정을 찾을 수 없습니다' }, { status: 404 });
-  if (target.role === 'admin') return NextResponse.json({ error: '관리자 계정은 삭제할 수 없습니다' }, { status: 400 });
+  if (target.role === 'admin') {
+    if (target.is_super_admin) return NextResponse.json({ error: '메인 관리자 계정은 삭제할 수 없습니다.' }, { status: 400 });
+    if (!isSuper) return NextResponse.json({ error: '관리자 계정은 메인 관리자만 삭제할 수 있습니다.' }, { status: 403 });
+  }
 
   // 주최는 등록된 행사가 없어야 함 (파트너는 조건 없음)
   if (target.role === 'host') {

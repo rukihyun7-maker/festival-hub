@@ -148,6 +148,7 @@ export interface Profile {
   referral_code?: string | null; // v35: 내 추천 코드 (승인 시 발급)
   points?: number;               // v35: 보유 포인트
   referred_by?: string | null;   // v35: 추천인 id
+  is_super_admin?: boolean;      // v45: 메인(최고) 관리자 · 관리자 계정 생성/삭제 권한
   created_at: string;
   updated_at: string;
 }

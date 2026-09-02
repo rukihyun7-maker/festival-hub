@@ -146,12 +146,13 @@ export default function AdminUsersPage() {
             </p>
           </div>
           <button onClick={() => setCreateOpen((v) => !v)} className="btn-primary shrink-0 text-[13px] py-2.5">
-            {createOpen ? '닫기' : '+ 테스트 계정 생성'}
+            {createOpen ? '닫기' : '+ 계정 생성'}
           </button>
         </div>
 
         {createOpen && (
           <CreateUserCard
+            isSuper={me?.is_super_admin === true}
             onCreated={() => { setBump((b) => b + 1); }}
             onClose={() => setCreateOpen(false)}
           />
@@ -642,8 +643,8 @@ function DocStatusPill({ status }: { status: string }) {
 }
 
 /** 임의 계정 생성 (관리자 · 테스트용) */
-function CreateUserCard({ onCreated, onClose }: { onCreated: () => void; onClose: () => void }) {
-  const [role, setRole] = useState<'seller' | 'host'>('seller');
+function CreateUserCard({ isSuper, onCreated, onClose }: { isSuper: boolean; onCreated: () => void; onClose: () => void }) {
+  const [role, setRole] = useState<'seller' | 'host' | 'admin'>('seller');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -669,9 +670,9 @@ function CreateUserCard({ onCreated, onClose }: { onCreated: () => void; onClose
         business_no: businessNo.trim() || undefined,
         position: position.trim() || undefined,
         phone: phone.trim() || undefined,
-        overwrite,
+        overwrite: role === 'admin' ? false : overwrite,
       });
-      const label = role === 'host' ? '주최' : '입점 파트너';
+      const label = role === 'host' ? '주최' : role === 'admin' ? '서브 관리자' : '입점 파트너';
       setMsg({ ok: true, text: r.overwritten
         ? `기존 계정을 ${label} 테스트 계정으로 초기화했습니다. 입력한 비밀번호로 바로 로그인할 수 있어요.`
         : `${label} 계정을 만들었습니다. 바로 로그인할 수 있어요.` });
@@ -687,14 +688,14 @@ function CreateUserCard({ onCreated, onClose }: { onCreated: () => void; onClose
   return (
     <div className="card mb-6" style={{ borderColor: 'var(--accent, #FFC800)' }}>
       <div className="flex items-center justify-between mb-1">
-        <div className="t-section">테스트 계정 생성</div>
+        <div className="t-section">계정 생성</div>
         <button onClick={onClose} className="text-[12px] text-text-tertiary hover:text-ink">닫기</button>
       </div>
-      <div className="t-sub mb-4">이메일 인증을 건너뛰고 <b>바로 로그인 가능한 승인 상태</b>로 만듭니다. 실제 운영 계정이 아닌 테스트 용도로만 사용하세요.</div>
+      <div className="t-sub mb-4">이메일 인증을 건너뛰고 <b>바로 로그인 가능한 승인 상태</b>로 계정을 만듭니다. {isSuper && '관리자(서브) 계정도 생성할 수 있습니다.'}</div>
 
       {/* 역할 */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        {([['seller', '입점 파트너'], ['host', '행사 주최']] as const).map(([val, label]) => (
+      <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: `repeat(${isSuper ? 3 : 2}, 1fr)` }}>
+        {([['seller', '입점 파트너'], ['host', '행사 주최'], ...(isSuper ? [['admin', '관리자(서브)'] as const] : [])] as const).map(([val, label]) => (
           <button key={val} type="button" onClick={() => setRole(val)}
             className={`p-3 rounded-input border-2 text-[13px] font-bold transition-all ${role === val ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink'}`}>
             {label}
@@ -702,22 +703,30 @@ function CreateUserCard({ onCreated, onClose }: { onCreated: () => void; onClose
         ))}
       </div>
 
+      {role === 'admin' && (
+        <div className="text-[12px] text-ink-soft bg-warning-bg rounded-input px-3 py-2.5 mb-3 leading-relaxed">
+          <b>서브 관리자</b>는 메인과 동일한 전체 권한을 갖지만, <b>다른 관리자 계정을 생성·삭제할 수는 없습니다</b>. 신뢰하는 운영 인원에게만 부여하세요.
+        </div>
+      )}
+
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <Labeled label="이메일 *"><input value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="test@example.com" /></Labeled>
+        <Labeled label="이메일 *"><input value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="admin@example.com" /></Labeled>
         <Labeled label="비밀번호 * (6자 이상)"><input value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="비밀번호" /></Labeled>
-        <Labeled label={role === 'host' ? '담당자 이름 *' : '대표자 이름 *'}><input value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="홍길동" /></Labeled>
-        <Labeled label={role === 'host' ? '소속(기관·단체·회사명)' : '상호(매장명)'}><input value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="input" placeholder={role === 'host' ? '예: 성동구청' : '예: 라이트분식'} /></Labeled>
-        <Labeled label="사업자등록번호"><input value={businessNo} onChange={(e) => setBusinessNo(e.target.value)} className="input" placeholder="000-00-00000" /></Labeled>
+        <Labeled label={role === 'host' ? '담당자 이름 *' : role === 'admin' ? '관리자 이름 *' : '대표자 이름 *'}><input value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="홍길동" /></Labeled>
+        {role !== 'admin' && <Labeled label={role === 'host' ? '소속(기관·단체·회사명)' : '상호(매장명)'}><input value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="input" placeholder={role === 'host' ? '예: 성동구청' : '예: 라이트분식'} /></Labeled>}
+        {role !== 'admin' && <Labeled label="사업자등록번호"><input value={businessNo} onChange={(e) => setBusinessNo(e.target.value)} className="input" placeholder="000-00-00000" /></Labeled>}
         <Labeled label="연락처"><input value={phone} onChange={(e) => setPhone(e.target.value)} className="input" placeholder="010-0000-0000" /></Labeled>
         {role === 'host' && <Labeled label="직책"><input value={position} onChange={(e) => setPosition(e.target.value)} className="input" placeholder="예: 문화체육과 주무관" /></Labeled>}
       </div>
 
-      <label className="flex items-start gap-2 mt-4 cursor-pointer">
-        <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} className="mt-0.5" />
-        <span className="text-[12px] text-ink-soft leading-relaxed">
-          <b>이미 가입된 이메일이면 덮어쓰기</b> — 같은 이메일을 재사용할 때, 기존 계정을 이 입력값(역할·비밀번호)으로 초기화합니다. <span className="text-text-tertiary">(관리자 계정은 제외)</span>
-        </span>
-      </label>
+      {role !== 'admin' && (
+        <label className="flex items-start gap-2 mt-4 cursor-pointer">
+          <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} className="mt-0.5" />
+          <span className="text-[12px] text-ink-soft leading-relaxed">
+            <b>이미 가입된 이메일이면 덮어쓰기</b> — 같은 이메일을 재사용할 때, 기존 계정을 이 입력값(역할·비밀번호)으로 초기화합니다. <span className="text-text-tertiary">(관리자 계정은 제외)</span>
+          </span>
+        </label>
+      )}
 
       {msg && (
         <div className={`mt-4 text-[13px] font-semibold rounded-input px-3 py-2.5 ${msg.ok ? 'text-success bg-success-bg' : 'text-danger bg-danger-bg'}`}>

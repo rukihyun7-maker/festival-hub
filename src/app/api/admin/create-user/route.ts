@@ -16,8 +16,9 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 });
 
   // 호출자 관리자 검증
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const { data: me } = await supabase.from('profiles').select('role, is_super_admin').eq('id', user.id).maybeSingle();
   if (me?.role !== 'admin') return NextResponse.json({ error: '관리자만 가능합니다' }, { status: 403 });
+  const isSuper = me?.is_super_admin === true;
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* no body */ }
@@ -35,7 +36,9 @@ export async function POST(req: Request) {
   // 입력 검증
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return NextResponse.json({ error: '올바른 이메일을 입력해 주세요.' }, { status: 400 });
   if (password.length < 6) return NextResponse.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, { status: 400 });
-  if (role !== 'host' && role !== 'seller') return NextResponse.json({ error: '역할은 주최 또는 입점 파트너만 가능합니다.' }, { status: 400 });
+  if (role !== 'host' && role !== 'seller' && role !== 'admin') return NextResponse.json({ error: '역할이 올바르지 않습니다.' }, { status: 400 });
+  // 관리자(admin) 계정 생성은 메인(최고) 관리자만 가능
+  if (role === 'admin' && !isSuper) return NextResponse.json({ error: '관리자 계정은 메인 관리자만 생성할 수 있습니다.' }, { status: 403 });
   if (!name) return NextResponse.json({ error: '이름을 입력해 주세요.' }, { status: 400 });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -45,7 +48,7 @@ export async function POST(req: Request) {
   }
   const admin = createAdminClient(url, svc, { auth: { persistSession: false, autoRefreshToken: false } });
   const meta = { name, role, business_name, business_no, position, phone };
-  const profileRow = { email, name, role, status: '정상', business_name, business_no, position, phone };
+  const profileRow = { email, name, role, status: '정상', business_name, business_no, position, phone, is_super_admin: false };
 
   // 이미 존재하는 이메일 찾기 (프로필 기준 · 없으면 신규 생성)
   const { data: existing } = await admin.from('profiles').select('id, role').eq('email', email).maybeSingle();

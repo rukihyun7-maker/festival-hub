@@ -1023,7 +1023,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
 export async function createUserByAdmin(input: {
   email: string;
   password: string;
-  role: 'host' | 'seller';
+  role: 'host' | 'seller' | 'admin';
   name: string;
   business_name?: string;
   business_no?: string;
