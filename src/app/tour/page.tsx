@@ -147,38 +147,77 @@ function MockApplicants() {
     </div>
   );
 }
-function MockReview() {
+function MockFit() {
+  const rows = [
+    ['전기 용량', '부스당 3kW', '3kW', 'ok'], ['급수', '가능', '필요', 'ok'],
+    ['LPG·화기', '제한적', '사용', 'warn'], ['차량 제원', '길이 6m', '5.5m', 'ok'],
+  ] as const;
   return (
-    <div className="space-y-2.5">
-      <div className="rounded-input border-2 p-3" style={{ borderColor: 'var(--accent, #FFC800)' }}>
-        <div className="flex items-center gap-1.5 mb-1.5"><Badge tone="warn">심사 중</Badge><span className="text-[9px] text-text-tertiary">축제</span></div>
-        <div className="text-[12px] font-extrabold text-ink">수원 화성 문화축제</div>
-        <div className="text-[10px] text-text-secondary mt-0.5">수원문화재단 · 2026.10.18 – 10.20 · 경기</div>
-        <div className="flex flex-wrap gap-1 mt-2">
-          <Badge tone="ok">✓ 일정</Badge><Badge tone="ok">✓ 장소</Badge><Badge tone="ok">✓ 참가비</Badge><Badge tone="bad">✕ 좌표</Badge>
-        </div>
-        <div className="flex gap-1.5 mt-2.5">
-          <span className="btn-primary text-[10px] py-1 px-2.5 inline-flex">승인하고 공개</span>
-          <span className="btn-secondary text-[10px] py-1 px-2.5 inline-flex">반려</span>
-        </div>
+    <div>
+      <div className="rounded-input px-2.5 py-2 mb-2.5 text-[10px] font-bold text-success" style={{ background: 'var(--success-bg, #E9F4EC)' }}>✓ 눈에 띄는 부적합 조건이 없습니다</div>
+      <div className="grid grid-cols-[1fr_auto_auto] gap-x-2 gap-y-1.5 text-[10px]">
+        <div className="text-text-tertiary font-semibold">항목</div><div className="text-text-tertiary font-semibold text-center">이 자리</div><div className="text-text-tertiary font-semibold text-center">내 등록</div>
+        {rows.map(([k, a, b, t]) => (
+          <div key={k} className="contents">
+            <div className="text-ink font-semibold py-1 border-t border-line-faint">{k}</div>
+            <div className="text-ink text-center py-1 border-t border-line-faint">{a}</div>
+            <div className={`text-center py-1 border-t border-line-faint font-bold ${t === 'warn' ? 'text-warning' : 'text-success'}`}>{b} {t === 'warn' ? '⚠' : '✓'}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
-function MockDocVerify() {
-  const rows = [
-    ['라이트분식', '박라이트', 'warn', '검토 대기'], ['성수커피트럭', '김성수', 'ok', '검증 완료'],
-    ['수제버거하우스', '이버거', 'warn', '검토 대기'], ['달콤솜사탕', '최달콤', 'bad', '반려'],
+function MockFavorites() {
+  const favs = [
+    ['서울숲 가을 플리마켓', 'D-6', 'bad'], ['한강 밤도깨비 야시장', 'D-12', 'warn'], ['성수 코엑스 푸드위크', 'D-3', 'bad'],
   ] as const;
   return (
-    <div className="space-y-1.5">
-      {rows.map(([n, p, t, l]) => (
+    <div className="space-y-2">
+      <div className="text-[10px] text-text-tertiary mb-1">마감 임박 순 · 알림 켜두면 마감 전 미리 안내</div>
+      {favs.map(([n, d, t]) => (
         <div key={n} className="flex items-center justify-between rounded-input border border-line-faint px-2.5 py-2">
-          <div className="min-w-0">
-            <div className="text-[11px] font-bold text-ink truncate">{n}</div>
-            <div className="text-[9px] text-text-tertiary">{p} · 필수 서류 6종</div>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-accent text-[13px]">★</span>
+            <span className="text-[11px] font-bold text-ink truncate">{n}</span>
           </div>
-          <Badge tone={t}>{l}</Badge>
+          <div className="flex items-center gap-1.5 shrink-0"><Badge tone={t}>{d}</Badge><span className="text-[9px] text-info font-bold">🔔</span></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function MockNearby() {
+  const tiles = [['🏢 아파트 단지', '12'], ['🚇 지하철역', '2'], ['🎓 대학교', '1'], ['🛒 대형마트', '3']];
+  return (
+    <div>
+      <div className="text-[10px] font-extrabold mb-2" style={{ color: 'var(--info, #2B4B9B)' }}>📍 이 자리 반경 1km 상권 (자동 분석)</div>
+      <div className="grid grid-cols-2 gap-2">
+        {tiles.map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between rounded-input border border-line-faint px-2.5 py-2">
+            <span className="text-[10px] font-semibold text-ink">{k}</span>
+            <span className="text-[13px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</span>
+          </div>
+        ))}
+      </div>
+      <div className="text-[9px] text-text-tertiary mt-2">유동인구가 많을수록 파트너 신청이 늘어납니다 · 출처 카카오맵</div>
+    </div>
+  );
+}
+function MockSlots() {
+  const slots = [
+    ['푸드트럭', '10', '일 8만원', '전기·수도'], ['플리마켓', '20', '일 3만원', '전기'], ['체험부스', '5', '무료', '—'],
+  ] as const;
+  return (
+    <div className="space-y-2">
+      <div className="text-[10px] text-text-tertiary mb-1">부문마다 참가비·시설을 다르게 모집할 수 있습니다</div>
+      {slots.map(([n, c, f, s]) => (
+        <div key={n} className="rounded-input border border-line-faint px-2.5 py-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-extrabold text-ink">{n}</span>
+            <span className="text-[10px] font-bold text-text-secondary">{c}자리 · {f}</span>
+          </div>
+          <div className="text-[9px] text-text-tertiary">제공 시설: {s}</div>
         </div>
       ))}
     </div>
@@ -192,21 +231,18 @@ const GROUPS: { role: string; mark: string; tone: string; shots: Shot[] }[] = [
     shots: [
       { path: '/events', title: '행사 찾기', desc: '지역·기간·상권·예상 수익까지 보이는 행사 자리를 한눈에 탐색합니다.', el: <MockEvents /> },
       { path: '/seller/simulator', title: '손익 시뮬레이터', desc: '방문객·객단가만 넣으면 최악·현실·최상 3가지 순익을 즉시 계산합니다.', el: <MockSimulator /> },
+      { path: '/events/…', title: '자리 적합도 자동 대조', desc: '내 차량·전기·조리 조건과 행사 자리 조건을 자동으로 맞춰 부적합을 미리 알려줍니다.', el: <MockFit /> },
       { path: '/seller/documents', title: '사업자 서류 관리', desc: '필수 서류를 한 번 등록하면 신청 시 자동 첨부·우선 노출됩니다.', el: <MockDocs /> },
+      { path: '/seller/favorites', title: '관심 행사 · 마감 알림', desc: '관심 행사를 저장하고, 신청 마감 전에 미리 알림을 받습니다.', el: <MockFavorites /> },
     ],
   },
   {
     role: '행사 주최', mark: '주', tone: '축제·팝업·플리마켓 운영',
     shots: [
       { path: '/host/create-event', title: '행사 등록 · 모집 공고', desc: '일정·장소·조건·모집 부문·필수 서류를 손쉽게 등록합니다.', el: <MockCreate /> },
+      { path: '/host/create-event', title: '상권 자동 분석', desc: '행사 주소만 입력하면 반경 1km 인근 시설을 자동 분석해 입지를 보여줍니다.', el: <MockNearby /> },
+      { path: '/host/create-event', title: '부문별 모집 관리', desc: '푸드트럭·플리마켓·체험부스 등 부문마다 참가비·시설을 다르게 모집합니다.', el: <MockSlots /> },
       { path: '/host/applicants', title: '신청자 관리', desc: '서류·매장·부스 사진까지 확인하고 검증된 파트너를 승인합니다.', el: <MockApplicants /> },
-    ],
-  },
-  {
-    role: '플랫폼 운영', mark: '운', tone: '서비스 관리자 전용',
-    shots: [
-      { path: '/admin/events', title: '행사 검수', desc: '주최가 올린 등록 요청을 검수해 공개해 신뢰도를 유지합니다.', el: <MockReview /> },
-      { path: '/admin/users', title: '서류 검증 · 사용자 관리', desc: '필수 서류를 검증해 “검증된 파트너·행사” 생태계를 지킵니다.', el: <MockDocVerify /> },
     ],
   },
 ];
