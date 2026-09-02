@@ -37,6 +37,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [stats, setStats] = useState({ partners: 0, events: 0, recruiting: 0 });
+  const [resendEmail, setResendEmail] = useState<string | null>(null); // 미인증 계정 → 인증 메일 재발송 대상
+  const [resendMsg, setResendMsg] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -61,6 +63,7 @@ export default function LoginPage() {
       setLoading(false);
       const msg = (error.message || '').toLowerCase();
       if (msg.includes('not confirmed') || (error as { code?: string }).code === 'email_not_confirmed') {
+        setResendEmail(email);
         return setError('이메일 인증이 완료되지 않았습니다. 받은 인증 메일의 링크를 먼저 눌러 인증을 마쳐주세요.');
       }
       return setError('이메일 또는 비밀번호가 올바르지 않습니다. 다시 확인해 주세요.');
@@ -71,6 +74,22 @@ export default function LoginPage() {
     setLoading(false);
     router.push(destForRole(p?.role));
     router.refresh();
+  }
+
+  async function resendConfirm() {
+    if (!resendEmail) return;
+    if (captchaEnabled && !captchaToken) { setResendMsg('먼저 보안 확인을 완료해 주세요.'); return; }
+    setResendMsg('전송 중…');
+    const supabase = createClient();
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: resendEmail,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        ...(captchaToken ? { captchaToken } : {}),
+      },
+    });
+    setResendMsg(error ? '재발송에 실패했습니다. 잠시 후 다시 시도해 주세요.' : '인증 메일을 다시 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.');
   }
 
   async function loginDemo(email: string, pw: string, dest: string) {
@@ -169,13 +188,22 @@ export default function LoginPage() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-[13px] font-semibold text-ink-soft">비밀번호</span>
+                <span className="flex items-center justify-between">
+                  <span className="text-[13px] font-semibold text-ink-soft">비밀번호</span>
+                  <Link href="/forgot-password" className="text-[12px] font-semibold text-text-tertiary hover:text-ink">비밀번호를 잊으셨나요?</Link>
+                </span>
                 <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="비밀번호" />
               </label>
 
               {error && (
                 <div className="text-[13px] text-danger bg-danger-bg rounded-input px-3 py-2.5 border border-danger/20">
                   {error}
+                  {resendEmail && (
+                    <div className="mt-2">
+                      <button type="button" onClick={resendConfirm} className="text-[12px] font-bold text-danger underline">인증 메일 다시 보내기</button>
+                      {resendMsg && <div className="text-[12px] text-text-secondary mt-1">{resendMsg}</div>}
+                    </div>
+                  )}
                 </div>
               )}
 

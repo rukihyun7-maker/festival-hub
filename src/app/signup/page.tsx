@@ -120,6 +120,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           name, role,
           ...(role === 'seller' ? { business_no: bizDigits } : { business_name: orgName, position, phone, business_no: bizDigits }),
