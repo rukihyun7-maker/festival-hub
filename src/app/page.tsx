@@ -59,18 +59,27 @@ export default function Home() {
             title="입점 파트너"
             desc="푸드트럭·음식부스 사업자"
             points={['손익 시뮬레이터로 순익 예측', '서류 5종 검증·자동 첨부', '행사 찾기·간편 신청']}
+            image="/hero/card-partner.png"
+            imagePos="left center"
+            cta={{ label: '파트너로 시작하기 →', href: '/signup' }}
           />
           <RoleCard
             mark="주"
             title="행사 주최"
             desc="축제·팝업·플리마켓 운영"
             points={['행사 등록·모집 공고', '파트너 심사·승인', '매출 대시보드·개별 지급']}
+            image="/hero/card-host.png"
+            imagePos="right center"
+            cta={{ label: '주최로 시작하기 →', href: '/signup' }}
           />
           <RoleCard
             mark="운"
             title="플랫폼 운영"
             desc="서비스 관리자 전용"
             points={['필수 서류 5종 검증', '행사·사용자 관제', '전체 인사이트 지표']}
+            image="/hero/card-admin.png"
+            imagePos="center"
+            cta={{ label: '시스템 둘러보기 →', href: '/tour' }}
           />
         </div>
       </section>
@@ -107,25 +116,48 @@ export default function Home() {
   );
 }
 
-function RoleCard({ mark, title, desc, points }: { mark: string; title: string; desc: string; points: string[] }) {
+function RoleCard({ mark, title, desc, points, image, imagePos, cta }: {
+  mark: string; title: string; desc: string; points: string[];
+  image?: string; imagePos?: string; cta?: { label: string; href: string };
+}) {
   return (
-    <div className="card h-full">
+    <div className="card p-0 h-full overflow-hidden flex flex-col transition-transform hover:-translate-y-1">
+      {/* 상단 배너 일러스트 */}
       <div
-        className="w-10 h-10 rounded-[10px] flex items-center justify-center font-extrabold text-[15px] text-ink mb-3"
-        style={{ background: 'var(--warning-bg, #FFF3C4)' }}
+        className="relative"
+        style={{
+          height: 156,
+          background: 'var(--bg-surface-sunken,#FDFBF6)',
+          backgroundImage: image ? `url("${image}")` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: imagePos || 'center',
+        }}
       >
-        {mark}
+        <div className="absolute inset-x-0 bottom-0 h-10" style={{ background: 'linear-gradient(to bottom, transparent, var(--bg-surface,#fff))' }} />
+        <div
+          className="absolute left-5 -bottom-5 w-11 h-11 rounded-[12px] flex items-center justify-center font-extrabold text-[15px] text-ink"
+          style={{ background: 'var(--warning-bg, #FFF3C4)', boxShadow: '0 3px 10px rgba(20,18,14,0.12)' }}
+        >
+          {mark}
+        </div>
       </div>
-      <div className="text-[17px] font-extrabold text-ink">{title}</div>
-      <div className="text-[13px] text-text-secondary mt-0.5 mb-4">{desc}</div>
-      <ul className="space-y-1.5">
-        {points.map((p) => (
-          <li key={p} className="flex items-start gap-2 text-[13px] text-ink-soft">
-            <span className="text-success mt-0.5">✓</span>
-            <span>{p}</span>
-          </li>
-        ))}
-      </ul>
+
+      {/* 본문 */}
+      <div className="px-6 pt-8 pb-6 flex flex-col flex-1">
+        <div className="text-[17px] font-extrabold text-ink">{title}</div>
+        <div className="text-[13px] text-text-secondary mt-0.5 mb-4">{desc}</div>
+        <ul className="space-y-1.5 mb-5">
+          {points.map((p) => (
+            <li key={p} className="flex items-start gap-2 text-[13px] text-ink-soft">
+              <span className="text-success mt-0.5">✓</span>
+              <span>{p}</span>
+            </li>
+          ))}
+        </ul>
+        {cta && (
+          <Link href={cta.href} className="btn-secondary w-full text-center text-[13px] py-2.5 mt-auto">{cta.label}</Link>
+        )}
+      </div>
     </div>
   );
 }
