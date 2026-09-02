@@ -22,7 +22,7 @@ export default function Home() {
 
       {/* 히어로 */}
       <section className="container-app pt-16 pb-14 text-center">
-        <span className="badge badge-warning mb-6 inline-flex">베타 · 야외행사 매칭 플랫폼</span>
+        <span className="badge badge-warning mb-6 inline-flex">야외행사 매칭 플랫폼</span>
         <h1
           className="font-extrabold tracking-[-0.03em] leading-[1.12] mb-5"
           style={{ fontSize: 'clamp(32px, 6vw, 56px)' }}
