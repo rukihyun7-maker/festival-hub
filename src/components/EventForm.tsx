@@ -138,6 +138,8 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
   const catOptions = (categories && categories.length ? categories : EVENT_CATEGORIES).filter((c) => c.trim());
   const [noticeUploading, setNoticeUploading] = useState(false);
   const todayStr = (() => { const dt = new Date(); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; })();
+  // 등록은 과거 날짜 차단, 수정은 이미 시작/지난 행사 보완을 위해 min 제약 해제
+  const dateMin = mode === 'create' ? todayStr : undefined;
   const lockCls = lockCore ? ' opacity-60 cursor-not-allowed bg-muted' : '';
 
   async function handleNotice(e: React.ChangeEvent<HTMLInputElement>) {
@@ -220,13 +222,13 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
         <Section title="2. 일정 & 장소">
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
             <Field label="행사 시작일" required hint={lockCore ? '승인 후 잠금' : undefined}>
-              <input required disabled={lockCore} type="date" min={todayStr} value={v.start_date} onChange={(e) => { const s = e.target.value; setV((p) => ({ ...p, start_date: s, end_date: p.end_date && p.end_date < s ? s : p.end_date })); }} className={`input${lockCls}`} />
+              <input required disabled={lockCore} type="date" min={dateMin} value={v.start_date} onChange={(e) => { const s = e.target.value; setV((p) => ({ ...p, start_date: s, end_date: p.end_date && p.end_date < s ? s : p.end_date })); }} className={`input${lockCls}`} />
             </Field>
             <Field label="행사 종료일" required hint={lockCore ? '승인 후 잠금' : undefined}>
-              <input required disabled={lockCore} type="date" min={v.start_date || todayStr} value={v.end_date} onChange={(e) => set('end_date', e.target.value)} className={`input${lockCls}`} />
+              <input required disabled={lockCore} type="date" min={v.start_date || dateMin} value={v.end_date} onChange={(e) => set('end_date', e.target.value)} className={`input${lockCls}`} />
             </Field>
             <Field label="신청 마감일">
-              <input type="date" min={todayStr} max={v.start_date || undefined} value={v.deadline} onChange={(e) => set('deadline', e.target.value)} className="input" />
+              <input type="date" min={dateMin} max={v.start_date || undefined} value={v.deadline} onChange={(e) => set('deadline', e.target.value)} className="input" />
               <div className="text-[11px] text-text-tertiary mt-1 leading-relaxed">
                 입점 파트너가 <b>이 날까지</b> 신청할 수 있어요. 보통 <b>행사 시작 1~2주 전</b>으로 설정하면 검토·준비 시간이 넉넉합니다. (비우면 상시 모집)
               </div>

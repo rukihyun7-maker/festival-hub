@@ -45,8 +45,8 @@ export async function POST(req: Request) {
   }
   const admin = createAdminClient(url, svc, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  // 프로필 정리(카스케이드 아닐 때 대비 · 실패 무시) 후 auth 사용자 삭제
-  await admin.from('profiles').delete().eq('id', hostId);
+  // auth 사용자 삭제 → profiles(id FK on delete cascade)와 events·applications 등이 함께 정리됨.
+  // (프로필을 먼저 지우면 auth 삭제 실패 시 고아 계정이 남으므로, auth 삭제만 수행)
   const { error: dErr } = await admin.auth.admin.deleteUser(hostId);
   if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
 

@@ -65,8 +65,9 @@ export default function LoginPage() {
       }
       return setError('이메일 또는 비밀번호가 올바르지 않습니다. 다시 확인해 주세요.');
     }
-    // 로그인 성공 후 실제 프로필 role 조회해서 알맞은 진입점으로
-    const p = await fetchMyProfile();
+    // 로그인 성공 후 실제 프로필 role 조회해서 알맞은 진입점으로 (조회 실패해도 진입은 막지 않음)
+    let p: Awaited<ReturnType<typeof fetchMyProfile>> = null;
+    try { p = await fetchMyProfile(); } catch { /* 프로필 조회 실패 → 기본 진입 */ }
     setLoading(false);
     router.push(destForRole(p?.role));
     router.refresh();

@@ -302,12 +302,24 @@ export async function fetchMyApplicationForEvent(eventId: string, sellerId: stri
   return (data?.[0] as Application) ?? null;
 }
 
-/** 신청 생성 */
+/** 신청 생성 (재신청 허용: (event_id, seller_id) 유니크 충돌 시 기존 반려·취소 건을 재사용해 재신청) */
 export async function createApplication(eventId: string, sellerId: string, slotType?: string | null): Promise<Application> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('applications')
-    .insert({ event_id: eventId, seller_id: sellerId, status: 'pending', slot_type: slotType ?? null })
+    .upsert(
+      {
+        event_id: eventId,
+        seller_id: sellerId,
+        status: 'pending',
+        slot_type: slotType ?? null,
+        reviewed_by: null,
+        reviewed_at: null,
+        memo: null,
+        applied_at: new Date().toISOString(),
+      },
+      { onConflict: 'event_id,seller_id' }
+    )
     .select()
     .single();
   if (error) throw error;

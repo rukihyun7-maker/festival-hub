@@ -44,9 +44,9 @@ export default function HostRatingsPage() {
         setRatingEnabled(settings?.host_rating ?? true);
         setRatedKeys(new Set(given.map((r: Rating) => `${r.seller_id}:${r.event_id}`)));
 
-        // 종료(또는 마감) 행사만
+        // 종료(또는 마감) 행사만 · 취소된 행사는 실제 진행되지 않았으므로 평가 대상에서 제외
         const ended = events.filter(
-          (e) => e.status === 'close' || e.status === 'canceled' || new Date(e.end_date) < new Date()
+          (e) => e.status !== 'canceled' && (e.status === 'close' || new Date(e.end_date) < new Date())
         );
         const lists = await Promise.all(ended.map((e) => fetchApplicationsForEvent(e.id)));
         const ratable: Ratable[] = [];

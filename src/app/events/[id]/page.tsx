@@ -75,11 +75,17 @@ export default function EventDetailPage() {
     if (!event || !profile) return;
     setApplying(true);
     try {
-      const app = await createApplication(event.id, profile.id, slotType);
-      // 이 행사 추가 서류 업로드
+      // 1) 추가 서류를 먼저 모두 업로드 (하나라도 실패하면 신청 생성 전에 중단 → 반쪽 신청 방지)
+      const uploaded: { label: string; path: string; name: string }[] = [];
       for (const ef of extraFiles) {
         const path = await uploadApplicationDoc(profile.id, ef.file);
-        await addApplicationDocument(app.id, ef.label, path, ef.file.name);
+        uploaded.push({ label: ef.label, path, name: ef.file.name });
+      }
+      // 2) 신청 생성 (반려·취소 후 재신청도 허용 · upsert)
+      const app = await createApplication(event.id, profile.id, slotType);
+      // 3) 업로드한 서류를 신청에 연결
+      for (const u of uploaded) {
+        await addApplicationDocument(app.id, u.label, u.path, u.name);
       }
       setApplied(true);
       setMyAppStatus('pending');
