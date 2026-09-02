@@ -35,7 +35,7 @@ export default function Home() {
           </h1>
           <p
             className="text-text-secondary leading-[1.65] mx-auto mb-9"
-            style={{ fontSize: 'clamp(15px, 2.2vw, 18px)', maxWidth: '560px' }}
+            style={{ fontSize: 'clamp(15px, 2.2vw, 18px)', maxWidth: '560px', textWrap: 'balance' }}
           >
             푸드트럭·음식부스에게는 <b className="text-ink">상권·예상 수익</b>까지 보이는 행사 자리를,
             행사 주최에게는 <b className="text-ink">서류·이력이 검증된 파트너</b>를 연결합니다.

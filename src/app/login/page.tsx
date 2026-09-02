@@ -120,7 +120,7 @@ export default function LoginPage() {
               좋은 행사 자리와<br />
               검증된 파트너를 <span style={{ color: 'var(--accent, #FFC800)' }}>잇다</span>
             </h1>
-            <p className="mt-6 text-[15px] leading-[1.7] max-w-[420px]" style={{ color: 'rgba(255,255,255,0.84)' }}>
+            <p className="mt-6 text-[15px] leading-[1.7] max-w-[420px]" style={{ color: 'rgba(255,255,255,0.84)', textWrap: 'balance' }}>
               푸드트럭·음식부스에게는 <b style={{ color: '#fff' }}>상권·예상 수익</b>까지 보이는 자리를,
               행사 주최에게는 <b style={{ color: '#fff' }}>서류·이력이 검증된 파트너</b>를.
               한 곳에서 빠르고 안전하게 연결합니다.

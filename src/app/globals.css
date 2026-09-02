@@ -57,6 +57,8 @@ html, body {
 
 body {
   min-height: 100vh;
+  /* 한국어 줄바꿈: 어절(단어) 중간에서 끊기지 않게 */
+  word-break: keep-all;
 }
 
 /* 키보드 포커스 표시 (마우스 클릭엔 미표시) · 접근성 */
