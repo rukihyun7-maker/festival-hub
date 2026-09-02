@@ -74,9 +74,10 @@ export default function LoginPage() {
 
   async function loginDemo(email: string, pw: string, dest: string) {
     setError('');
+    if (captchaEnabled && !captchaToken) { setError('먼저 보안 확인을 완료해 주세요.'); return; }
     setDemoLoading(email);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pw, options: captchaToken ? { captchaToken } : undefined });
     setDemoLoading(null);
     if (error) {
       setError('데모 계정으로 로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
