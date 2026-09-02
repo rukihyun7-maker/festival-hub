@@ -210,7 +210,7 @@ export default function EventsListPage() {
           <div className="card max-w-xl mx-auto text-center py-12">
             <div className="w-14 h-14 rounded-pill bg-muted mx-auto mb-4 flex items-center justify-center text-[24px]">🚫</div>
             <div className="text-[17px] font-extrabold text-ink mb-2">{rejected ? '가입이 반려되었습니다' : '이용이 정지된 계정입니다'}</div>
-            <p className="t-sub mb-6">행사 찾기·신청이 제한되었습니다. 문의가 필요하면 운영팀(leeyhome@naver.com)에 연락해 주세요.</p>
+            <p className="t-sub mb-6">행사 찾기·신청이 제한되었습니다. 문의가 필요하면 운영팀(help@festivalhub.co.kr)에 연락해 주세요.</p>
           </div>
         </div>
       </main>

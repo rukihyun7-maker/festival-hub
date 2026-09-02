@@ -63,7 +63,7 @@ export default function TermsPage() {
           <Section n="부칙 · 사업자 정보">
             상호: 리윤하우스 (대표: 윤소연) · 사업자등록번호: 275-17-02275<br />
             주소: 인천광역시 연수구 센트럴로 313, 비동 25층<br />
-            문의: leeyhome@naver.com · 본 약관 시행일: 2026-08-09
+            문의: help@festivalhub.co.kr · 본 약관 시행일: 2026-08-09
           </Section>
         </div>
 

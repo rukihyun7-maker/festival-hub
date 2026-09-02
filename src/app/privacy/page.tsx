@@ -58,7 +58,7 @@ export default function PrivacyPage() {
             비밀번호 암호화, 접근 권한 관리(RLS), 전송 구간 암호화(HTTPS), 서류·이미지 접근 제한(권한 기반 열람) 등 기술적·관리적 보호 조치를 시행합니다.
           </Section>
           <Section n="9. 개인정보 보호책임자">
-            상호: 리윤하우스 · 성명: 윤소연 · 연락처: leeyhome@naver.com<br />
+            상호: 리윤하우스 · 성명: 윤소연 · 연락처: help@festivalhub.co.kr<br />
             개인정보 관련 문의·불만·피해 구제는 위 연락처로 접수하며, 개인정보분쟁조정위원회(kopico.go.kr) 등에 조정을 신청할 수 있습니다.
           </Section>
           <Section n="10. 고지의 의무">
