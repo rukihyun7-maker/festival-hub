@@ -28,48 +28,64 @@ export default function FestivalBackdrop({ tone = 'dark', image }: { tone?: 'dar
   }
 
   const dark = tone === 'dark';
-  const wire = dark ? 'rgba(255,255,255,0.16)' : 'rgba(20,18,14,0.12)';
-  const ring = dark ? 'rgba(255,255,255,0.07)' : 'rgba(20,18,14,0.06)';
-  const dotColor = dark ? 'rgba(255,255,255,0.05)' : 'rgba(20,18,14,0.05)';
-  const glow = dark ? 0.14 : 0.09;
-  const pin = dark ? 'rgba(255,200,0,0.5)' : 'rgba(201,98,46,0.5)';
-  const pinFill = dark ? 'rgba(255,200,0,0.32)' : 'rgba(201,98,46,0.3)';
+  const wire = dark ? 'rgba(255,255,255,0.20)' : 'rgba(20,18,14,0.15)';
+  const ring = dark ? 'rgba(255,255,255,0.10)' : 'rgba(20,18,14,0.09)';
+  const dotColor = dark ? 'rgba(255,255,255,0.055)' : 'rgba(20,18,14,0.055)';
+  const glow = dark ? 0.22 : 0.14;
+  const pin = dark ? 'rgba(255,200,0,0.72)' : 'rgba(201,98,46,0.66)';
+  const pinFill = dark ? 'rgba(255,200,0,0.42)' : 'rgba(201,98,46,0.38)';
+  const pinBody = dark ? 'rgba(255,200,0,0.12)' : 'rgba(201,98,46,0.10)';
 
-  // 스트링 라이트 전구(보케) 위치 — 상단 와이어의 살짝 처진 곡선을 따라 배치
-  const N = 9;
+  // 스트링 라이트 전구(보케) — 더 촘촘하고 크게
+  const N = 13;
   const dots = Array.from({ length: N }, (_, i) => {
-    const l = 6 + (88 * i) / (N - 1);
-    const top = 9 + 22 * Math.sin((Math.PI * l) / 100);
-    const s = i % 2 === 0 ? 6.5 : 4.5;
-    const o = dark ? (i % 2 === 0 ? 0.9 : 0.6) : (i % 2 === 0 ? 0.75 : 0.5);
+    const l = 5 + (90 * i) / (N - 1);
+    const top = 9 + 24 * Math.sin((Math.PI * l) / 100);
+    const s = i % 2 === 0 ? 8 : 5;
+    const o = dark ? (i % 2 === 0 ? 1 : 0.72) : (i % 2 === 0 ? 0.82 : 0.55);
     return { l, top, s, o };
   });
 
+  // 지도 핀 — 크기 다른 3개 (좋은 '자리'들)
+  const pins = [
+    { x: 84, y: 70, scale: 1.4, rings: true },  // 우하단 큰 것(반경)
+    { x: 21, y: 47, scale: 0.72 },              // 좌측 작은 것
+    { x: 58, y: 27, scale: 0.55 },              // 상단 우측 작은 것
+  ];
+
   return (
     <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-      {/* 골든아워 글로우 */}
-      <div className="absolute inset-x-0 top-0" style={{ height: '62%', background: `radial-gradient(64% 82% at 50% -14%, rgba(255,200,0,${glow}), transparent 72%)` }} />
+      {/* 골든아워 글로우 (강화) */}
+      <div className="absolute inset-x-0 top-0" style={{ height: '66%', background: `radial-gradient(66% 84% at 50% -12%, rgba(255,200,0,${glow}), transparent 72%)` }} />
 
       {/* 도트 텍스처 */}
       <div className="absolute inset-0" style={{ backgroundImage: `radial-gradient(${dotColor} 1px, transparent 1.6px)`, backgroundSize: '26px 26px' }} />
 
-      {/* 지도 반경 · 핀 모티프 (입지/상권 은유) */}
-      <svg className="absolute" style={{ right: '-46px', bottom: '-46px', width: 'clamp(190px, 32vw, 320px)', height: 'auto', opacity: dark ? 0.55 : 0.6 }} viewBox="0 0 200 200" fill="none">
-        {[38, 64, 90].map((r) => <circle key={r} cx="104" cy="110" r={r} stroke={ring} strokeWidth="1" />)}
-        <path d="M104 82 C93 82 84 91 84 102 C84 117 104 134 104 134 C104 134 124 117 124 102 C124 91 115 82 104 82 Z" fill="none" stroke={pin} strokeWidth="1.6" />
-        <circle cx="104" cy="101" r="5.5" fill={pinFill} />
+      {/* 지도 반경 링 (메인 핀 주변) */}
+      <svg className="absolute" style={{ left: '84%', top: '70%', transform: 'translate(-50%,-50%)', width: 'clamp(150px, 26vw, 260px)', height: 'auto', opacity: dark ? 0.6 : 0.62 }} viewBox="0 0 200 200" fill="none">
+        {[42, 74, 106].map((r) => <circle key={r} cx="100" cy="100" r={r} stroke={ring} strokeWidth="1.1" />)}
       </svg>
+
+      {/* 지도 핀 3개 */}
+      {pins.map((p, i) => (
+        <div key={i} className="absolute" style={{ left: `${p.x}%`, top: `${p.y}%`, transform: `translate(-50%,-100%) scale(${p.scale})`, transformOrigin: 'bottom center', opacity: dark ? 0.78 : 0.72 }}>
+          <svg width="42" height="54" viewBox="0 0 42 54" fill="none">
+            <path d="M21 5 C12 5 5 12 5 21 C5 34 21 49 21 49 C21 49 37 34 37 21 C37 12 30 5 21 5 Z" fill={pinBody} stroke={pin} strokeWidth="2.2" />
+            <circle cx="21" cy="21" r="6" fill={pinFill} />
+          </svg>
+        </div>
+      ))}
 
       {/* 스트링 라이트 · 와이어 */}
-      <svg className="absolute top-0 left-0 w-full" style={{ height: 64 }} viewBox="0 0 100 60" preserveAspectRatio="none" fill="none">
-        <path d="M0,9 C26,34 74,34 100,9" stroke={wire} strokeWidth="1.4" />
+      <svg className="absolute top-0 left-0 w-full" style={{ height: 66 }} viewBox="0 0 100 60" preserveAspectRatio="none" fill="none">
+        <path d="M0,9 C26,35 74,35 100,9" stroke={wire} strokeWidth="1.5" />
       </svg>
 
-      {/* 스트링 라이트 · 전구(보케 글로우) */}
+      {/* 스트링 라이트 · 전구(보케 글로우 강화) */}
       {dots.map((d, i) => (
         <span key={i} className="absolute rounded-full" style={{
           left: `${d.l}%`, top: d.top + 4, width: d.s, height: d.s, background: '#FFC800', opacity: d.o,
-          boxShadow: `0 0 ${d.s * 2.4}px ${d.s * 0.7}px rgba(255,200,0,${d.o * (dark ? 0.45 : 0.3)})`,
+          boxShadow: `0 0 ${d.s * 3}px ${d.s * 1.1}px rgba(255,200,0,${d.o * (dark ? 0.6 : 0.38)})`,
         }} />
       ))}
     </div>
