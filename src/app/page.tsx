@@ -40,7 +40,7 @@ export default function Home() {
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
           <Link href="/signup" className="btn-primary">무료로 시작하기</Link>
-          <Link href="/login" className="btn-secondary">데모 둘러보기</Link>
+          <Link href="/tour" className="btn-secondary">시스템 둘러보기</Link>
         </div>
       </section>
 
@@ -89,7 +89,7 @@ export default function Home() {
       {/* 하단 CTA */}
       <section className="container-app py-16 text-center">
         <div className="text-[22px] font-extrabold mb-2">지금 바로 시작해 보세요</div>
-        <div className="text-text-secondary mb-6">가입은 1분, 데모 계정으로 먼저 둘러볼 수도 있습니다.</div>
+        <div className="text-text-secondary mb-6">가입 전 <Link href="/tour" className="text-ink font-semibold underline">시스템 둘러보기</Link>로 주요 화면을 먼저 볼 수 있습니다.</div>
         <Link href="/signup" className="btn-primary">무료로 시작하기</Link>
       </section>
 
