@@ -1,18 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 /**
- * 새 비밀번호 설정 · 재설정 메일 링크(/auth/callback?next=/auth/reset)로 세션이 확립된 상태에서 진입
+ * 새 비밀번호 설정 · 재설정 메일 링크(redirectTo=/auth/reset)로 진입
+ * 브라우저 클라이언트가 URL의 복구 토큰(code/token)을 감지해 세션을 확립(detectSessionInUrl) →
+ * onAuthStateChange로 세션 준비를 기다린 뒤 비밀번호 변경 폼을 연다.
  */
 export default function ResetPasswordPage() {
+  const [ready, setReady] = useState(false);   // 복구 세션 확립 여부
+  const [linkError, setLinkError] = useState(false); // 링크 만료/무효
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let settled = false;
+    // 이미 세션이 있으면 바로 준비 완료
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) { settled = true; setReady(true); }
+    });
+    // 복구 토큰 처리 완료 시(PASSWORD_RECOVERY/SIGNED_IN) 세션이 잡힘
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) { settled = true; setReady(true); }
+    });
+    // 일정 시간 내 세션이 안 잡히면 링크 문제로 안내
+    const t = setTimeout(() => { if (!settled) setLinkError(true); }, 7000);
+    return () => { sub.subscription.unsubscribe(); clearTimeout(t); };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,6 +67,17 @@ export default function ResetPasswordPage() {
               <p className="t-sub mb-6">새 비밀번호로 로그인해 주세요.</p>
               <Link href="/login" className="btn-primary w-full inline-flex justify-center">로그인하러 가기</Link>
             </>
+          ) : linkError ? (
+            <>
+              <h1 className="t-title mb-2">링크가 유효하지 않습니다</h1>
+              <p className="t-sub mb-6">재설정 링크가 만료되었거나 이미 사용되었습니다. 새 링크를 요청해 주세요.</p>
+              <Link href="/forgot-password" className="btn-primary w-full inline-flex justify-center">재설정 다시 요청</Link>
+            </>
+          ) : !ready ? (
+            <div className="py-6 text-center">
+              <div className="t-title mb-2">확인 중…</div>
+              <p className="t-sub">재설정 링크를 확인하고 있어요. 잠시만 기다려 주세요.</p>
+            </div>
           ) : (
             <>
               <h1 className="t-title mb-2">새 비밀번호 설정</h1>

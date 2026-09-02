@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
     if (captchaEnabled && !captchaToken) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
     setLoading(true);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=/auth/reset`;
+    const redirectTo = `${window.location.origin}/auth/reset`;
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
       ...(captchaToken ? { captchaToken } : {}),
