@@ -258,7 +258,7 @@ export default function TourPage() {
             </div>
             <span className="font-extrabold text-[15px] tracking-[-0.02em] text-ink">Festival Hub</span>
           </Link>
-          <Link href="/login" className="text-[14px] font-semibold text-text-secondary hover:text-ink">로그인</Link>
+          <Link href="/login" className="btn-secondary text-[13px] py-2 px-5">로그인</Link>
         </div>
       </header>
 

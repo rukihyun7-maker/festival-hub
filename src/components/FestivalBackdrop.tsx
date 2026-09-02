@@ -13,13 +13,14 @@ export default function FestivalBackdrop({ tone = 'dark', image }: { tone?: 'dar
         <div
           className="absolute inset-x-0 bottom-0"
           style={{
-            height: '86%',
+            height: '84%',
             backgroundImage: `url("${image}")`,
             backgroundSize: 'cover',
             backgroundPosition: 'center bottom',
             backgroundRepeat: 'no-repeat',
-            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 30%, black 55%)',
-            maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 30%, black 55%)',
+            // 위·아래 모두 페이드 → 헤드라인 영역 확보 + 하단 카드와 자연스러운 분리
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 24%, #000 46%, #000 74%, transparent 100%)',
+            maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 24%, #000 46%, #000 74%, transparent 100%)',
             opacity: tone === 'dark' ? 0.42 : 1,
           }}
         />
