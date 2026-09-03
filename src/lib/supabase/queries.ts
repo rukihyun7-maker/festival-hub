@@ -138,6 +138,32 @@ export async function flushPendingBusinessCard(profileId: string): Promise<strin
   }
 }
 
+/** 가입 시 임시 보관한 파트너 사업자등록증을 첫 로그인 때 실제 업로드 (이메일 인증 ON 대응)
+ *  localStorage 'fh_pending_biz' = { uid, dataUrl, ext, name } · documents(business_reg) 생성 */
+export async function flushPendingBizDoc(profileId: string): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('fh_pending_biz');
+  if (!raw) return null;
+  let parsed: { uid?: string; dataUrl?: string; ext?: string; name?: string };
+  try { parsed = JSON.parse(raw); } catch { localStorage.removeItem('fh_pending_biz'); return null; }
+  if (parsed.uid !== profileId || !parsed.dataUrl) return null;
+  try {
+    const supabase = createClient();
+    const blob = await (await fetch(parsed.dataUrl)).blob();
+    const path = `${profileId}/business_reg/${Date.now()}.${parsed.ext || 'bin'}`;
+    const { error } = await supabase.storage.from('documents').upload(path, blob, { upsert: true, contentType: blob.type });
+    localStorage.removeItem('fh_pending_biz');
+    if (error) return null;
+    await supabase.from('documents').upsert(
+      { seller_id: profileId, kind: 'business_reg', file_name: parsed.name ?? '사업자등록증', file_url: path, status: 'pending' },
+      { onConflict: 'seller_id,kind' }
+    );
+    return path;
+  } catch {
+    return null;
+  }
+}
+
 /** 행사 모집공고문 업로드 (menu-photos 버킷 재사용) → 공개 URL 반환 */
 export async function uploadEventNotice(ownerId: string, file: File): Promise<string> {
   const supabase = createClient();

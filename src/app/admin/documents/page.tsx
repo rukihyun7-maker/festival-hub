@@ -22,7 +22,7 @@ type KindFilter = 'all' | DocKind;
 
 export default function AdminDocumentsPage() {
   const [me, setMe] = useState<Profile | null>(null);
-  const [docs, setDocs] = useState<DocumentWithSeller[]>([]);
+  const [allDocs, setAllDocs] = useState<DocumentWithSeller[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [q, setQ] = useState('');
@@ -40,11 +40,12 @@ export default function AdminDocumentsPage() {
     })();
   }, []);
 
+  // 전체 서류를 한 번 조회 → 요약·필터는 클라이언트에서 (요약이 필터에 흔들리지 않게)
   async function load() {
     setLoading(true);
     try {
-      const rows = await fetchAllDocumentsAdmin({ status: statusFilter, kind: kindFilter, q });
-      setDocs(rows);
+      const rows = await fetchAllDocumentsAdmin({});
+      setAllDocs(rows);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -52,17 +53,38 @@ export default function AdminDocumentsPage() {
     }
   }
 
-  useEffect(() => {
-    const t = setTimeout(load, 250);
-    return () => clearTimeout(t);
-  }, [statusFilter, kindFilter, q]);
+  useEffect(() => { load(); }, []);
 
+  // 요약: 전체 기준 (현재 필터와 무관) · 만료는 expires_at 계산값 기준
   const summary = useMemo(() => ({
-    pending: docs.filter((d) => d.status === 'pending').length,
-    verified: docs.filter((d) => d.status === 'verified').length,
-    rejected: docs.filter((d) => d.status === 'rejected').length,
-    expiringSoon: docs.filter((d) => computeUrgency(d) === 'expiring').length,
-  }), [docs]);
+    pending: allDocs.filter((d) => d.status === 'pending').length,
+    verified: allDocs.filter((d) => d.status === 'verified').length,
+    rejected: allDocs.filter((d) => d.status === 'rejected').length,
+    expiringSoon: allDocs.filter((d) => computeUrgency(d) === 'expiring').length,
+    expired: allDocs.filter((d) => computeUrgency(d) === 'expired').length,
+  }), [allDocs]);
+
+  // 표시 목록: 상태(만료=계산값)·종류·검색 필터 (클라이언트)
+  const docs = useMemo(() => {
+    const qq = q.trim().toLowerCase();
+    return allDocs.filter((d) => {
+      if (kindFilter !== 'all' && d.kind !== kindFilter) return false;
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'expired') {
+          if (computeUrgency(d) !== 'expired') return false;
+        } else if (d.status !== statusFilter) {
+          return false;
+        }
+      }
+      if (qq) {
+        const hit = d.seller?.name?.toLowerCase().includes(qq)
+          || d.seller?.business_name?.toLowerCase().includes(qq)
+          || d.file_name?.toLowerCase().includes(qq);
+        if (!hit) return false;
+      }
+      return true;
+    });
+  }, [allDocs, statusFilter, kindFilter, q]);
 
   // 파트너(사용자)별 그룹화 — 대기 많은 파트너 우선
   const groups = useMemo(() => {
@@ -156,7 +178,7 @@ export default function AdminDocumentsPage() {
           <div>
             <h1 className="t-title mb-1">서류 검증</h1>
             <p className="t-sub">
-              대기 <span className="text-warning font-bold">{summary.pending}</span> · 승인 {summary.verified} · 반려 {summary.rejected} · 만료 임박 {summary.expiringSoon}
+              대기 <span className="text-warning font-bold">{summary.pending}</span> · 승인 {summary.verified} · 반려 {summary.rejected} · 만료 임박 {summary.expiringSoon} · 만료 {summary.expired}
             </p>
           </div>
         </div>
@@ -180,7 +202,9 @@ export default function AdminDocumentsPage() {
                   </button>
                   <button className={`chip ${statusFilter === 'verified' ? 'selected' : ''}`} onClick={() => setStatusFilter('verified')}>승인</button>
                   <button className={`chip ${statusFilter === 'rejected' ? 'selected' : ''}`} onClick={() => setStatusFilter('rejected')}>반려</button>
-                  <button className={`chip ${statusFilter === 'expired' ? 'selected' : ''}`} onClick={() => setStatusFilter('expired')}>만료</button>
+                  <button className={`chip ${statusFilter === 'expired' ? 'selected' : ''}`} onClick={() => setStatusFilter('expired')}>
+                    만료{summary.expired > 0 && <span className="ml-1 text-danger">·{summary.expired}</span>}
+                  </button>
                 </div>
               </div>
               <div>

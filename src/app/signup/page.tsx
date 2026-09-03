@@ -162,6 +162,14 @@ export default function SignupPage() {
           localStorage.setItem('fh_pending_card', JSON.stringify({ uid: data.user.id, dataUrl, ext }));
         } catch { /* 임시 저장 실패는 무시 (로그인 후 프로필에서 재업로드 가능) */ }
       }
+      // 파트너 사업자등록증도 임시 보관 → 첫 로그인 시 자동 업로드(유실 방지)
+      if (role === 'seller' && bizFile && data.user?.id) {
+        try {
+          const dataUrl = await fileToStoredDataUrl(bizFile);
+          const ext = (bizFile.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+          localStorage.setItem('fh_pending_biz', JSON.stringify({ uid: data.user.id, dataUrl, ext, name: bizFile.name }));
+        } catch { /* 임시 저장 실패는 무시 (로그인 후 서류 페이지에서 재업로드 가능) */ }
+      }
       setLoading(false);
       setNeedConfirm(true);
       return;

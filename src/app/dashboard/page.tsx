@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
-import { fetchDeadlineSoon, fetchMyApplications, fetchMyDocumentSlots, fetchMyProfile, fetchMySales, countVerified } from '@/lib/supabase/queries';
+import { fetchDeadlineSoon, fetchMyApplications, fetchMyDocumentSlots, fetchMyProfile, fetchMySales, countVerified, flushPendingBizDoc } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, requiredDocsVerified } from '@/lib/types';
 import type { EventRow, ApplicationWithRelations, Profile, SaleWithEvent, DocumentSlot } from '@/lib/types';
 
@@ -27,6 +27,8 @@ export default function DashboardPage() {
         const p = await fetchMyProfile();
         if (!cancelled) setProfile(p);
         if (p) {
+          // 가입 시 임시 보관한 사업자등록증을 첫 로그인에 업로드(유실 방지 · 이메일 인증 ON 대응)
+          if (p.role === 'seller') await flushPendingBizDoc(p.id).catch(() => null);
           const [events, apps, s, docs] = await Promise.all([
             fetchDeadlineSoon(4),
             fetchMyApplications(p.id).catch(() => []),
