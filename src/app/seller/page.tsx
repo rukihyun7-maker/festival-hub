@@ -829,6 +829,8 @@ function StoreTab({
   const [share, setShare] = useState<ShareFlags>(profile?.share_flags ?? {});
   const [bannerPhoto, setBannerPhoto] = useState<string | null>(profile?.banner_photo_url ?? null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  // v47: 현수막 규격 3칸(가로/세로/높이 mm)
+  const [bannerDims, setBannerDims] = useState(() => parseBannerDims(profile?.banner));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -836,6 +838,7 @@ function StoreTab({
     setF(fromProfile(profile));
     setShare(profile?.share_flags ?? {});
     setBannerPhoto(profile?.banner_photo_url ?? null);
+    setBannerDims(parseBannerDims(profile?.banner));
   }, [profile]);
 
   async function handleBannerPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -874,7 +877,7 @@ function StoreTab({
         crew: f.crew || null,
         sns: f.sns || null,
         intro: f.intro || null,
-        banner: f.banner || null,
+        banner: composeBannerDims(bannerDims.w, bannerDims.h, bannerDims.d) || null,
         banner_photo_url: bannerPhoto,
         share_flags: share,
       });
@@ -919,23 +922,47 @@ function StoreTab({
         />
       ))}
 
-      {/* 현수막 위치 사진 */}
+      {/* 현수막 규격 (가로·세로·높이 mm) + 위치 사진 */}
       <div className="py-3 border-b border-line-faint">
-        <div className="text-[12px] font-semibold text-ink-soft mb-1.5">현수막 위치 사진 <span className="text-text-tertiary font-normal ml-1">· 선택</span></div>
-        <div className="flex items-center gap-3">
-          {bannerPhoto ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={bannerPhoto} alt="현수막 위치" className="w-20 h-20 rounded-input object-cover border border-line-faint" />
-          ) : (
-            <div className="w-20 h-20 rounded-input bg-muted flex items-center justify-center text-[11px] text-text-tertiary text-center">사진<br/>없음</div>
-          )}
-          <div className="flex flex-col gap-1.5">
-            <label className={`btn-secondary text-[12px] cursor-pointer inline-flex ${photoUploading ? 'opacity-60 pointer-events-none' : ''}`}>
-              {photoUploading ? '업로드 중…' : bannerPhoto ? '사진 변경' : '사진 첨부'}
-              <input type="file" accept="image/*" className="hidden" onChange={handleBannerPhoto} disabled={photoUploading} />
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[13px] font-semibold text-ink-soft">현수막 규격 <span className="text-text-tertiary font-normal ml-1">· 선택 (부착 가능 크기)</span></div>
+          <ShareToggle on={share['banner'] !== false} onClick={() => toggleShare('banner')} />
+        </div>
+        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+          {([['w', '가로'], ['h', '세로'], ['d', '높이']] as const).map(([k, label]) => (
+            <label key={k} className="flex flex-col gap-1">
+              <span className="text-[12px] font-semibold text-ink-soft">{label}</span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number" min={0} inputMode="numeric"
+                  value={bannerDims[k]}
+                  onChange={(e) => setBannerDims((p) => ({ ...p, [k]: e.target.value }))}
+                  className="input" placeholder="0000" style={{ minWidth: 0 }}
+                />
+                <span className="text-[13px] font-semibold text-text-tertiary shrink-0">mm</span>
+              </div>
             </label>
-            {bannerPhoto && <button type="button" onClick={() => setBannerPhoto(null)} className="text-[11px] text-danger hover:underline text-left">사진 제거</button>}
-            <span className="text-[11px] text-text-tertiary">현수막을 걸 수 있는 위치를 촬영해 첨부하면 주최가 배치를 판단하기 쉽습니다.</span>
+          ))}
+        </div>
+
+        {/* 위치 사진 · 규격 입력 바로 밑 */}
+        <div className="mt-3">
+          <div className="text-[13px] font-semibold text-ink-soft mb-1.5">현수막 위치 사진 <span className="text-text-tertiary font-normal ml-1">· 선택</span></div>
+          <div className="flex items-center gap-3">
+            {bannerPhoto ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={bannerPhoto} alt="현수막 위치" className="w-20 h-20 rounded-input object-cover border border-line-faint" />
+            ) : (
+              <div className="w-20 h-20 rounded-input bg-muted flex items-center justify-center text-[12px] text-text-tertiary text-center">사진<br/>없음</div>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <label className={`btn-secondary text-[13px] cursor-pointer inline-flex ${photoUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                {photoUploading ? '업로드 중…' : bannerPhoto ? '사진 변경' : '사진 첨부'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleBannerPhoto} disabled={photoUploading} />
+              </label>
+              {bannerPhoto && <button type="button" onClick={() => setBannerPhoto(null)} className="text-[12px] text-danger hover:underline text-left">사진 제거</button>}
+              <span className="text-[12px] text-text-tertiary">현수막을 걸 수 있는 위치를 촬영해 첨부하면 주최가 배치를 판단하기 쉽습니다.</span>
+            </div>
           </div>
         </div>
       </div>
@@ -968,7 +995,6 @@ const STORE_SHAREABLE: { key: string; label: string; field: keyof StoreFields; p
   { key: 'power', label: '전기 사용량', field: 'power', placeholder: '예: 3kW', required: true },
   { key: 'cooking', label: '조리 설비', field: 'cooking', placeholder: '예: 가스 2구 · 튀김기', required: true },
   { key: 'hygiene_gear', label: '위생 관리', field: 'hygiene_gear', placeholder: '예: 마스크·모자·장갑 착용', required: true },
-  { key: 'banner', label: '현수막', field: 'banner', placeholder: '예: 부착 가능 · 가로 3m × 세로 1m × 높이 0.5m (거치대 지참)' },
   { key: 'crew', label: '운영 인원', field: 'crew', placeholder: '예: 2명 (주말 3명)' },
   { key: 'sns', label: 'SNS', field: 'sns', placeholder: '예: @minji_bunsik' },
   { key: 'intro', label: '매장 소개', field: 'intro', placeholder: '어떤 매장인지 짧게 소개해주세요' },
@@ -1010,6 +1036,38 @@ function StoreField({
       )}
     </div>
   );
+}
+
+/** 공개/비공개 토글 배지 (StoreField와 동일 스타일) */
+function ShareToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`badge ${on ? 'badge-success' : ''}`}
+      style={!on ? { background: 'var(--bg-muted)', color: 'var(--text-tertiary)' } : undefined}
+    >
+      {on ? '공개' : '비공개'}
+    </button>
+  );
+}
+
+/** 현수막 규격 문자열 ↔ 3칸(가로/세로/높이 mm) */
+function parseBannerDims(s: string | null | undefined): { w: string; h: string; d: string } {
+  const t = s ?? '';
+  const grab = (re: RegExp) => { const m = t.match(re); return m ? m[1].replace(/,/g, '') : ''; };
+  return {
+    w: grab(/가로\s*([\d,]+)\s*mm/),
+    h: grab(/세로\s*([\d,]+)\s*mm/),
+    d: grab(/높이\s*([\d,]+)\s*mm/),
+  };
+}
+function composeBannerDims(w: string, h: string, d: string): string {
+  const parts: string[] = [];
+  if (w.trim()) parts.push(`가로 ${w.trim()}mm`);
+  if (h.trim()) parts.push(`세로 ${h.trim()}mm`);
+  if (d.trim()) parts.push(`높이 ${d.trim()}mm`);
+  return parts.join(' · ');
 }
 
 /** 받은 주최사 평가 (v33 · 닉네임·태그·개선점 본인만) */

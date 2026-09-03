@@ -72,15 +72,6 @@ export default function Home() {
             imagePos="right center"
             cta={{ label: '주최로 시작하기 →', href: '/signup' }}
           />
-          <RoleCard
-            mark="운"
-            title="플랫폼 운영"
-            desc="서비스 관리자 전용"
-            points={['필수 서류 5종 검증', '행사·사용자 관제', '전체 인사이트 지표']}
-            image="/hero/card-admin.png"
-            imagePos="center"
-            cta={{ label: '시스템 둘러보기 →', href: '/tour' }}
-          />
         </div>
       </section>
 

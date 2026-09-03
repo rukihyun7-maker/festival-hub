@@ -155,7 +155,7 @@ export default function DashboardPage() {
               서류·부스 사진 검증 = 신청 자동 첨부
             </div>
             <div className="text-[13px] text-text-secondary leading-relaxed mb-4">
-              검증된 파트너만 주최에게 우선 노출됩니다. 한 번 등록하면 행사마다 자동으로 붙습니다.
+              검증된 파트너만 주최에게 우선 노출됩니다. 한 번 등록하면 신청할 때 행사마다 자동 첨부됩니다.
             </div>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-2 rounded-pill overflow-hidden" style={{ background: 'var(--bg-muted, #F0ECE1)' }}>

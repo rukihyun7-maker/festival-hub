@@ -25,7 +25,7 @@ export default function SimulatorPage() {
   const [docReady, setDocReady] = useState(true); // 서류 80% 이상 → 등록 행사 선택 가능
   const [docPct, setDocPct] = useState(100);
 
-  const [days, setDays] = useState(3);
+  const [days, setDays] = useState(1);
   const [avgOrder, setAvgOrder] = useState(7500);
   const [ordersPerDay, setOrdersPerDay] = useState(120);
   const [materialRate, setMaterialRate] = useState(35);
