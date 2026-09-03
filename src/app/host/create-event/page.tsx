@@ -63,6 +63,7 @@ export default function CreateEventPage() {
         contact: v.contact.trim() || null,
         phone: v.phone.trim() || null,
         contact_public: v.contact_public,
+        contact_hidden: v.contact_hidden,
         status: v.status,
         settlement_cycle: v.settlement_cycle.trim() || null,
         settlement_method: v.settlement_method.trim() || null,

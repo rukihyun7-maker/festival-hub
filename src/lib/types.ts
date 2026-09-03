@@ -203,6 +203,7 @@ export interface EventRow {
   contact: string | null;
   phone: string | null;
   contact_public?: boolean; // v32: 문의자(담당자·연락처) 공개 여부 (false=승인 후 공개)
+  contact_hidden?: boolean;  // v47: 담당자·연락처 완전 비공개 (승인돼도 노출 안 함 · 소통은 플랫폼)
   status: EventStatus;
   kind?: EventType;        // v3: 신청형(apply)/정보형(info) · DB 기본 apply
   source?: string | null;  // v3: 정보형 출처 (공공 API 등)
@@ -214,6 +215,7 @@ export interface EventRow {
   payment_method?: string | null;   // v12: 결제 방식 (등록값, 신청형만)
   vat_included?: boolean;            // v46: 참가비 부가세 포함 여부 (기본 false=별도)
   view_count?: number;              // v46: 누적 조회수
+  fav_boost?: number;               // v47: 관심(찜) 표시 가산치 (관리자 수기)
   site_details?: SiteDetails | null; // v24: 푸드트럭 현장 인프라 상세 (jsonb)
   recruit_slots?: RecruitSlot[];     // v38: 부문별 모집 [{type,count}]
   required_docs?: EventRequiredDocs; // v39: 행사별 필수서류 {standard, extra}

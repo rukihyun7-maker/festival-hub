@@ -7,6 +7,7 @@ import {
   deleteEvent,
   fetchAllEventsAdmin,
   fetchMyProfile,
+  updateEvent,
   updateEventStatus,
   fetchPendingEvents,
   approveEvent,
@@ -110,6 +111,19 @@ export default function AdminEventsPage() {
       setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
     } catch (e) {
       alert('변경 실패: ' + (e as Error).message);
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function saveMetrics(id: string, view_count: number, fav_boost: number) {
+    setActionId(id);
+    try {
+      await updateEvent(id, { view_count, fav_boost });
+      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, view_count, fav_boost } : e)));
+    } catch (e) {
+      alert('지표 저장 실패: ' + (e as Error).message);
+      throw e;
     } finally {
       setActionId(null);
     }
@@ -294,6 +308,7 @@ export default function AdminEventsPage() {
                       참가비 {feeLabel(e.fee, e.fee_rate)} · 등록 {new Date(e.created_at).toLocaleDateString('ko-KR')}
                       {e.contact && ` · ${e.contact}`}
                     </div>
+                    <MetricsEditor event={e} saving={actionId === e.id} onSave={saveMetrics} />
                   </div>
 
                   <div className="flex flex-wrap gap-2 shrink-0">
@@ -450,6 +465,41 @@ function PendingCard({
         <Link href={`/host/events/${e.id}/edit`} className="btn-secondary text-center px-4">수정</Link>
         <button onClick={() => onReject(e.id)} disabled={actionId === e.id} className="btn-secondary flex-1">반려</button>
       </div>
+    </div>
+  );
+}
+
+/** 관리자 지표 편집 · 조회수(절대값) + 관심 가산치(fav_boost) */
+function MetricsEditor({ event: e, saving, onSave }: { event: EventRow; saving: boolean; onSave: (id: string, view: number, boost: number) => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState(String(e.view_count ?? 0));
+  const [boost, setBoost] = useState(String(e.fav_boost ?? 0));
+
+  if (!open) {
+    return (
+      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-text-tertiary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <span>👁 조회 <b className="text-ink-soft">{(e.view_count ?? 0).toLocaleString()}</b></span>
+        <span>★ 관심 가산 <b className="text-ink-soft">{(e.fav_boost ?? 0) > 0 ? `+${e.fav_boost}` : (e.fav_boost ?? 0)}</b></span>
+        <button onClick={() => { setView(String(e.view_count ?? 0)); setBoost(String(e.fav_boost ?? 0)); setOpen(true); }} className="text-info font-bold hover:underline">지표 수정</button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-end gap-2 mt-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+      <label className="flex flex-col gap-0.5">
+        <span className="text-[10px] font-bold text-text-tertiary">조회수</span>
+        <input type="number" min={0} value={view} onChange={(ev) => setView(ev.target.value)} className="input py-1.5 text-[12px]" style={{ width: 92 }} />
+      </label>
+      <label className="flex flex-col gap-0.5">
+        <span className="text-[10px] font-bold text-text-tertiary">관심 가산(+)</span>
+        <input type="number" value={boost} onChange={(ev) => setBoost(ev.target.value)} className="input py-1.5 text-[12px]" style={{ width: 92 }} />
+      </label>
+      <button
+        disabled={saving}
+        onClick={async () => { try { await onSave(e.id, Math.max(0, Number(view) || 0), Number(boost) || 0); setOpen(false); } catch { /* 유지 */ } }}
+        className="btn-primary text-[12px] py-1.5 px-3">{saving ? '저장 중…' : '저장'}</button>
+      <button onClick={() => setOpen(false)} className="btn-secondary text-[12px] py-1.5 px-3">취소</button>
+      <span className="text-[10px] text-text-tertiary basis-full">관심 가산은 실제 찜 수에 더해 표시됩니다 (실제 찜 + 가산). 초기 활성감 세팅용.</span>
     </div>
   );
 }

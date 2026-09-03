@@ -454,7 +454,15 @@ export default function EventDetailPage() {
               );
             })()}
 
-            {eventContact && (eventContact.contact || eventContact.phone) ? (
+            {event.contact_hidden && isSeller ? (
+              <div className="card">
+                <div className="t-section mb-4">문의</div>
+                <LockedBox
+                  title="담당자 정보 비공개"
+                  desc={<>이 행사는 담당자·연락처를 공개하지 않습니다. 문의·소통은 플랫폼 신청으로 진행해 주세요.</>}
+                />
+              </div>
+            ) : !event.contact_hidden && eventContact && (eventContact.contact || eventContact.phone) ? (
               <div className="card">
                 <div className="t-section mb-4">문의</div>
                 <div className="grid gap-3">
@@ -462,7 +470,7 @@ export default function EventDetailPage() {
                   {eventContact.phone && <InfoRow label="연락처" value={eventContact.phone} />}
                 </div>
               </div>
-            ) : t === 'apply' && isSeller ? (
+            ) : !event.contact_hidden && t === 'apply' && isSeller ? (
               <div className="card">
                 <div className="t-section mb-4">문의</div>
                 <LockedBox
