@@ -2,7 +2,8 @@
 // DSN이 없으면 자동 비활성(no-op) → 로컬/미설정 환경에서도 안전.
 import * as Sentry from '@sentry/nextjs';
 
-const DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
+const DSN = process.env.NEXT_PUBLIC_SENTRY_DSN
+  || 'https://be6d0daa6470b4a4e1eb3f260ee6b9e0@o4512021569994752.ingest.us.sentry.io/4512021589262336';
 
 Sentry.init({
   dsn: DSN,
