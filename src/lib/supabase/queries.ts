@@ -534,6 +534,8 @@ export async function upsertDocument(input: {
   kind: DocKind;
   file_name?: string | null;
   file_url?: string | null;
+  file_name_back?: string | null; // v48: 뒷면
+  file_url_back?: string | null;
   expires_at?: string | null;
   memo?: string | null;
 }): Promise<DocumentRow> {
@@ -546,6 +548,8 @@ export async function upsertDocument(input: {
         kind: input.kind,
         file_name: input.file_name ?? null,
         file_url: input.file_url ?? null,
+        file_name_back: input.file_name_back ?? null,
+        file_url_back: input.file_url_back ?? null,
         expires_at: input.expires_at ?? null,
         memo: input.memo ?? null,
         status: 'pending',

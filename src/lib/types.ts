@@ -374,6 +374,8 @@ export interface DocumentRow {
   kind: DocKind;
   file_url: string | null;
   file_name: string | null;
+  file_url_back?: string | null;   // v48: 뒷면 파일 (식품위생업 신고증 등 2면)
+  file_name_back?: string | null;  // v48: 뒷면 원본 파일명
   status: DocStatus;
   expires_at: string | null;
   reviewed_by: string | null;
@@ -394,7 +396,7 @@ export interface DocumentSlot {
 
 export const DOC_META: Record<DocKind, { label: string; desc: string; requiresExpiry: boolean }> = {
   business_reg: { label: '사업자등록증', desc: '세무서 발급 · 만료 없음', requiresExpiry: false },
-  food_hygiene: { label: '식품위생업 신고증', desc: '보건소 발급 · 만료 없음', requiresExpiry: false },
+  food_hygiene: { label: '식품위생업 신고증', desc: '보건소 발급 · 앞면·뒷면 첨부', requiresExpiry: false },
   insurance:    { label: '영업배상책임보험', desc: '보험사 증권 · 만료일 필수', requiresExpiry: true },
   hygiene_edu:  { label: '위생교육 이수증', desc: '연 1회 갱신 · 만료일 필수', requiresExpiry: true },
   booth_exterior: { label: '부스·트럭 외부 사진', desc: '전체 외관 1컷 · 관리자·주최 확인용', requiresExpiry: false },
@@ -403,6 +405,9 @@ export const DOC_META: Record<DocKind, { label: string; desc: string; requiresEx
 };
 
 export const DOC_KINDS: DocKind[] = ['business_reg', 'food_hygiene', 'insurance', 'hygiene_edu', 'booth_exterior', 'booth_interior', 'booth_storage'];
+
+/** v48: 앞면·뒷면 2면 첨부가 필요한 서류 (둘 다 필수) */
+export const TWO_SIDED_DOC_KINDS: DocKind[] = ['food_hygiene'];
 
 // ============================================
 // 신청 자격 기준 (80% 대체) · 명시적 필수 항목

@@ -178,7 +178,7 @@ export default function AppNav({ role = 'seller' as Role }) {
                   key={m.href}
                   href={m.href}
                   ref={active ? activeRef : undefined}
-                  className={`px-3 py-2 rounded-[8px] text-[14px] font-semibold whitespace-nowrap transition-colors ${
+                  className={`px-3.5 py-2 rounded-[8px] text-[15px] font-bold whitespace-nowrap transition-colors ${
                     active ? 'bg-muted text-ink' : 'text-text-secondary hover:text-ink hover:bg-surface-sunken'
                   }`}
                 >
@@ -252,7 +252,7 @@ export default function AppNav({ role = 'seller' as Role }) {
               <div className="w-8 h-8 rounded-pill bg-accent flex items-center justify-center text-ink font-extrabold text-[13px]">
                 {ROLE_LETTER[effectiveRole]}
               </div>
-              <span className="text-[13px] font-bold text-ink hidden sm:inline">{ROLE_LABEL[effectiveRole]}</span>
+              <span className="text-[14px] font-bold text-ink hidden sm:inline">{ROLE_LABEL[effectiveRole]}</span>
             </button>
             {profileOpen && (
               <div className="absolute right-0 top-12 w-[240px] bg-surface border border-line rounded-card shadow-dropdown animate-fh-up p-2 z-50">
@@ -320,7 +320,7 @@ function BottomNav({ role, pathname, unread }: { role: Role; pathname: string; u
             style={{ color: active ? 'var(--ink)' : 'var(--text-tertiary)' }}
           >
             <TabIcon name={t.icon} active={active} />
-            <span className="text-[10.5px] font-bold">{t.label}</span>
+            <span className="text-[11.5px] font-bold">{t.label}</span>
             {t.icon === 'inbox' && unread > 0 && (
               <span className="absolute top-1.5 right-[26%] w-1.5 h-1.5 rounded-full bg-danger" />
             )}
@@ -382,7 +382,7 @@ function MenuItem({ href, children }: { href: string; children: React.ReactNode 
   return (
     <Link
       href={href}
-      className="block px-3 py-2 rounded-[8px] text-[13px] font-semibold text-ink hover:bg-surface-sunken transition-colors"
+      className="block px-3 py-2 rounded-[8px] text-[14px] font-semibold text-ink hover:bg-surface-sunken transition-colors"
     >
       {children}
     </Link>

@@ -13,7 +13,7 @@ import {
   upsertDocument,
   uploadDocumentFile,
 } from '@/lib/supabase/queries';
-import { REQUIRED_DOC_KINDS } from '@/lib/types';
+import { REQUIRED_DOC_KINDS, TWO_SIDED_DOC_KINDS } from '@/lib/types';
 import type { DocKind, DocumentSlot, Profile } from '@/lib/types';
 
 /**
@@ -189,6 +189,8 @@ function DocCard({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedBackFile, setSelectedBackFile] = useState<File | null>(null); // v48: 뒷면
+  const twoSided = TWO_SIDED_DOC_KINDS.includes(slot.kind);
   const [expiresAt, setExpiresAt] = useState(slot.doc?.expires_at ?? '');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -222,22 +224,33 @@ function DocCard({
     try {
       let filePath = slot.doc?.file_url ?? null;
       let fileName = slot.doc?.file_name ?? null;
+      let backPath = slot.doc?.file_url_back ?? null;
+      let backName = slot.doc?.file_name_back ?? null;
 
       // 새 파일 선택 시 업로드 후 기존 파일 정리
       if (selectedFile) {
         setUploading(true);
         const newPath = await uploadDocumentFile(sellerId, slot.kind, selectedFile);
         setUploading(false);
-        // 기존 파일 있으면 정리
-        if (filePath) {
-          await removeDocumentFile(filePath).catch(() => {});
-        }
+        if (filePath) await removeDocumentFile(filePath).catch(() => {});
         filePath = newPath;
         fileName = selectedFile.name;
       }
+      // v48: 뒷면 업로드 (2면 서류)
+      if (twoSided && selectedBackFile) {
+        setUploading(true);
+        const newBack = await uploadDocumentFile(sellerId, slot.kind, selectedBackFile);
+        setUploading(false);
+        if (backPath) await removeDocumentFile(backPath).catch(() => {});
+        backPath = newBack;
+        backName = selectedBackFile.name;
+      }
 
-      if (!filePath && !slot.doc) {
-        throw new Error('파일을 선택해주세요');
+      if (!filePath) {
+        throw new Error(twoSided ? '앞면 파일을 선택해주세요' : '파일을 선택해주세요');
+      }
+      if (twoSided && !backPath) {
+        throw new Error('뒷면 파일을 선택해주세요 (앞면·뒷면 모두 필수)');
       }
 
       await upsertDocument({
@@ -245,9 +258,12 @@ function DocCard({
         kind: slot.kind,
         file_url: filePath,
         file_name: fileName,
+        file_url_back: twoSided ? backPath : null,
+        file_name_back: twoSided ? backName : null,
         expires_at: slot.requiresExpiry ? (expiresAt || null) : null,
       });
       setSelectedFile(null);
+      setSelectedBackFile(null);
       await onSaved();
     } catch (e) {
       setUploadError((e as Error).message);
@@ -257,11 +273,12 @@ function DocCard({
     }
   }
 
-  async function handleOpenFile() {
-    if (!slot.doc?.file_url) return;
+  async function handleOpenFile(path?: string | null) {
+    const target = path ?? slot.doc?.file_url;
+    if (!target) return;
     setOpeningFile(true);
     try {
-      const url = await getSignedDocumentUrl(slot.doc.file_url, 3600);
+      const url = await getSignedDocumentUrl(target, 3600);
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch (e) {
       alert('파일 열기 실패: ' + (e as Error).message);
@@ -314,16 +331,31 @@ function DocCard({
 
       {expanded && (
         <div className="border-t border-line-faint p-5 bg-surface-sunken">
-          {/* 현재 파일 다운로드 */}
+          {/* 현재 파일 다운로드 (앞면 · 2면 서류는 뒷면도) */}
           {slot.doc?.file_url && (
             <div className="mb-4 p-3 rounded-input bg-surface border border-line flex items-center gap-3">
               <span className="text-[13px] font-semibold text-ink flex-1 truncate">
-                📎 {slot.doc.file_name ?? '파일'}
+                📎 {twoSided ? '앞면 · ' : ''}{slot.doc.file_name ?? '파일'}
               </span>
               <button
-                onClick={handleOpenFile}
+                onClick={() => handleOpenFile()}
                 disabled={openingFile}
-                className="text-[12px] font-semibold text-accent-warm hover:text-accent-deep shrink-0"
+                className="text-[13px] font-semibold text-accent-warm hover:text-accent-deep shrink-0"
+              >
+                {openingFile ? '여는 중…' : '📥 다운로드'}
+              </button>
+            </div>
+          )}
+          {/* 뒷면 다운로드 (2면 서류) */}
+          {twoSided && slot.doc?.file_url_back && (
+            <div className="mb-4 p-3 rounded-input bg-surface border border-line flex items-center gap-3">
+              <span className="text-[13px] font-semibold text-ink flex-1 truncate">
+                📎 뒷면 · {slot.doc.file_name_back ?? '파일'}
+              </span>
+              <button
+                onClick={() => handleOpenFile(slot.doc?.file_url_back)}
+                disabled={openingFile}
+                className="text-[13px] font-semibold text-accent-warm hover:text-accent-deep shrink-0"
               >
                 {openingFile ? '여는 중…' : '📥 다운로드'}
               </button>
@@ -331,10 +363,10 @@ function DocCard({
           )}
 
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-            {/* 파일 선택 */}
+            {/* 파일 선택 (앞면) */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold text-ink-soft">
-                {slot.doc ? '파일 교체 (선택)' : '파일 선택 *'}
+              <span className="text-[13px] font-semibold text-ink-soft">
+                {twoSided ? (slot.doc?.file_url ? '앞면 (교체 선택)' : '앞면 *') : (slot.doc ? '파일 교체 (선택)' : '파일 선택 *')}
               </span>
               <input
                 ref={fileInputRef}
@@ -344,12 +376,33 @@ function DocCard({
                 className="text-[13px] file:mr-3 file:px-3 file:py-2 file:rounded-[8px] file:border-0 file:bg-ink file:text-white file:font-bold file:cursor-pointer file:hover:bg-ink-soft"
               />
               {selectedFile && (
-                <span className="text-[11px] text-success">
+                <span className="text-[12px] text-success">
                   ✓ {selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)}KB)
                 </span>
               )}
-              <span className="text-[11px] text-text-tertiary">PDF · JPG · PNG · 10MB 이하</span>
+              <span className="text-[12px] text-text-tertiary">PDF · JPG · PNG · 10MB 이하</span>
             </div>
+
+            {/* 파일 선택 (뒷면) · 2면 서류만 */}
+            {twoSided && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-semibold text-ink-soft">
+                  {slot.doc?.file_url_back ? '뒷면 (교체 선택)' : '뒷면 *'}
+                </span>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setSelectedBackFile(e.target.files?.[0] ?? null)}
+                  className="text-[13px] file:mr-3 file:px-3 file:py-2 file:rounded-[8px] file:border-0 file:bg-ink file:text-white file:font-bold file:cursor-pointer file:hover:bg-ink-soft"
+                />
+                {selectedBackFile && (
+                  <span className="text-[12px] text-success">
+                    ✓ {selectedBackFile.name} ({(selectedBackFile.size / 1024).toFixed(0)}KB)
+                  </span>
+                )}
+                <span className="text-[12px] text-text-tertiary">앞면·뒷면 모두 첨부해야 등록됩니다</span>
+              </div>
+            )}
 
             {/* 만료일 */}
             {slot.requiresExpiry && (
@@ -382,7 +435,10 @@ function DocCard({
             <button onClick={onToggle} className="btn-secondary text-[13px] py-2 px-3">취소</button>
             <button
               onClick={handleSave}
-              disabled={saving || (!slot.doc && !selectedFile) || (slot.requiresExpiry && !expiresAt)}
+              disabled={saving
+                || !(slot.doc?.file_url || selectedFile)
+                || (twoSided && !(slot.doc?.file_url_back || selectedBackFile))
+                || (slot.requiresExpiry && !expiresAt)}
               className="btn-primary text-[13px] py-2 px-3"
             >
               {uploading ? '업로드 중…' : saving ? '저장 중…' : slot.doc ? '수정 저장' : '등록'}
