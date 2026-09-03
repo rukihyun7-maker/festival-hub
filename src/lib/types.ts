@@ -147,6 +147,24 @@ export interface NotifPrefs {
   new_event: boolean;
 }
 
+/** v49: 현수막 위치별 등록 (위치명 + 규격 mm + 사진) */
+export interface BannerSpec {
+  label?: string;   // 위치명 (예: 정면 게이트, 부스 상단)
+  w?: string;       // 가로 mm
+  h?: string;       // 세로 mm
+  d?: string;       // 높이 mm
+  photo_url?: string | null; // 위치 사진
+}
+/** 현수막 규격 요약 문자열 (하위호환 banner 텍스트용 · 주최 표시) */
+export function bannerSummary(banners: BannerSpec[] | null | undefined): string {
+  const list = (banners ?? []).filter((b) => (b.label || b.w || b.h || b.d));
+  if (list.length === 0) return '';
+  return list.map((b) => {
+    const dims = [b.w && `가로 ${b.w}mm`, b.h && `세로 ${b.h}mm`, b.d && `높이 ${b.d}mm`].filter(Boolean).join(' · ');
+    return [b.label, dims].filter(Boolean).join(' — ');
+  }).join(' / ');
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -167,8 +185,9 @@ export interface Profile {
   cooking?: string | null;      // v10: 조리 설비
   crew?: string | null;         // v10: 운영 인원
   sns?: string | null;          // v10: SNS
-  banner?: string | null;           // v37: 현수막 부착 가능·규격(가로/세로/높이)
-  banner_photo_url?: string | null; // v37: 현수막 위치 사진 URL
+  banner?: string | null;           // v37: 현수막 요약(하위호환) · v49 banners에서 파생
+  banner_photo_url?: string | null; // v37: 대표 현수막 위치 사진(하위호환)
+  banners?: BannerSpec[];           // v49: 현수막 위치별 다중 등록
   share_flags: ShareFlags;      // v3: 주최사 공개 설정
   notif_prefs: NotifPrefs;      // v3: 알림 설정
   status?: SellerStatus;        // v8: 가입 심사 상태 (없으면 '정상')

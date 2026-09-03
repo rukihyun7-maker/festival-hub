@@ -298,6 +298,21 @@ function ApplicantCard({
                   {seller?.crew && <DetailRow label="운영 인원" value={seller.crew} />}
                   {seller?.sns && <DetailRow label="SNS" value={seller.sns} />}
                 </div>
+                {/* v49: 현수막 위치별 사진 */}
+                {(seller?.banners?.some((b) => b.photo_url)) && (
+                  <div className="mt-3">
+                    <div className="text-[11px] font-bold text-text-tertiary mb-1.5">현수막 위치 사진</div>
+                    <div className="flex flex-wrap gap-2">
+                      {seller!.banners!.filter((b) => b.photo_url).map((b, i) => (
+                        <div key={i} className="text-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={b.photo_url!} alt={b.label ?? '현수막'} className="w-20 h-20 rounded-input object-cover border border-line-faint" />
+                          {b.label && <div className="text-[10px] text-text-tertiary mt-0.5 max-w-[80px] truncate mx-auto">{b.label}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {seller?.intro && <div className="text-[12px] text-text-secondary mt-2 leading-relaxed">{seller.intro}</div>}
               </div>
 
