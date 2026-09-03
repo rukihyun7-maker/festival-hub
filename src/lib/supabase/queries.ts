@@ -1673,6 +1673,35 @@ export async function setFavoriteNotify(id: string, notify: boolean): Promise<vo
 }
 
 // ============================================
+// v46 · 조회수 / 찜 수 (주최 대시보드 · 상세 소셜 프루프)
+// ============================================
+
+/** 행사 조회수 +1 (RPC · 상세 진입 시 · 실패해도 무시) */
+export async function incrementEventView(eventId: string): Promise<void> {
+  const supabase = createClient();
+  try { await supabase.rpc('increment_event_view', { p_event_id: eventId }); } catch { /* 조회수 실패 무시 */ }
+}
+
+/** 행사별 찜(관심) 수 (RPC · 집계만 공개) */
+export async function fetchEventFavoriteCount(eventId: string): Promise<number> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc('event_favorite_count', { p_event_id: eventId });
+  if (error) throw error;
+  return (data as number) ?? 0;
+}
+
+/** 여러 행사의 찜 수 일괄 조회 (RPC · 주최 대시보드) · {eventId: count} */
+export async function fetchEventFavoriteCounts(eventIds: string[]): Promise<Record<string, number>> {
+  if (eventIds.length === 0) return {};
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc('event_favorite_counts', { p_event_ids: eventIds });
+  if (error) throw error;
+  const out: Record<string, number> = {};
+  for (const r of (data ?? []) as { event_id: string; cnt: number }[]) out[r.event_id] = r.cnt;
+  return out;
+}
+
+// ============================================
 // v6 · API sources / Category rules (관리자 운영)
 // ============================================
 

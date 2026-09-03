@@ -9,8 +9,10 @@ import {
   fetchMyProfile,
   flushPendingBusinessCard,
   uploadBusinessCard,
+  fetchEventFavoriteCounts,
+  fetchEvents,
 } from '@/lib/supabase/queries';
-import { deadlineLabel, periodLabel, daysUntil, wonCompact } from '@/lib/types';
+import { deadlineLabel, periodLabel, daysUntil, wonCompact, eventType } from '@/lib/types';
 import type { ApplicationWithRelations, EventRow, Profile } from '@/lib/types';
 
 /**
@@ -23,6 +25,8 @@ export default function HostDashboardPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [applications, setApplications] = useState<ApplicationWithRelations[]>([]);
+  const [favCounts, setFavCounts] = useState<Record<string, number>>({});
+  const [allEvents, setAllEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingApps, setLoadingApps] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +45,10 @@ export default function HostDashboardPage() {
           const list = await fetchMyHostEvents(p.id);
           setEvents(list);
           if (list.length > 0) setSelectedEventId(list[0].id);
+          // v46: 내 행사들 찜 수 일괄 조회 (실패 무시)
+          try { setFavCounts(await fetchEventFavoriteCounts(list.map((e) => e.id))); } catch { /* 무시 */ }
+          // v46: 전국 행사 현황 (대시보드 활성화 지표 · 실패 무시)
+          try { setAllEvents(await fetchEvents({})); } catch { /* 무시 */ }
         }
       } catch (e) {
         setError((e as Error).message);
@@ -85,6 +93,29 @@ export default function HostDashboardPage() {
   const dday = selectedEvent ? daysUntil(selectedEvent.start_date) : null;
   const expectedRevenue = selectedEvent ? selectedEvent.fee * days * approvedCount : 0;
   const platformFee = Math.round(expectedRevenue * 0.05);
+
+  // v46: 전국 플랫폼 현황 (대시보드 활성화 지표) + 다가오는 전국 행사
+  const todayStr = useMemo(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }, []);
+  const platformStats = useMemo(() => {
+    const ym = todayStr.slice(0, 7);
+    let total = 0, recruiting = 0, thisMonth = 0, festival = 0;
+    for (const e of allEvents) {
+      if (e.status === 'canceled') continue;
+      total++;
+      const t = e.kind ?? eventType(e);
+      const notEnded = !e.end_date || e.end_date >= todayStr;
+      if (t === 'apply' && e.status === 'open' && notEnded && (!e.deadline || e.deadline >= todayStr)) recruiting++;
+      if ((e.start_date || '').slice(0, 7) <= ym && (e.end_date || e.start_date || '').slice(0, 7) >= ym) thisMonth++;
+      if (e.category === '축제') festival++;
+    }
+    return { total, recruiting, thisMonth, festival };
+  }, [allEvents, todayStr]);
+  const upcomingEvents = useMemo(() =>
+    allEvents
+      .filter((e) => e.status !== 'canceled' && (e.start_date || '') >= todayStr)
+      .sort((a, b) => (a.start_date ?? '9999').localeCompare(b.start_date ?? '9999'))
+      .slice(0, 6),
+    [allEvents, todayStr]);
 
   if (loading) {
     return (
@@ -154,6 +185,22 @@ export default function HostDashboardPage() {
           <BusinessCardPrompt profile={profile} onDone={(url) => setProfile({ ...profile, business_card_url: url })} />
         </div>
 
+        {/* v46: 전국 플랫폼 현황 — 혼자가 아니라 활발히 운영되는 플랫폼임을 체감 */}
+        {platformStats.total > 0 && (
+          <div className="card mb-4 py-3.5">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="text-[12px] font-bold text-ink">전국 플랫폼 현황</div>
+              <Link href="/calendar" className="text-[12px] font-bold text-info hover:underline shrink-0">전체 행사 달력 →</Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <PlatformTile label="등록 행사" value={platformStats.total.toLocaleString()} accent />
+              <PlatformTile label="모집 중" value={platformStats.recruiting.toLocaleString()} />
+              <PlatformTile label="이번 달 진행" value={platformStats.thisMonth.toLocaleString()} />
+              <PlatformTile label="축제" value={platformStats.festival.toLocaleString()} />
+            </div>
+          </div>
+        )}
+
         {/* 행사 선택 */}
         <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="input mb-3">
           {events.map((e) => (
@@ -176,9 +223,15 @@ export default function HostDashboardPage() {
             <div className="min-w-0">
               <div className="text-[16px] font-extrabold text-ink truncate">{selectedEvent?.name ?? '행사를 선택하세요'}</div>
               {selectedEvent && (
-                <div className="text-[12px] text-text-secondary mt-0.5">
-                  {periodLabel(selectedEvent.start_date, selectedEvent.end_date)} · {days}일간 · {dday !== null && dday > 0 ? `D-${dday}` : dday === 0 ? '오늘' : '종료'}
-                </div>
+                <>
+                  <div className="text-[12px] text-text-secondary mt-0.5">
+                    {periodLabel(selectedEvent.start_date, selectedEvent.end_date)} · {days}일간 · {dday !== null && dday > 0 ? `D-${dday}` : dday === 0 ? '오늘' : '종료'}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 text-[12px] text-text-tertiary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <span>👁 조회 <b className="text-ink-soft">{(selectedEvent.view_count ?? 0).toLocaleString()}</b></span>
+                    <span>★ 관심 <b className="text-ink-soft">{favCounts[selectedEvent.id] ?? 0}</b></span>
+                  </div>
+                </>
               )}
             </div>
             {selectedEvent && (
@@ -253,12 +306,12 @@ export default function HostDashboardPage() {
           </div>
         </div>
 
-        {/* QR 발급 · 정산 요약 */}
+        {/* 입점 확인증 · 정산 요약 */}
         {selectedEvent && (
           <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
             <div className="card">
-              <div className="t-section">입점 확인 QR</div>
-              <div className="t-sub mt-1 mb-4">승인 파트너에게 발급 · 현장 스캔으로 입점 자격 확인 (결제 아님)</div>
+              <div className="t-section">입점 확인증 <span className="text-[12px] font-semibold text-text-tertiary">(현장용)</span></div>
+              <div className="t-sub mt-1 mb-4">승인 파트너에게 발급하는 <b>현장 체크인용 확인증</b>입니다. 현장에서 스캔해 입점 자격만 확인하며, <b>결제·정산과 무관</b>합니다.</div>
               <div className="grid gap-2 text-[13px] mb-4">
                 <div className="flex justify-between p-3 rounded-input bg-surface-sunken">
                   <span className="text-text-secondary">발급 완료 (승인)</span>
@@ -281,13 +334,55 @@ export default function HostDashboardPage() {
                   <span className="font-bold text-ink">정산 예정액</span>
                   <span className="text-[20px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{(expectedRevenue - platformFee).toLocaleString()}</span>
                 </div>
-                <div className="mt-1 text-[11px] text-text-tertiary">행사 종료 후 3영업일 예정</div>
+                {selectedEvent.settlement_method && (
+                  <div className="flex justify-between text-[12px]"><span className="text-text-tertiary">정산 방식</span><span className="font-semibold text-ink">{selectedEvent.settlement_method}</span></div>
+                )}
+                <div className="mt-1 text-[11px] text-text-tertiary">{selectedEvent.settlement_cycle || '행사 종료 후 3영업일'} 예정{selectedEvent.vat_included ? ' · 참가비 부가세 포함' : ' · 참가비 부가세 별도'}</div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* v46: 다가오는 전국 행사 — 일정 잡기 참고 + 플랫폼 활성감 */}
+        {upcomingEvents.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-end justify-between mb-4">
+              <div>
+                <div className="t-section">다가오는 전국 행사</div>
+                <div className="t-sub mt-1">내 행사 일정을 잡을 때 참고하세요 · 전국에서 열리는 행사</div>
+              </div>
+              <Link href="/calendar" className="btn-secondary text-[13px] shrink-0">행사 달력 →</Link>
+            </div>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+              {upcomingEvents.map((e) => {
+                const t = e.kind ?? eventType(e);
+                const dd = daysUntil(e.start_date);
+                return (
+                  <Link key={e.id} href={`/events/${e.id}`} className="card card-hover block p-4">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className={`badge ${t === 'apply' ? 'badge-warning' : 'badge-info'}`}>{t === 'apply' ? '모집' : (e.category || '정보')}</span>
+                      <span className="text-[11px] font-bold text-text-tertiary">{e.region}</span>
+                      {dd !== null && dd >= 0 && <span className="text-[11px] font-extrabold text-accent-warm ml-auto">{dd === 0 ? '오늘' : `D-${dd}`}</span>}
+                    </div>
+                    <div className="text-[14px] font-bold text-ink line-clamp-1 mb-1">{e.name}</div>
+                    <div className="text-[12px] text-text-secondary">{periodLabel(e.start_date, e.end_date)}</div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
       </div>
     </main>
+  );
+}
+
+function PlatformTile({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="rounded-input p-3" style={{ background: accent ? 'var(--warning-bg, #FFF3C4)' : 'var(--bg-surface-sunken, #FDFBF6)' }}>
+      <div className="text-[20px] font-extrabold text-ink leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div className="text-[11px] text-text-secondary mt-1">{label}</div>
+    </div>
   );
 }
 

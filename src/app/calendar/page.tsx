@@ -16,8 +16,8 @@ import type { Profile } from '@/lib/types';
  *  - 행사 달력: 전국 축제·행사(정보형) 전체 (탐색 트랙) · 날짜 클릭 시 하단 리스트
  */
 
-type CalTone = 'approved' | 'pending' | 'own' | 'personal' | 'fav' | 'festival' | 'happening';
-type CalEvent = { id: string; name: string; start: string; end: string; tone: CalTone; pid?: string; memo?: string | null };
+type CalTone = 'approved' | 'pending' | 'own' | 'personal' | 'fav' | 'festival' | 'happening' | 'apply';
+type CalEvent = { id: string; name: string; start: string; end: string; tone: CalTone; pid?: string; memo?: string | null; category?: string; region?: string; kind?: 'apply' | 'info' };
 type CalView = 'mine' | 'all';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -40,6 +40,7 @@ const TONE: Record<CalTone, { bg: string; fg: string; label: string }> = {
   fav: { bg: '#FBEAF1', fg: '#A83A69', label: '관심' },
   festival: { bg: '#FDEBD6', fg: '#B4651E', label: '축제' },
   happening: { bg: '#E7EEF7', fg: '#2B5A8C', label: '행사' },
+  apply: { bg: '#FFF3C4', fg: '#7A5B00', label: '모집' },
 };
 
 export default function CalendarPage() {
@@ -48,6 +49,8 @@ export default function CalendarPage() {
   const [personal, setPersonal] = useState<CalEvent[]>([]);
   const [allEvents, setAllEvents] = useState<CalEvent[]>([]);
   const [view, setView] = useState<CalView>('mine');
+  const [fRegion, setFRegion] = useState('전체');
+  const [fCat, setFCat] = useState('전체');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const now = new Date();
@@ -93,7 +96,7 @@ export default function CalendarPage() {
     })();
   }, []);
 
-  // 행사 달력(탐색 트랙): 전국 축제·행사(정보형) 전체 — 로그인 여부와 무관하게 로드
+  // 행사 달력(탐색 트랙): 전국 행사 전체 로드 — 로그인 여부와 무관. 역할별 노출은 렌더에서 결정.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -102,25 +105,38 @@ export default function CalendarPage() {
         if (cancelled) return;
         setAllEvents(
           evs
-            .filter((e) => e.start_date && e.end_date && eventType(e) === 'info')
-            .map((e) => ({
-              id: e.id, name: e.name, start: e.start_date, end: e.end_date,
-              tone: (e.category === '축제' ? 'festival' : 'happening') as CalTone,
-            }))
+            .filter((e) => e.start_date && e.end_date)
+            .map((e) => {
+              const kind = eventType(e);
+              const tone: CalTone = kind === 'apply' ? 'apply' : e.category === '축제' ? 'festival' : 'happening';
+              return { id: e.id, name: e.name, start: e.start_date, end: e.end_date, tone, category: e.category, region: e.region, kind };
+            })
         );
       } catch { /* 행사 달력 로드 실패는 무시 */ }
     })();
     return () => { cancelled = true; };
   }, []);
 
-  // 표시 대상: 내 일정 트랙 vs 행사 달력 트랙 (겹치지 않게 분리)
-  const events = useMemo(
-    () => (view === 'all' ? allEvents : [...platform, ...personal]),
-    [view, allEvents, platform, personal]
+  // 전체 달력에서 역할별로 노출할 풀 (파트너·비로그인=정보형만 · 주최/관리자=신청형 포함 전체)
+  const isHostView = profile?.role === 'host' || profile?.role === 'admin';
+  const allPool = useMemo(
+    () => (isHostView ? allEvents : allEvents.filter((e) => e.kind === 'info')),
+    [allEvents, isHostView]
   );
+  const regionOptions = useMemo(() => ['전체', ...Array.from(new Set(allPool.map((e) => e.region).filter(Boolean) as string[]))], [allPool]);
+  const catOptions = useMemo(() => ['전체', ...Array.from(new Set(allPool.map((e) => e.category).filter(Boolean) as string[]))], [allPool]);
 
-  // 월 이동·트랙 전환 시 선택 날짜 초기화
-  useEffect(() => { setSelectedDay(null); }, [cursor, view]);
+  // 표시 대상: 내 일정 트랙 vs 행사 달력 트랙 (겹치지 않게 분리) + 전체 달력 지역·카테고리 필터
+  const events = useMemo(() => {
+    if (view !== 'all') return [...platform, ...personal];
+    let list = allPool;
+    if (fRegion !== '전체') list = list.filter((e) => e.region === fRegion);
+    if (fCat !== '전체') list = list.filter((e) => e.category === fCat);
+    return list;
+  }, [view, allPool, platform, personal, fRegion, fCat]);
+
+  // 월 이동·트랙 전환·필터 변경 시 선택 날짜 초기화
+  useEffect(() => { setSelectedDay(null); }, [cursor, view, fRegion, fCat]);
 
   async function submitPersonal(e: React.FormEvent) {
     e.preventDefault();
@@ -184,10 +200,10 @@ export default function CalendarPage() {
           )}
         </div>
 
-        {/* 트랙 전환 탭 · 행사 달력(탐색)은 입점 파트너 전용 서비스 */}
-        {profile?.role === 'seller' && (
+        {/* 트랙 전환 탭 · 로그인 사용자 모두 (주최=내 행사/전체 달력, 파트너=내 일정/행사 달력) */}
+        {profile && (
           <div className="flex gap-1.5 mb-5">
-            {([['mine', '내 일정'], ['all', '행사 달력']] as const).map(([v, label]) => (
+            {([['mine', isHostView ? '내 행사' : '내 일정'], ['all', '전체 행사 달력']] as const).map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => { setView(v); setShowForm(false); }}
@@ -199,6 +215,22 @@ export default function CalendarPage() {
                 {label}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* 전체 행사 달력 · 지역·카테고리 필터 (일정 잡기 참고용) */}
+        {view === 'all' && (
+          <div className="card mb-5 py-3.5">
+            {isHostView && (
+              <p className="text-[12px] text-text-secondary mb-2.5">전국에 어떤 행사가 언제 열리는지 보고 <b>내 행사 일정을 잡을 때</b> 참고하세요. 신청형(모집 중)·정보형 행사가 함께 표시됩니다.</p>
+            )}
+            <div className="space-y-2.5">
+              <CalFilterRow label="지역" value={fRegion} options={regionOptions} onChange={setFRegion} />
+              <CalFilterRow label="카테고리" value={fCat} options={catOptions} onChange={setFCat} />
+            </div>
+            {(fRegion !== '전체' || fCat !== '전체') && (
+              <button onClick={() => { setFRegion('전체'); setFCat('전체'); }} className="text-[12px] font-semibold text-accent-warm hover:text-accent-deep mt-2.5">필터 초기화</button>
+            )}
           </div>
         )}
 
@@ -335,5 +367,18 @@ export default function CalendarPage() {
         )}
       </div>
     </main>
+  );
+}
+
+function CalFilterRow({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
+  return (
+    <div className="flex gap-2 items-start">
+      <span className="text-[11px] font-bold uppercase tracking-[0.04em] text-text-tertiary mt-1.5 shrink-0 w-14">{label}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => (
+          <button key={o} onClick={() => onChange(o)} className={`chip ${value === o ? 'selected' : ''}`}>{o}</button>
+        ))}
+      </div>
+    </div>
   );
 }

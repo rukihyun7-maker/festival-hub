@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { uploadEventNotice } from '@/lib/supabase/queries';
-import { REQUIRED_DOC_KINDS, DOC_META } from '@/lib/types';
+import { REQUIRED_DOC_KINDS, DOC_META, SLOT_UNITS, SETTLEMENT_METHODS, siteNoun, defaultSlotUnit, slotUnit } from '@/lib/types';
 import type { EventRow, Profile, SiteDetails, RecruitSlot, EventRequiredDocs, DocKind, EventExtraDoc } from '@/lib/types';
 
 /**
@@ -37,7 +37,9 @@ export interface EventFormValues {
   contact_public: boolean; // 문의자(담당자·연락처) 공개 여부 (false=승인 후 공개)
   status: 'open' | 'upcoming' | 'close' | 'canceled';
   settlement_cycle: string;
+  settlement_method: string; // v46: 정산 방식
   payment_method: string;
+  vat_included: boolean;     // v46: 참가비 부가세 포함 여부
   site: SiteDetails; // v24: 푸드트럭 현장 인프라 상세 (선택)
   recruit_slots: RecruitSlot[]; // v38: 부문별 모집
   required_docs: EventRequiredDocs; // v39: 행사별 필수서류
@@ -70,7 +72,9 @@ export function toFormValues(row: EventRow): EventFormValues {
     contact_public: row.contact_public ?? false,
     status: row.status,
     settlement_cycle: row.settlement_cycle ?? '',
+    settlement_method: row.settlement_method ?? '',
     payment_method: row.payment_method ?? '',
+    vat_included: row.vat_included ?? false,
     site: row.site_details ?? {},
     recruit_slots: row.recruit_slots ?? [],
     required_docs: {
@@ -107,7 +111,9 @@ export function initialFormValues(profile: Profile | null): EventFormValues {
     contact_public: false,
     status: 'open',
     settlement_cycle: '행사 종료 후 3영업일',
+    settlement_method: '주최 직접 지급',
     payment_method: '현금 · 카드',
+    vat_included: false,
     site: {},
     recruit_slots: [],
     required_docs: { standard: [...REQUIRED_DOC_KINDS], extra: [] },
@@ -158,6 +164,8 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
   }
   const set = <K extends keyof EventFormValues>(key: K, val: EventFormValues[K]) => setV((prev) => ({ ...prev, [key]: val }));
   const setSite = (key: keyof SiteDetails, val: string) => setV((prev) => ({ ...prev, site: { ...prev.site, [key]: val } }));
+  // v46: 모집 부문에 따라 현장 상세 '자리 명칭' 동적 결정 (트럭/부스/자리)
+  const noun = siteNoun(v.recruit_slots);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -277,19 +285,53 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
 
         <Section title="3. 조건 & 시설">
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-            <Field label="일 참가비 (원)" hint={lockCore ? '승인 후 잠금' : '0 = 무료'}>
+            <Field label="일 참가비 (원)" hint={lockCore ? '승인 후 잠금' : '1일 기준 · 0 = 무료'}>
               <input type="number" disabled={lockCore} min={0} step={10000} value={v.fee} onChange={(e) => set('fee', Number(e.target.value))} className={`input${lockCls}`} />
             </Field>
             <Field label="매출 수수료율 (%)" hint={lockCore ? '승인 후 잠금' : '0 = 없음'}>
               <input type="number" disabled={lockCore} min={0} max={30} step={0.5} value={v.fee_rate} onChange={(e) => set('fee_rate', Number(e.target.value))} className={`input${lockCls}`} />
             </Field>
           </div>
+          {/* v46: 참가비 부가세 처리 (금액 표기 기준) */}
+          <div>
+            <div className="text-[12px] font-semibold text-ink-soft mb-1.5">참가비 부가세 처리</div>
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+              {([
+                [false, '부가세 별도', '표기 금액 + 부가세 10% 별도 청구 (기본)'],
+                [true, '부가세 포함', '표기 금액에 부가세가 포함된 금액'],
+              ] as const).map(([val, title, desc]) => (
+                <button key={String(val)} type="button" onClick={() => set('vat_included', val)}
+                  className={`p-3 rounded-input border-2 text-left transition-all ${v.vat_included === val ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink'}`}>
+                  <div className="text-[13px] font-bold">{title}</div>
+                  <div className={`text-[11px] mt-0.5 ${v.vat_included === val ? 'text-white/80' : 'text-text-tertiary'}`}>{desc}</div>
+                </button>
+              ))}
+            </div>
+            <div className="text-[11px] text-text-tertiary mt-1.5">파트너에게 참가비 금액 옆에 “{v.vat_included ? '부가세 포함' : '부가세 별도'}”로 표시됩니다.</div>
+          </div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+            <Field label="정산 방식" hint="지급 구조">
+              <select value={v.settlement_method} onChange={(e) => set('settlement_method', e.target.value)} className="input">
+                <option value="">선택 안 함</option>
+                {SETTLEMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </Field>
             <Field label="정산 주기" hint="입점 파트너에게 노출">
               <input value={v.settlement_cycle} onChange={(e) => set('settlement_cycle', e.target.value)} className="input" placeholder="예: 행사 종료 후 3영업일" />
             </Field>
-            <Field label="결제 방식" hint="QR 미적용 시 현금·카드 등">
-              <input value={v.payment_method} onChange={(e) => set('payment_method', e.target.value)} className="input" placeholder="예: 현금 · 카드 (QR 선택)" />
+          </div>
+          {(v.settlement_method === '위탁업체 정산' || v.settlement_method === '중앙 POS 정산' || v.settlement_method === '세금계산서 발행 후 정산') && (
+            <div className="text-[11px] text-text-secondary -mt-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+              {v.settlement_method === '세금계산서 발행 후 정산'
+                ? '파트너가 세금계산서를 발행한 뒤 정산됩니다. 계산서 발행 기한·담당을 정산 주기에 함께 적어주세요.'
+                : v.settlement_method === '중앙 POS 정산'
+                ? '현장 중앙 POS로 매출을 집계해 정산하는 구조입니다. 개별 QR/현금 수취와 혼동되지 않게 안내해 주세요.'
+                : '위탁 정산 대행사를 통해 지급됩니다. 대행 수수료·지급 주체를 정산 주기에 함께 적어주세요.'}
+            </div>
+          )}
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+            <Field label="결제 방식" hint="현장 손님 결제 수단">
+              <input value={v.payment_method} onChange={(e) => set('payment_method', e.target.value)} className="input" placeholder="예: 현금 · 카드" />
             </Field>
           </div>
           <div>
@@ -303,14 +345,25 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </div>
         </Section>
 
-        <Section title="4. 푸드트럭 현장 상세">
+        <Section title={`4. ${noun.section}`}>
           <p className="text-[12px] text-text-tertiary -mt-1 mb-1">
-            선택 항목입니다. 입력하면 검증된 입점 파트너에게 표로 노출되어, 전화 문의 없이 입점 여부를 판단할 수 있습니다.
+            선택 항목입니다. 입력하면 검증된 입점 파트너에게 표로 노출되어, 전화 문의 없이 입점 여부를 판단할 수 있습니다. {v.recruit_slots.length === 0 && <span className="text-warning">모집 부문을 넣으면 명칭이 자동으로 맞춰집니다.</span>}
           </p>
+          {/* v46: 전기 제공 방식 (기본 제공 / 추가 비용 / 미제공 / 문의) */}
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-            <Field label="부스당 전기 용량" hint="발전기 사용 시 필수">
-              <input value={v.site.power ?? ''} onChange={(e) => setSite('power', e.target.value)} className="input" placeholder="예: 부스당 3kW / 220V 15A" />
+            <Field label="전기 제공 방식" hint="현장 전원 제공 기준">
+              <SiteSelect value={v.site.power_supply} onChange={(val) => setSite('power_supply', val)} options={['기본 제공', '추가 비용', '미제공', '문의']} />
             </Field>
+            <Field label={`${noun.spot}당 전기 용량`} hint="기본 제공량">
+              <input value={v.site.power ?? ''} onChange={(e) => setSite('power', e.target.value)} className="input" placeholder={`예: ${noun.spot}당 5kW / 220V`} />
+            </Field>
+          </div>
+          {v.site.power_supply === '추가 비용' && (
+            <Field label="추가 전력 요금" hint="초과 사용 시 단가 · 부가세 별도 기준">
+              <input value={v.site.power_extra ?? ''} onChange={(e) => setSite('power_extra', e.target.value)} className="input" placeholder="예: 기본 5kW 제공 · 초과 1kW당 50,000원 (부가세 별도)" />
+            </Field>
+          )}
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
             <Field label="발전기 반입">
               <SiteSelect value={v.site.generator} onChange={(val) => setSite('generator', val)} options={['가능', '불가', '문의']} />
             </Field>
@@ -326,7 +379,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             <Field label="차량 진입 제원" hint="길이·폭·높이">
               <input value={v.site.vehicle ?? ''} onChange={(e) => setSite('vehicle', e.target.value)} className="input" placeholder="예: 길이 6m · 폭 2.2m · 높이 3.2m" />
             </Field>
-            <Field label="부스 사양" hint="면적·지면">
+            <Field label={`${noun.spot} 사양`} hint="면적·지면">
               <input value={v.site.booth ?? ''} onChange={(e) => setSite('booth', e.target.value)} className="input" placeholder="예: 3x3m · 아스팔트 · 천막 포함" />
             </Field>
             <Field label="판매 품목 제한">
@@ -345,7 +398,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
               {v.recruit_slots.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {v.recruit_slots.map((s, i) => (
-                    <span key={i} className="badge">{s.type || '부문'} · {s.count}자리{s.fee != null ? ` · 참가비 ${(s.fee / 10000).toFixed(0)}만원` : ''}</span>
+                    <span key={i} className="badge">{s.type || '부문'} · {s.count}{slotUnit(s)}{s.fee != null ? ` · 참가비 ${(s.fee / 10000).toFixed(0)}만원` : ''}</span>
                   ))}
                 </div>
               ) : (
@@ -354,7 +407,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             </>
           ) : (
           <>
-          <p className="text-[11px] text-text-tertiary -mt-1">예: 플리마켓 20 · 푸드트럭 10 · 음식부스 10. 부문마다 참가비·시설을 다르게 둘 수 있어요(비우면 행사 기본값). 파트너는 부문을 선택해 신청합니다. (부문을 나누지 않으면 비워두세요)</p>
+          <p className="text-[11px] text-text-tertiary -mt-1">예: 플리마켓 20팀 · 푸드트럭 10대 · 음식부스 10개. 부문마다 <b>모집 수·단위</b>와 참가비·시설을 다르게 둘 수 있어요(비우면 행사 기본값). 파트너는 부문을 선택해 신청합니다. (부문을 나누지 않으면 비워두세요)</p>
           {v.recruit_slots.length > 0 && (
             <div className="space-y-2">
               {v.recruit_slots.map((s, i) => {
@@ -362,8 +415,11 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
                 return (
                   <div key={i} className="p-3 rounded-input border border-line-faint" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
                     <div className="flex gap-2 items-center mb-2">
-                      <input value={s.type} onChange={(e) => upd({ type: e.target.value })} className="input flex-1" placeholder="부문 (예: 푸드트럭)" />
-                      <input type="number" min={1} value={s.count || ''} onChange={(e) => upd({ count: Number(e.target.value) || 0 })} className="input" style={{ width: 84 }} placeholder="수" />
+                      <input value={s.type} onChange={(e) => upd({ type: e.target.value, unit: s.unit || defaultSlotUnit(e.target.value) })} className="input flex-1" placeholder="부문 (예: 푸드트럭)" />
+                      <input type="number" min={1} value={s.count || ''} onChange={(e) => upd({ count: Number(e.target.value) || 0 })} className="input" style={{ width: 72 }} placeholder="수" />
+                      <select value={s.unit ?? defaultSlotUnit(s.type)} onChange={(e) => upd({ unit: e.target.value })} className="input" style={{ width: 68 }} title="모집 단위">
+                        {SLOT_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                      </select>
                       <button type="button" onClick={() => set('recruit_slots', v.recruit_slots.filter((_, j) => j !== i))} className="text-danger text-[12px] font-bold px-1.5 shrink-0">삭제</button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -384,9 +440,9 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           )}
           <div className="flex flex-wrap gap-1.5">
             {['플리마켓', '푸드트럭', '음식부스', '체험부스'].map((t) => (
-              <button type="button" key={t} onClick={() => set('recruit_slots', [...v.recruit_slots, { type: t, count: 10 }])} className="chip">+ {t}</button>
+              <button type="button" key={t} onClick={() => set('recruit_slots', [...v.recruit_slots, { type: t, count: 10, unit: defaultSlotUnit(t) }])} className="chip">+ {t}</button>
             ))}
-            <button type="button" onClick={() => set('recruit_slots', [...v.recruit_slots, { type: '', count: 10 }])} className="chip">+ 직접 추가</button>
+            <button type="button" onClick={() => set('recruit_slots', [...v.recruit_slots, { type: '', count: 10, unit: '자리' }])} className="chip">+ 직접 추가</button>
           </div>
           </>
           )}
@@ -530,7 +586,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             <PreviewRow label="일정" value={v.start_date && v.end_date ? `${v.start_date.slice(5)} - ${v.end_date.slice(5)}` : '-'} />
             <PreviewRow label="장소" value={v.address ? `${v.region} ${v.address.split(' ').slice(-2).join(' ')}` : '-'} />
             <PreviewRow label="자리" value={v.capacity || '공고 예정'} />
-            <PreviewRow label="참가비" value={v.fee > 0 ? `일 ${(v.fee / 10000).toFixed(0)}만원${v.fee_rate > 0 ? ` + ${v.fee_rate}%` : ''}` : '무료'} />
+            <PreviewRow label="참가비" value={v.fee > 0 ? `일 ${(v.fee / 10000).toFixed(0)}만원${v.fee_rate > 0 ? ` + ${v.fee_rate}%` : ''} · ${v.vat_included ? '부가세 포함' : '부가세 별도'}` : '무료'} />
           </div>
         </div>
       </aside>

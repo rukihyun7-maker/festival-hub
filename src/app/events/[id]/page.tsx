@@ -5,9 +5,9 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import NearbyInfoCard from '@/components/NearbyInfoCard';
-import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, fetchMyMenus, fetchEventContact, fetchMyFavorites, addFavorite, removeFavorite, uploadApplicationDoc, addApplicationDocument, fetchMyApplicationForEvent } from '@/lib/supabase/queries';
-import { periodLabel, feeLabel, deadlineLabel, daysUntil, filledSiteDetails, fitCheck, applyChecklist, requiredDocsVerified, REQUIRED_DOC_KINDS, DOC_META } from '@/lib/types';
-import type { EventRow, Profile, DocumentSlot } from '@/lib/types';
+import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, fetchMyMenus, fetchEventContact, fetchMyFavorites, addFavorite, removeFavorite, uploadApplicationDoc, addApplicationDocument, fetchMyApplicationForEvent, incrementEventView, fetchEventFavoriteCount } from '@/lib/supabase/queries';
+import { periodLabel, feeLabel, deadlineLabel, daysUntil, filledSiteDetails, filledSiteDetailRows, fitCheck, applyChecklist, requiredDocsVerified, REQUIRED_DOC_KINDS, DOC_META, siteNoun, slotUnit, vatNote } from '@/lib/types';
+import type { EventRow, Profile, DocumentSlot, SiteDetails } from '@/lib/types';
 
 export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
@@ -22,6 +22,7 @@ export default function EventDetailPage() {
   const [myAppStatus, setMyAppStatus] = useState<'pending' | 'approved' | null>(null);
   const [fav, setFav] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
+  const [favCount, setFavCount] = useState<number | null>(null);
   const [menuCount, setMenuCount] = useState(0);
   const [eventContact, setEventContact] = useState<{ contact: string | null; phone: string | null } | null>(null);
 
@@ -34,6 +35,10 @@ export default function EventDetailPage() {
           setEvent(e);
           setProfile(p);
         }
+        // v46: 조회수 +1 (소유주·관리자 제외) · 찜 수 조회 (실패 무시)
+        const isOwnerView = p?.role === 'admin' || (!!e && p?.id === e.owner_id);
+        if (!isOwnerView) incrementEventView(params.id);
+        try { const fc = await fetchEventFavoriteCount(params.id); if (!cancelled) setFavCount(fc); } catch { /* 무시 */ }
         // 연락처는 event_contacts에서 RLS로 조회 (주최·관리자·승인 신청자만 값 반환)
         try { const ec = await fetchEventContact(params.id); if (!cancelled) setEventContact(ec); } catch { /* 권한 없음/미생성 → null */ }
         if (p?.role === 'seller') {
@@ -102,11 +107,13 @@ export default function EventDetailPage() {
     setFavBusy(true);
     const next = !fav;
     setFav(next);
+    setFavCount((c) => (c == null ? c : Math.max(0, c + (next ? 1 : -1))));
     try {
       if (next) await addFavorite(profile.id, event.id);
       else await removeFavorite(profile.id, event.id);
     } catch (e) {
       setFav(!next); // 롤백
+      setFavCount((c) => (c == null ? c : Math.max(0, c + (next ? -1 : 1))));
       alert('관심 등록을 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setFavBusy(false);
@@ -243,6 +250,13 @@ export default function EventDetailPage() {
           {event.description && (
             <p className="t-body text-text-secondary max-w-[680px]">{event.description}</p>
           )}
+          {/* v46: 관심·조회 소셜 프루프 */}
+          {((favCount ?? 0) > 0 || (event.view_count ?? 0) > 0) && (
+            <div className="flex items-center gap-3 mt-3 text-[12px] text-text-tertiary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {(favCount ?? 0) > 0 && <span>★ 관심 <b className="text-ink-soft">{favCount}</b></span>}
+              {(event.view_count ?? 0) > 0 && <span>👁 조회 <b className="text-ink-soft">{(event.view_count ?? 0).toLocaleString()}</b></span>}
+            </div>
+          )}
         </section>
 
         <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
@@ -284,7 +298,7 @@ export default function EventDetailPage() {
                       <div key={s.type} className="p-3 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="text-[13px] font-bold text-ink truncate">{s.type}</span>
-                          <span className="text-[13px] font-extrabold text-accent-warm shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{s.count}명</span>
+                          <span className="text-[13px] font-extrabold text-accent-warm shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{s.count}{slotUnit(s)}</span>
                         </div>
                         <div className="text-[11.5px] text-text-secondary">
                           참가비 {typeof s.fee === 'number' ? (s.fee > 0 ? `${s.fee.toLocaleString()}원` : '무료') : '행사 기본'}
@@ -333,8 +347,9 @@ export default function EventDetailPage() {
                 <LockedBox />
               ) : (
                 <div className="grid gap-3">
-                  {t === 'apply' && <InfoRow label="일 참가비" value={event.fee > 0 ? `${event.fee.toLocaleString()}원` : '무료'} strong />}
+                  {t === 'apply' && <InfoRow label="일 참가비" value={event.fee > 0 ? `${event.fee.toLocaleString()}원 · ${vatNote(event.vat_included)}` : '무료'} strong />}
                   {t === 'apply' && <InfoRow label="매출 수수료" value={event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'} />}
+                  {t === 'apply' && event.settlement_method && <InfoRow label="정산 방식" value={event.settlement_method} />}
                   {t === 'apply' && <InfoRow label="정산 주기" value={event.settlement_cycle || '주최 측 안내 예정'} />}
                   {t === 'apply' && <InfoRow label="결제 방식" value={event.payment_method || '주최 측 안내 예정'} />}
                   {t === 'info' && event.phone && <InfoRow label="문의 전화" value={event.phone} />}
@@ -363,19 +378,22 @@ export default function EventDetailPage() {
               )}
             </div>
 
-            {/* v24: 푸드트럭 현장 상세 (입력된 항목 있을 때만) */}
+            {/* v24: 현장 상세 (입력된 항목 있을 때만) · v46 부문 따라 명칭 동적 */}
             {(() => {
-              const site = filledSiteDetails(event.site_details);
-              if (site.length === 0) return null;
+              const rows = filledSiteDetailRows(event.site_details);
+              if (rows.length === 0) return null;
+              const noun = siteNoun(event.recruit_slots);
+              const labelFor = (key: keyof SiteDetails, base: string) =>
+                key === 'power' ? `${noun.spot}당 전기 용량` : key === 'booth' ? `${noun.spot} 사양` : base;
               return (
                 <div className="card">
-                  <div className="t-section mb-1">푸드트럭 현장 상세</div>
+                  <div className="t-section mb-1">{noun.section}</div>
                   <p className="text-[12px] text-text-tertiary mb-4">전기·급배수·차량 진입 등 입점 판단에 필요한 현장 정보입니다.</p>
                   {blindBody ? (
                     <LockedBox />
                   ) : (
                     <div className="grid gap-3">
-                      {site.map((r) => <InfoRow key={r.label} label={r.label} value={r.value} />)}
+                      {rows.map((r) => <InfoRow key={r.key} label={labelFor(r.key, r.label)} value={r.value} />)}
                     </div>
                   )}
                 </div>
@@ -480,7 +498,7 @@ export default function EventDetailPage() {
                   {event.fee > 0 ? `₩${event.fee.toLocaleString()}` : '무료'}
                 </div>
                 <div className="text-[12px] text-text-secondary mt-1">
-                  {event.fee > 0 ? `일 · ${event.fee_rate > 0 ? `매출 ${event.fee_rate}%` : '수수료 없음'}` : ''}
+                  {event.fee > 0 ? `일 · ${vatNote(event.vat_included)}${event.fee_rate > 0 ? ` · 매출 ${event.fee_rate}%` : ''}` : ''}
                 </div>
               </div>
 
@@ -649,10 +667,16 @@ function ApplyModal({
         </div>
         <div className="space-y-3 mb-6 p-4 bg-surface-sunken rounded-card border border-line-faint">
           <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">일정</span><span className="font-semibold text-ink">{periodLabel(event.start_date, event.end_date)} ({days}일)</span></div>
-          <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">참가비 소계{selSlot ? ` · ${selSlot.type}` : ''}</span><span className="font-semibold text-ink">₩{total.toLocaleString()}</span></div>
+          <div className="flex justify-between items-start text-[14px]">
+            <span className="text-text-tertiary">참가비 소계{selSlot ? ` · ${selSlot.type}` : ''}</span>
+            <span className="text-right">
+              <span className="font-semibold text-ink block" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{total.toLocaleString()}</span>
+              {effFee > 0 && <span className="text-[11px] text-text-tertiary">일 ₩{effFee.toLocaleString()} × {days}일</span>}
+            </span>
+          </div>
           <div className="flex justify-between text-[14px]"><span className="text-text-tertiary">수수료</span><span className="font-semibold text-ink">{event.fee_rate > 0 ? `${event.fee_rate}%` : '없음'}</span></div>
-          <div className="pt-3 border-t border-line-faint flex justify-between">
-            <span className="text-[14px] font-bold text-ink">예상 참가비</span>
+          <div className="pt-3 border-t border-line-faint flex justify-between items-baseline">
+            <span className="text-[14px] font-bold text-ink">예상 참가비 <span className="text-[11px] font-normal text-text-tertiary">· {vatNote(event.vat_included)}</span></span>
             <span className="text-[20px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>₩{total.toLocaleString()}</span>
           </div>
         </div>
@@ -664,7 +688,7 @@ function ApplyModal({
               {slots.map((s) => (
                 <button key={s.type} type="button" onClick={() => setSlot(s.type)}
                   className={`text-[12.5px] font-bold px-3 py-2 rounded-input border-2 transition-all ${slot === s.type ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink'}`}>
-                  {s.type} <span className="opacity-70">· {s.count}명</span>
+                  {s.type} <span className="opacity-70">· {s.count}{slotUnit(s)}</span>
                 </button>
               ))}
             </div>

@@ -17,31 +17,58 @@ export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'canceled'
 
 export type MenuCategory = 'MAIN' | 'SIDE' | 'DRINK' | 'SET';
 
-/** v24: 푸드트럭 현장 인프라 상세 (events.site_details jsonb) · 모든 항목 선택 */
+/** v24: 현장 인프라 상세 (events.site_details jsonb) · 모든 항목 선택 · v46 전기 제공방식 추가 */
 export interface SiteDetails {
-  power?: string;     // 부스당 전기 용량 (예: 부스당 3kW / 220V 15A)
-  generator?: string; // 발전기 반입 (가능 / 불가 / 문의)
-  water?: string;     // 급수 (가능 / 불가 / 문의)
-  drainage?: string;  // 배수 (예: 가능 · 배수구 10m)
-  lpg?: string;       // LPG · 화기 (가능 / 제한적 / 불가)
-  vehicle?: string;   // 차량 진입 제원 (예: 길이 6m · 폭 2.2m · 높이 3.2m)
-  booth?: string;     // 부스 사양 (예: 3x3m · 아스팔트 · 천막 포함)
-  items?: string;     // 판매 품목 제한 (예: 주류 불가 · 중복업종 조정)
-  weather?: string;   // 우천/폭염 · 취소 정책
+  power?: string;        // 자리당 전기 용량 (예: 3kW / 220V 15A)
+  power_supply?: string; // v46: 전기 제공 방식 (기본 제공 / 추가 비용 / 미제공 / 문의)
+  power_extra?: string;  // v46: 추가 전력 요금 (예: 기본 5kW · 초과 1kW당 50,000원 · 부가세 별도)
+  generator?: string;    // 발전기 반입 (가능 / 불가 / 문의)
+  water?: string;        // 급수 (가능 / 불가 / 문의)
+  drainage?: string;     // 배수 (예: 가능 · 배수구 10m)
+  lpg?: string;          // LPG · 화기 (가능 / 제한적 / 불가)
+  vehicle?: string;      // 차량 진입 제원 (예: 길이 6m · 폭 2.2m · 높이 3.2m)
+  booth?: string;        // 자리 사양 (예: 3x3m · 아스팔트 · 천막 포함)
+  items?: string;        // 판매 품목 제한 (예: 주류 불가 · 중복업종 조정)
+  weather?: string;      // 우천/폭염 · 취소 정책
 }
 
-/** v24: 현장 상세 표시용 메타(라벨·순서) */
+/** v24: 현장 상세 표시용 메타(라벨·순서) · label은 기본값(부문 따라 동적 치환) */
 export const SITE_DETAIL_META: { key: keyof SiteDetails; label: string }[] = [
   { key: 'power', label: '전기 용량' },
+  { key: 'power_supply', label: '전기 제공' },
+  { key: 'power_extra', label: '추가 전력 요금' },
   { key: 'generator', label: '발전기 반입' },
   { key: 'water', label: '급수' },
   { key: 'drainage', label: '배수' },
   { key: 'lpg', label: 'LPG · 화기' },
   { key: 'vehicle', label: '차량 진입' },
-  { key: 'booth', label: '부스 사양' },
+  { key: 'booth', label: '자리 사양' },
   { key: 'items', label: '품목 제한' },
   { key: 'weather', label: '우천/취소' },
 ];
+
+/**
+ * v46: 모집 부문 구성으로 현장 상세의 '자리 명칭'을 동적 결정.
+ *  - 푸드트럭만 → 트럭 / '푸드트럭 현장 상세'
+ *  - 부스류만 → 부스 / '부스 현장 상세'
+ *  - 혼합·없음 → 자리 / '현장 상세'
+ */
+export function siteNoun(slots?: { type: string }[] | null): { spot: string; section: string } {
+  const types = (slots ?? []).map((s) => s.type || '');
+  const hasTruck = types.some((t) => t.includes('트럭'));
+  const hasBooth = types.some((t) => t.includes('부스'));
+  if (hasTruck && !hasBooth) return { spot: '트럭', section: '푸드트럭 현장 상세' };
+  if (hasBooth && !hasTruck) return { spot: '부스', section: '부스 현장 상세' };
+  return { spot: '자리', section: '현장 상세' };
+}
+
+/** v46: 값이 채워진 현장 상세 항목 (key 포함 · 라벨 동적 치환용) */
+export function filledSiteDetailRows(s: SiteDetails | null | undefined): { key: keyof SiteDetails; label: string; value: string }[] {
+  if (!s) return [];
+  return SITE_DETAIL_META
+    .map(({ key, label }) => ({ key, label, value: (s[key] ?? '').trim() }))
+    .filter((r) => r.value.length > 0);
+}
 
 /** 저장용: 빈 값 제거 후 객체 반환(모두 비면 null) */
 export function compactSiteDetails(s: SiteDetails | null | undefined): SiteDetails | null {
@@ -183,7 +210,10 @@ export interface EventRow {
   review_status?: ReviewStatus; // v8: 등록 요청 심사 (없으면 approved)
   admin_note?: string | null;   // v8: 반려 사유
   settlement_cycle?: string | null; // v12: 정산 주기 (등록값, 신청형만)
+  settlement_method?: string | null; // v46: 정산 방식 (직접지급/위탁/중앙POS/계산서 후 정산…)
   payment_method?: string | null;   // v12: 결제 방식 (등록값, 신청형만)
+  vat_included?: boolean;            // v46: 참가비 부가세 포함 여부 (기본 false=별도)
+  view_count?: number;              // v46: 누적 조회수
   site_details?: SiteDetails | null; // v24: 푸드트럭 현장 인프라 상세 (jsonb)
   recruit_slots?: RecruitSlot[];     // v38: 부문별 모집 [{type,count}]
   required_docs?: EventRequiredDocs; // v39: 행사별 필수서류 {standard, extra}
@@ -238,12 +268,36 @@ export interface EventWithCounts extends EventRow {
 export interface RecruitSlot {
   type: string;
   count: number;
+  unit?: string;            // v46: 모집 단위 (대/개/팀/부스/자리…) · 없으면 type 기본값
   fee?: number | null;      // v40: 부문별 참가비(없으면 행사 기본)
   electric?: boolean;       // v40: 부문별 시설
   water?: boolean;
   gas?: boolean;
   note?: string;            // v40: 부문별 조건 안내
 }
+
+/** v46: 모집 단위 후보 · 부문 type 기본 단위 매핑 */
+export const SLOT_UNITS = ['대', '개', '팀', '부스', '자리', '명'] as const;
+export function defaultSlotUnit(type: string): string {
+  const t = type || '';
+  if (t.includes('트럭')) return '대';
+  if (t.includes('부스')) return '개';
+  if (t.includes('플리') || t.includes('마켓') || t.includes('셀러') || t.includes('팀')) return '팀';
+  return '자리';
+}
+/** 모집 단위 표시 (slot.unit 우선, 없으면 type 기본값) */
+export function slotUnit(slot: { type: string; unit?: string }): string {
+  return (slot.unit && slot.unit.trim()) || defaultSlotUnit(slot.type);
+}
+
+/** v46: 정산 방식 선택지 (정산 '주기'와 별개) */
+export const SETTLEMENT_METHODS = [
+  '주최 직접 지급',
+  '위탁업체 정산',
+  '중앙 POS 정산',
+  '세금계산서 발행 후 정산',
+  '기타',
+] as const;
 export interface EventExtraDoc { label: string; desc?: string; }
 export interface EventRequiredDocs { standard?: DocKind[]; extra?: EventExtraDoc[]; }
 export interface ApplicationDocument {
@@ -731,6 +785,11 @@ export function wonCompact(v: number): string {
     return `₩${(Number.isInteger(man) ? man : Math.round(man)).toLocaleString()}만`;
   }
   return `₩${v.toLocaleString()}`;
+}
+
+/** v46: 부가세 표기 보조문구 (기본 별도) */
+export function vatNote(vatIncluded?: boolean): string {
+  return vatIncluded ? '부가세 포함' : '부가세 별도';
 }
 
 /** 참가비 표시 */
