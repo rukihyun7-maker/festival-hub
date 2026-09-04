@@ -324,6 +324,15 @@ export default function AdminEventsPage() {
                       <option value="close">종료</option>
                       <option value="canceled">취소</option>
                     </select>
+                    {e.owner_id === me?.id && e.kind !== 'info' && (
+                      <Link
+                        href={`/host/applicants?event=${e.id}`}
+                        className="btn-secondary text-[12px] py-2 px-3"
+                        title="이 행사(관리자 등록) 신청자 관리"
+                      >
+                        신청자 관리
+                      </Link>
+                    )}
                     {e.kind !== 'info' && (
                       <Link
                         href={`/host/events/${e.id}/edit`}

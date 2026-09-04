@@ -545,8 +545,8 @@ export default function EventDetailPage() {
               ) : (
                 <>
                   <button
-                    disabled={!verified || applying}
-                    onClick={() => setShowApplyModal(true)}
+                    disabled={!isSeller || !verified || applying}
+                    onClick={() => { if (isSeller) setShowApplyModal(true); }}
                     className="btn-primary w-full py-3.5 text-[15px]"
                   >
                     {applying ? '신청 중…' : !isSeller ? '입점 파트너만 신청 가능' : verified ? '지금 신청하기' : approved ? '신청 자격 충족 후 신청 가능' : '가입 승인 후 신청 가능'}

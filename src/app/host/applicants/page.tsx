@@ -126,7 +126,7 @@ function HostApplicantsInner() {
     );
   }
 
-  if (!profile || profile.role !== 'host') {
+  if (!profile || (profile.role !== 'host' && profile.role !== 'admin')) {
     return (
       <main className="min-h-screen bg-page">
         <AppNav role="host" />

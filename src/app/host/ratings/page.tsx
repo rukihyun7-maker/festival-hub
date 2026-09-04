@@ -34,7 +34,7 @@ export default function HostRatingsPage() {
       try {
         const p = await fetchMyProfile();
         setProfile(p);
-        if (!p || p.role !== 'host') return;
+        if (!p || (p.role !== 'host' && p.role !== 'admin')) return;
 
         const [settings, events, given] = await Promise.all([
           fetchPlatformSettings(),
@@ -80,7 +80,7 @@ export default function HostRatingsPage() {
     );
   }
 
-  if (!profile || profile.role !== 'host') {
+  if (!profile || (profile.role !== 'host' && profile.role !== 'admin')) {
     return (
       <main className="min-h-screen bg-page">
         <AppNav role="host" />

@@ -160,7 +160,7 @@ export function bannerSummary(banners: BannerSpec[] | null | undefined): string 
   const list = (banners ?? []).filter((b) => (b.label || b.w || b.h || b.d));
   if (list.length === 0) return '';
   return list.map((b) => {
-    const dims = [b.w && `가로 ${b.w}mm`, b.h && `세로 ${b.h}mm`, b.d && `높이 ${b.d}mm`].filter(Boolean).join(' · ');
+    const dims = [b.w && `가로 ${b.w}mm`, b.h && `세로 ${b.h}mm`].filter(Boolean).join(' · ');
     return [b.label, dims].filter(Boolean).join(' — ');
   }).join(' / ');
 }

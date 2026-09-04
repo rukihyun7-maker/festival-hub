@@ -943,8 +943,8 @@ function StoreTab({
                 />
                 <button type="button" onClick={() => setBanners((prev) => prev.filter((_, j) => j !== i))} className="text-[13px] text-danger font-bold px-1.5 shrink-0">삭제</button>
               </div>
-              <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-                {([['w', '가로'], ['h', '세로'], ['d', '높이']] as const).map(([k, label]) => (
+              <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+                {([['w', '가로'], ['h', '세로']] as const).map(([k, label]) => (
                   <label key={k} className="flex flex-col gap-1">
                     <span className="text-[12px] font-semibold text-ink-soft">{label}</span>
                     <div className="flex items-center gap-1">
