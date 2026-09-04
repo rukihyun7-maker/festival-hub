@@ -44,7 +44,10 @@ export default function PrivacyPage() {
             서비스는 원활한 운영을 위해 아래와 같이 개인정보 처리를 위탁하며, 일부는 국외에 저장·처리될 수 있습니다.<br />
             · <b>Supabase</b> (데이터베이스·인증·파일 저장) — 국외<br />
             · <b>Vercel</b> (웹 호스팅) — 국외<br />
-            · <b>Resend</b> (이메일 발송) — 국외<br />
+            · <b>Resend</b> (가입·안내 이메일 발송) — 국외<br />
+            · <b>ImprovMX</b> (문의 이메일 포워딩) — 국외<br />
+            · <b>Cloudflare</b> (봇 차단·CAPTCHA, 이를 위한 접속정보 처리) — 국외<br />
+            · <b>Sentry</b> (서비스 오류 모니터링, 오류 발생 시 접속·기기 정보 처리) — 국외<br />
             · <b>Kakao</b> (주소→좌표 변환) — 국내<br />
             이용자는 국외 이전을 거부할 수 있으나, 이 경우 서비스 이용이 제한될 수 있습니다.
           </Section>
