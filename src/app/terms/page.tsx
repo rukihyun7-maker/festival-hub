@@ -67,7 +67,7 @@ export default function TermsPage() {
           </Section>
           <Section n="부칙 · 사업자 정보">
             <b>Festival Hub</b>는 <b>리윤하우스</b>가 운영하는 서비스입니다.<br />
-            상호(운영사): 리윤하우스 · 대표: 윤소연 · 사업자등록번호: 275-17-02275<br />
+            상호(운영사): 리윤하우스 · 사업자등록번호: 275-17-02275<br />
             주소: 인천광역시 연수구 센트럴로 313, 비동 25층<br />
             문의: help@festivalhub.co.kr · 본 약관 시행일: 2026-08-09
           </Section>
