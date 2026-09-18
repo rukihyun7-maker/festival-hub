@@ -129,7 +129,7 @@ export default function SellerMyPage() {
 
         {/* 개인 도구 바로가기 (모바일에서도 접근) */}
         <div className="grid grid-cols-3 gap-2 mb-8">
-          <QuickLink href="/seller/inventory" icon="box" label="내 창고" />
+          <QuickLink href="/seller/favorites" icon="star" label="관심 행사" />
           <QuickLink href="/seller/documents" icon="doc" label="서류 관리" />
           <QuickLink href="/seller/simulator" icon="calc" label="손익 시뮬" />
         </div>
@@ -241,11 +241,12 @@ function SummaryCard({ label, value, note }: { label: string; value: string; not
 }
 
 /** 개인 도구 바로가기 · 라인 SVG 아이콘 (이모지 대신) */
-function QuickLink({ href, icon, label }: { href: string; icon: 'box' | 'doc' | 'calc'; label: string }) {
+function QuickLink({ href, icon, label }: { href: string; icon: 'box' | 'doc' | 'calc' | 'star'; label: string }) {
   const paths: Record<typeof icon, React.ReactNode> = {
     box: (<><path d="M3 8l9-4 9 4v8l-9 4-9-4z" /><path d="M3 8l9 4 9-4M12 12v8" /></>),
     doc: (<><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></>),
     calc: (<><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h4" /></>),
+    star: (<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" />),
   };
   return (
     <Link href={href} className="card card-hover flex flex-col items-center justify-center gap-1.5 py-4 text-center">

@@ -292,8 +292,8 @@ const BOTTOM_TABS: Record<'seller' | 'host', { href: string; label: string; icon
   seller: [
     { href: '/dashboard', label: '홈', icon: 'home' },
     { href: '/events', label: '찾기', icon: 'search' },
-    { href: '/seller/favorites', label: '관심', icon: 'star' },
     { href: '/seller/applications', label: '신청', icon: 'list' },
+    { href: '/seller/inventory', label: '창고', icon: 'box' },
     { href: '/seller', label: '마이', icon: 'user' },
   ],
   host: [
@@ -334,7 +334,7 @@ function BottomNav({ role, pathname, unread }: { role: Role; pathname: string; u
   );
 }
 
-type IconKey = 'home' | 'search' | 'star' | 'list' | 'user' | 'calendar' | 'inbox' | 'wallet';
+type IconKey = 'home' | 'search' | 'star' | 'list' | 'user' | 'calendar' | 'inbox' | 'wallet' | 'box';
 
 function TabIcon({ name, active }: { name: IconKey; active: boolean }) {
   const sw = active ? 2.2 : 1.8;
@@ -356,6 +356,8 @@ function TabIcon({ name, active }: { name: IconKey; active: boolean }) {
       return (<svg {...common}><path d="M3 12h5l2 3h4l2-3h5" /><path d="M5 5h14l2 7v7H3v-7z" /></svg>);
     case 'wallet':
       return (<svg {...common}><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M16 12h3" /><path d="M3 9h13a2 2 0 0 1 2 2v0" /></svg>);
+    case 'box':
+      return (<svg {...common}><path d="M3 8l9-4 9 4v8l-9 4-9-4z" /><path d="M3 8l9 4 9-4M12 12v8" /></svg>);
     default:
       return null;
   }
