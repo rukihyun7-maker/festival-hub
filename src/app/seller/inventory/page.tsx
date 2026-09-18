@@ -80,8 +80,8 @@ export default function InventoryPage() {
         {/* 액션 바 */}
         <div className="flex flex-wrap gap-2 mb-5">
           <button onClick={() => setEditing('new')} className="btn-primary text-[13px] sm:hidden">+ 품목 추가</button>
-          <button onClick={() => setShipOpen(true)} disabled={items.length === 0} className="btn-secondary text-[13px]">📦 행사 출고</button>
-          <button onClick={() => setSettleOpen(true)} disabled={stats.outActive === 0} className="btn-secondary text-[13px]">🧾 종료 정산</button>
+          <button onClick={() => setShipOpen(true)} disabled={items.length === 0} className="btn-secondary text-[13px]">행사 출고</button>
+          <button onClick={() => setSettleOpen(true)} disabled={stats.outActive === 0} className="btn-secondary text-[13px]">종료 정산</button>
         </div>
 
         {loading ? (
@@ -90,7 +90,7 @@ export default function InventoryPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="card text-center py-16">
-            <div className="text-[28px] mb-2">📦</div>
+            <div className="mb-2 flex justify-center text-text-tertiary"><BoxIcon size={34} /></div>
             <div className="text-[15px] font-bold text-ink mb-1">아직 등록한 품목이 없습니다</div>
             <div className="t-sub mb-5">자주 쓰는 상품·재료를 등록하고 창고 재고를 관리해 보세요.</div>
             <button onClick={() => setEditing('new')} className="btn-primary">+ 첫 품목 등록</button>
@@ -154,7 +154,7 @@ function ItemCard({ item, onEdit, onRestock, onHistory }: {
           {item.image_url
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-            : <span className="text-[22px]">📦</span>}
+            : <span className="text-text-tertiary"><BoxIcon size={24} /></span>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -241,7 +241,7 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
           {imageUrl
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={imageUrl} alt="" className="w-full h-full object-cover" />
-            : <span className="text-[24px]">📦</span>}
+            : <span className="text-text-tertiary"><BoxIcon size={26} /></span>}
         </div>
         <div className="flex flex-col gap-1.5 justify-center">
           <label className={`btn-secondary text-[12px] py-1.5 px-3 cursor-pointer inline-flex ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
@@ -437,6 +437,14 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         {children}
       </div>
     </div>
+  );
+}
+
+function BoxIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 8l9-4 9 4v8l-9 4-9-4z" /><path d="M3 8l9 4 9-4M12 12v8" />
+    </svg>
   );
 }
 
