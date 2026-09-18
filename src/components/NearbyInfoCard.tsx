@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { fetchNearby, fetchNearbyEvents } from '@/lib/supabase/queries';
 import type { NearbyRow, LocalInfoCategory, NearbyEvent } from '@/lib/types';
+import Icon, { type IconName } from '@/components/Icon';
 
 /**
  * 인근지역 정보 카드 (반경 1km 상권·인구 시설)
@@ -12,12 +13,12 @@ import type { NearbyRow, LocalInfoCategory, NearbyEvent } from '@/lib/types';
  * 디자인: 인포 블루 톤 (DESIGN_SYSTEM v2.0)
  */
 
-const CAT_META: Record<string, { label: string; icon: string; order: number }> = {
-  apartment: { label: '아파트 단지', icon: '🏢', order: 1 },
-  university: { label: '대학교', icon: '🎓', order: 2 },
-  transit: { label: '지하철역', icon: '🚇', order: 3 },
-  commercial: { label: '대형마트', icon: '🛒', order: 4 },
-  festival: { label: '인근 축제', icon: '🎪', order: 5 },
+const CAT_META: Record<string, { label: string; icon: IconName; order: number }> = {
+  apartment: { label: '아파트 단지', icon: 'building', order: 1 },
+  university: { label: '대학교', icon: 'cap', order: 2 },
+  transit: { label: '지하철역', icon: 'train', order: 3 },
+  commercial: { label: '대형마트', icon: 'cart', order: 4 },
+  festival: { label: '인근 축제', icon: 'tent', order: 5 },
 };
 
 function fmtDist(m: number): string {
@@ -157,7 +158,7 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
       {hasFacilities && (
       <div className="space-y-3">
         {ordered.map(([cat, items]) => {
-          const meta = CAT_META[cat] ?? { label: cat, icon: '📍' };
+          const meta = CAT_META[cat] ?? { label: cat, icon: 'pin' as IconName };
           const top = items.slice(0, 4);
           const head = headSummary(cat, items);
           return (
@@ -168,7 +169,7 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
             >
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-[13px] font-bold" style={{ color: 'var(--info, #2B4B9B)' }}>
-                  {meta.icon} {meta.label}
+                  <Icon name={meta.icon} size={14} /> {meta.label}
                 </span>
                 <span
                   className="text-[13px] font-extrabold text-ink"
@@ -201,7 +202,7 @@ export default function NearbyInfoCard({ eventId }: { eventId: string }) {
       {fests.length > 0 && (
         <div className={hasFacilities ? 'mt-4 pt-4 border-t border-line-faint' : ''}>
           <div className="text-[13px] font-bold mb-2" style={{ color: 'var(--info, #2B4B9B)' }}>
-            🎪 인근 축제·행사 {fests.length}건
+            <Icon name="tent" size={15} /> 인근 축제·행사 {fests.length}건
           </div>
           <div className="space-y-1.5">
             {fests.map((f) => (

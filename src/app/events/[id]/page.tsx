@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import NearbyInfoCard from '@/components/NearbyInfoCard';
+import Icon from '@/components/Icon';
 import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, fetchMyMenus, fetchEventContact, fetchMyFavorites, addFavorite, removeFavorite, uploadApplicationDoc, addApplicationDocument, fetchMyApplicationForEvent, incrementEventView, fetchEventFavoriteCount } from '@/lib/supabase/queries';
 import { periodLabel, feeLabel, deadlineLabel, daysUntil, filledSiteDetails, filledSiteDetailRows, fitCheck, applyChecklist, requiredDocsVerified, REQUIRED_DOC_KINDS, DOC_META, siteNoun, slotUnit, vatNote } from '@/lib/types';
 import type { EventRow, Profile, DocumentSlot, SiteDetails } from '@/lib/types';
@@ -190,7 +191,7 @@ export default function EventDetailPage() {
           </div>
           <h1 className="t-title mb-6">{event.name}</h1>
           <div className="card text-center py-12">
-            <div className="text-[28px] mb-2">🔒</div>
+            <div className="mb-2"><Icon name="lock" size={28} /></div>
             <div className="text-[16px] font-extrabold text-ink mb-1">검증된 입점 파트너만 볼 수 있는 신청 가능 행사예요</div>
             <p className="t-sub mb-1">가입 승인 + 필수 서류 6종 검증 완료 후 상세와 신청이 열립니다.</p>
             <p className="text-[13px] font-bold text-ink mb-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -254,7 +255,7 @@ export default function EventDetailPage() {
           {((favCount ?? 0) > 0 || (event.view_count ?? 0) > 0) && (
             <div className="flex items-center gap-3 mt-3 text-[12px] text-text-tertiary" style={{ fontVariantNumeric: 'tabular-nums' }}>
               {(favCount ?? 0) > 0 && <span>★ 관심 <b className="text-ink-soft">{favCount}</b></span>}
-              {(event.view_count ?? 0) > 0 && <span>👁 조회 <b className="text-ink-soft">{(event.view_count ?? 0).toLocaleString()}</b></span>}
+              {(event.view_count ?? 0) > 0 && <span><Icon name="eye" size={14} /> 조회 <b className="text-ink-soft">{(event.view_count ?? 0).toLocaleString()}</b></span>}
             </div>
           )}
         </section>
@@ -278,7 +279,7 @@ export default function EventDetailPage() {
 
             {event.notice_url && (
               <a href={event.notice_url} target="_blank" rel="noopener noreferrer" className="card card-hover flex items-center gap-3" style={{ textDecoration: 'none' }}>
-                <div className="text-[22px] shrink-0">📄</div>
+                <div className="shrink-0"><Icon name="file" size={22} /></div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] font-bold text-ink">모집 공고문</div>
                   <div className="text-[12px] text-text-secondary truncate">{event.notice_name || '공식 모집공고문'} · 클릭해서 열람·다운로드</div>
@@ -331,7 +332,7 @@ export default function EventDetailPage() {
                     <div className="text-[11px] font-bold text-text-tertiary mb-1.5">추가 서류 · 신청 시 첨부</div>
                     <div className="flex flex-wrap gap-1.5">
                       {event.required_docs!.extra!.map((d, i) => (
-                        <span key={i} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--warning-bg,#FBF5E6)', color: '#7A5B00' }}>📎 {d.label}</span>
+                        <span key={i} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--warning-bg,#FBF5E6)', color: '#7A5B00' }}><Icon name="clip" size={13} /> {d.label}</span>
                       ))}
                     </div>
                   </div>
@@ -413,7 +414,7 @@ export default function EventDetailPage() {
                     <div className="rounded-input p-3 mb-4" style={{ background: 'var(--danger-bg, #FBEDEA)', border: '1px solid #E5B8AE' }}>
                       {fit.warnings.map((w, i) => (
                         <div key={i} className="text-[12.5px] font-semibold text-danger flex gap-1.5">
-                          <span>⚠️</span><span>{w}</span>
+                          <span><Icon name="warn" size={14} /></span><span>{w}</span>
                         </div>
                       ))}
                     </div>
@@ -581,7 +582,7 @@ export default function EventDetailPage() {
 function LockedBox({ title, desc }: { title?: string; desc?: React.ReactNode }) {
   return (
     <div className="rounded-input p-4 text-center" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
-      <div className="text-[20px] mb-1">🔒</div>
+      <div className="mb-1"><Icon name="lock" size={20} /></div>
       <div className="text-[13px] font-bold text-ink mb-0.5">{title ?? '가입 승인 후 열람 가능'}</div>
       <div className="text-[12px] text-text-secondary">
         {desc ?? (

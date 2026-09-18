@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import { fetchEvents, fetchMyProfile, saveSimulation, fetchMyDocumentSlots, countVerified } from '@/lib/supabase/queries';
 import type { EventRow, Profile } from '@/lib/types';
 
@@ -147,7 +148,7 @@ export default function SimulatorPage() {
             </select>
             {!docReady ? (
               <div className="text-[12px] text-warning mt-1 leading-relaxed">
-                🔒 등록 행사 선택은 <b>필수 서류 80% 이상</b>부터 가능합니다 (현재 {docPct}%). 지금은 <b>값을 직접 입력해 계산</b>하는 것만 가능합니다.{' '}
+                <Icon name="lock" size={13} /> 등록 행사 선택은 <b>필수 서류 80% 이상</b>부터 가능합니다 (현재 {docPct}%). 지금은 <b>값을 직접 입력해 계산</b>하는 것만 가능합니다.{' '}
                 <Link href="/seller/documents" className="text-info font-semibold underline">서류 등록 →</Link>
               </div>
             ) : selectedEvent && (

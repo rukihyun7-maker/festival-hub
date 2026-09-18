@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import EventForm, { toFormValues, type EventFormValues } from '@/components/EventForm';
 import { deleteEvent, fetchEventById, fetchEventContact, fetchMyProfile, updateEvent, fetchPlatformSettings, requestEventDeletion, withdrawEventDeletion } from '@/lib/supabase/queries';
 import { compactSiteDetails } from '@/lib/types';
@@ -218,7 +219,7 @@ export default function EditEventPage() {
 
         {deletionRequested && (
           <div className="rounded-card p-4 mb-6 border" style={{ background: 'var(--danger-bg, #FCEDEA)', borderColor: 'var(--danger, #C7503E)' }}>
-            <div className="text-[13px] font-bold text-danger mb-1">🗑️ 삭제 요청됨 · 관리자 검토 중</div>
+            <div className="text-[13px] font-bold text-danger mb-1"><Icon name="trash" size={14} /> 삭제 요청됨 · 관리자 검토 중</div>
             <div className="text-[12px] text-text-secondary leading-relaxed">
               관리자가 승인하면 이 행사와 관련 신청·매출이 삭제됩니다.{event.delete_reason ? ` 요청 사유: “${event.delete_reason}”` : ''} 취소하려면 아래 <b>삭제 요청 철회</b>를 누르세요.
             </div>

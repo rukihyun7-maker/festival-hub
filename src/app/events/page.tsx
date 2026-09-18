@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import { fetchEvents, fetchMyProfile, fetchMyDocumentSlots, countVerified } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, demandLevel, requiredDocsVerified, REQUIRED_DOC_KINDS } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
@@ -208,7 +209,7 @@ export default function EventsListPage() {
         <div className="container-app py-8 md:py-12">
           <h1 className="t-title mb-6">행사 찾기</h1>
           <div className="card max-w-xl mx-auto text-center py-12">
-            <div className="w-14 h-14 rounded-pill bg-muted mx-auto mb-4 flex items-center justify-center text-[24px]">🚫</div>
+            <div className="w-14 h-14 rounded-pill bg-muted mx-auto mb-4 flex items-center justify-center"><Icon name="ban" size={24} /></div>
             <div className="text-[17px] font-extrabold text-ink mb-2">{rejected ? '가입이 반려되었습니다' : '이용이 정지된 계정입니다'}</div>
             <p className="t-sub mb-6">행사 찾기·신청이 제한되었습니다. 문의가 필요하면 운영팀(help@festivalhub.co.kr)에 연락해 주세요.</p>
           </div>
@@ -307,7 +308,7 @@ export default function EventsListPage() {
         {/* 자격 미충족 → 정보형만 열람 안내 */}
         {restrictInfo && (
           <div className="card mb-6" style={{ background: 'var(--warning-bg, #FFF9E6)', borderColor: '#E7DCA8' }}>
-            <div className="text-[13px] font-bold text-ink mb-1">🔒 정보 제공 행사만 볼 수 있어요</div>
+            <div className="text-[13px] font-bold text-ink mb-1"><Icon name="lock" size={14} /> 정보 제공 행사만 볼 수 있어요</div>
             <div className="text-[12px] text-text-secondary">
               {gate?.role === 'seller'
                 ? <>필수 서류 6종을 관리자 검증까지 마치면 <b>신청 가능 행사</b>의 상세와 신청이 열립니다. 서류 검증 {gate.docsDone}/{REQUIRED_DOC_KINDS.length} · <Link href="/seller/documents" className="text-info font-semibold underline">서류 등록 →</Link></>

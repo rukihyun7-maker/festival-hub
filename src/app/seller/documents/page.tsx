@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import {
   countVerified,
   deleteDocument,
@@ -91,7 +92,7 @@ export default function SellerDocumentsPage() {
           <h1 className="t-title mb-1">필수 서류 관리</h1>
           <p className="t-sub">모든 항목이 검증되면 행사 신청 시 자동 첨부됩니다. (서류 + 부스·트럭 사진 3장)</p>
           <div className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--info-soft,#F4F7FE)', color: 'var(--info,#2B4B9B)' }}>
-            🔔 만료일이 다가오면 미리 알려드립니다 — 서류 걱정 없이 운영하세요
+            <Icon name="bell" size={13} /> 만료일이 다가오면 미리 알려드립니다 — 서류 걱정 없이 운영하세요
           </div>
         </div>
 
@@ -103,7 +104,7 @@ export default function SellerDocumentsPage() {
           return (
             <div className="card mb-6" style={{ borderColor: isExp ? '#E0A99B' : '#E4C97E', background: isExp ? 'var(--danger-bg,#FBECE8)' : 'var(--warning-bg,#FBF5E6)' }}>
               <div className="flex items-start gap-3">
-                <div className="text-[20px] leading-none mt-0.5">{isExp ? '⚠️' : '🔔'}</div>
+                <div className="leading-none mt-0.5">{isExp ? <Icon name="warn" size={20} className="text-danger" /> : <Icon name="bell" size={20} className="text-warning" />}</div>
                 <div>
                   <div className="text-[14px] font-bold text-ink mb-0.5">
                     {isExp ? `만료된 서류 ${expired.length}건 — 갱신이 필요합니다` : `만료 임박 서류 ${expiring.length}건`}
@@ -302,7 +303,7 @@ function DocCard({
           <div className="text-[12px] text-text-secondary truncate">{slot.desc}</div>
           {slot.doc && (
             <div className="text-[11px] text-text-tertiary mt-1">
-              📎 {slot.doc.file_name ?? '(파일명 없음)'}
+              <Icon name="clip" size={13} /> {slot.doc.file_name ?? '(파일명 없음)'}
               {slot.doc.expires_at && (
                 <>
                   {' · '}
@@ -335,14 +336,14 @@ function DocCard({
           {slot.doc?.file_url && (
             <div className="mb-4 p-3 rounded-input bg-surface border border-line flex items-center gap-3">
               <span className="text-[13px] font-semibold text-ink flex-1 truncate">
-                📎 {twoSided ? '앞면 · ' : ''}{slot.doc.file_name ?? '파일'}
+                <Icon name="clip" size={14} /> {twoSided ? '앞면 · ' : ''}{slot.doc.file_name ?? '파일'}
               </span>
               <button
                 onClick={() => handleOpenFile()}
                 disabled={openingFile}
                 className="text-[13px] font-semibold text-accent-warm hover:text-accent-deep shrink-0"
               >
-                {openingFile ? '여는 중…' : '📥 다운로드'}
+                {openingFile ? '여는 중…' : <><Icon name="download" size={14} /> 다운로드</>}
               </button>
             </div>
           )}
@@ -350,14 +351,14 @@ function DocCard({
           {twoSided && slot.doc?.file_url_back && (
             <div className="mb-4 p-3 rounded-input bg-surface border border-line flex items-center gap-3">
               <span className="text-[13px] font-semibold text-ink flex-1 truncate">
-                📎 뒷면 · {slot.doc.file_name_back ?? '파일'}
+                <Icon name="clip" size={14} /> 뒷면 · {slot.doc.file_name_back ?? '파일'}
               </span>
               <button
                 onClick={() => handleOpenFile(slot.doc?.file_url_back)}
                 disabled={openingFile}
                 className="text-[13px] font-semibold text-accent-warm hover:text-accent-deep shrink-0"
               >
-                {openingFile ? '여는 중…' : '📥 다운로드'}
+                {openingFile ? '여는 중…' : <><Icon name="download" size={14} /> 다운로드</>}
               </button>
             </div>
           )}

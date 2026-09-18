@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Icon from '@/components/Icon';
 import { uploadEventNotice } from '@/lib/supabase/queries';
 import { REQUIRED_DOC_KINDS, DOC_META, SLOT_UNITS, SETTLEMENT_METHODS, siteNoun, defaultSlotUnit, slotUnit } from '@/lib/types';
 import type { EventRow, Profile, SiteDetails, RecruitSlot, EventRequiredDocs, DocKind, EventExtraDoc } from '@/lib/types';
@@ -188,7 +189,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
       <div className="space-y-6" style={{ minWidth: 0 }}>
         {lockCore && (
           <div className="rounded-card p-4 border" style={{ background: 'var(--warning-bg, #FEF6E7)', borderColor: 'var(--warning, #B7791F)' }}>
-            <div className="text-[13px] font-bold text-ink mb-1">🔒 승인 완료된 행사입니다</div>
+            <div className="text-[13px] font-bold text-ink mb-1"><Icon name="lock" size={14} /> 승인 완료된 행사입니다</div>
             <div className="text-[12px] text-text-secondary leading-relaxed">
               파트너가 신청 근거로 삼는 <b>핵심 조건(일정·장소·참가비·모집 부문)</b>은 승인 후 변경할 수 없습니다. 오기재·불가피한 변경은 관리자에게 요청해 주세요. 소개·시설 안내·담당자·공고문·게시 상태는 계속 수정할 수 있습니다.
             </div>
@@ -216,7 +217,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
             <div className="text-[12px] font-semibold text-ink-soft mb-1.5">모집 공고문 <span className="text-text-tertiary font-normal ml-1">· 선택 (지자체 등 공식 공고문 PDF)</span></div>
             {v.notice_url ? (
               <div className="flex items-center gap-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
-                <span className="text-[13px] font-semibold text-ink flex-1 truncate">📄 {v.notice_name || '공고문'}</span>
+                <span className="text-[13px] font-semibold text-ink flex-1 truncate"><Icon name="file" size={14} /> {v.notice_name || '공고문'}</span>
                 <a href={v.notice_url} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-info hover:underline shrink-0">보기</a>
                 <button type="button" onClick={() => { set('notice_url', ''); set('notice_name', ''); }} className="text-[12px] text-danger font-bold shrink-0">제거</button>
               </div>
@@ -394,7 +395,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
           </Field>
         </Section>
 
-        <Section title={`5. 모집 부문${lockCore ? ' 🔒' : ''}`}>
+        <Section title={lockCore ? <>5. 모집 부문 <Icon name="lock" size={13} /></> : '5. 모집 부문'}>
           {lockCore ? (
             <>
               <p className="text-[11px] text-text-tertiary -mt-1">승인 후에는 모집 부문(참가비·인원·시설)을 변경할 수 없습니다. 변경이 필요하면 관리자에게 요청해 주세요.</p>
@@ -608,7 +609,7 @@ export default function EventForm({ mode, initial, submitting, error, cancelHref
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="card">
       <div className="t-section mb-4">{title}</div>

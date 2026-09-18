@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon, { type IconName } from '@/components/Icon';
 import EventForm, { initialFormValues, type EventFormValues } from '@/components/EventForm';
 import { createEvent, fetchMyProfile, updateEvent, fetchPlatformSettings } from '@/lib/supabase/queries';
 import { compactSiteDetails } from '@/lib/types';
@@ -141,7 +142,7 @@ export default function CreateEventPage() {
         <AppNav role="host" />
         <div className="container-app py-12 max-w-[520px]">
           <div className="card text-center py-14">
-            <div className="text-[34px] mb-3">{pending ? '🕓' : '⚠️'}</div>
+            <div className="mb-3">{pending ? <Icon name="clock" size={34} /> : <Icon name="warn" size={34} />}</div>
             <div className="text-[16px] font-bold text-ink mb-2">{pending ? '가입 심사 중입니다' : '가입이 반려되었습니다'}</div>
             <div className="t-sub mb-6">
               {pending
@@ -172,12 +173,12 @@ export default function CreateEventPage() {
 
             {hasSummary ? (
               <div className="rounded-card p-4 mb-5 text-left" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
-                <div className="text-[12px] font-extrabold mb-2" style={{ color: 'var(--info, #2B4B9B)' }}>📍 이 자리 반경 1km 상권 (자동 분석)</div>
+                <div className="text-[12px] font-extrabold mb-2" style={{ color: 'var(--info, #2B4B9B)' }}><Icon name="pin" size={13} /> 이 자리 반경 1km 상권 (자동 분석)</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <SummaryTile icon="🏢" label="아파트 단지" n={s!.apartment} />
-                  <SummaryTile icon="🚇" label="지하철역" n={s!.transit} />
-                  <SummaryTile icon="🎓" label="대학교" n={s!.university} />
-                  <SummaryTile icon="🛒" label="대형마트" n={s!.commercial} />
+                  <SummaryTile icon="building" label="아파트 단지" n={s!.apartment} />
+                  <SummaryTile icon="train" label="지하철역" n={s!.transit} />
+                  <SummaryTile icon="cap" label="대학교" n={s!.university} />
+                  <SummaryTile icon="cart" label="대형마트" n={s!.commercial} />
                 </div>
                 <div className="text-[11px] text-text-tertiary mt-2">주변 유동인구가 많을수록 파트너 신청이 늘어납니다. · 출처 카카오맵</div>
               </div>
@@ -234,10 +235,10 @@ export default function CreateEventPage() {
   );
 }
 
-function SummaryTile({ icon, label, n }: { icon: string; label: string; n: number }) {
+function SummaryTile({ icon, label, n }: { icon: IconName; label: string; n: number }) {
   return (
     <div className="flex items-center justify-between gap-2 p-2.5 rounded-input bg-surface border border-line-faint">
-      <span className="text-[12px] font-semibold text-ink">{icon} {label}</span>
+      <span className="text-[12px] font-semibold text-ink"><Icon name={icon} size={13} /> {label}</span>
       <span className="text-[15px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{n}</span>
     </div>
   );

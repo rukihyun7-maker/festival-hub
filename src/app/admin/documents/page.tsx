@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import {
   fetchAllDocumentsAdmin,
   fetchMyProfile,
@@ -278,7 +279,7 @@ export default function AdminDocumentsPage() {
                                 <UrgencyBadge urgency={urgency} />
                               </div>
                               <div className="text-[11px] text-text-tertiary mt-1">
-                                {d.file_name ? `📎 ${d.file_name}` : '파일 없음'}
+                                {d.file_name ? <><Icon name="clip" size={13} /> {d.file_name}</> : '파일 없음'}
                                 {' · 제출 '}{new Date(d.uploaded_at).toLocaleDateString('ko-KR')}
                                 {d.expires_at && ` · 만료 ${d.expires_at}`}
                               </div>
@@ -289,7 +290,7 @@ export default function AdminDocumentsPage() {
                             <div className="flex gap-2 shrink-0 flex-wrap">
                               {d.file_url && (
                                 <button onClick={() => handleOpen(d)} disabled={openingId === d.id} className="btn-secondary text-[12px] py-1.5 px-3">
-                                  {openingId === d.id ? '여는 중…' : '📥 파일'}
+                                  {openingId === d.id ? '여는 중…' : <><Icon name="download" size={14} /> 파일</>}
                                 </button>
                               )}
                               {d.status === 'pending' && (

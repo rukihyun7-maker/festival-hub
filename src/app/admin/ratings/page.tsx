@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import { fetchMyProfile, fetchAllRatings, deleteRating } from '@/lib/supabase/queries';
 import { REHIRE_LABEL } from '@/lib/types';
 import type { Profile, RatingWithRelations } from '@/lib/types';
@@ -109,8 +110,8 @@ export default function AdminRatingsPage() {
                       ) : (
                         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                           {r.rehire && <span className="badge badge-success" style={{ fontSize: 10 }}>{REHIRE_LABEL[r.rehire]}</span>}
-                          {(r.praise_tags ?? []).map((t) => <span key={t} className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}>👍{t}</span>)}
-                          {(r.improve_tags ?? []).map((t) => <span key={t} className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: '#FBECE8', color: '#9B2C22' }}>🔒{t}</span>)}
+                          {(r.praise_tags ?? []).map((t) => <span key={t} className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}><Icon name="thumb" size={12} /> {t}</span>)}
+                          {(r.improve_tags ?? []).map((t) => <span key={t} className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: '#FBECE8', color: '#9B2C22' }}><Icon name="lock" size={12} /> {t}</span>)}
                         </div>
                       )}
                       {r.comment && <div className="text-[13px] text-ink-soft mt-2 leading-relaxed">“{r.comment}”</div>}

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchMyProfile, fetchMyNotifications, markNotificationsRead } from '@/lib/supabase/queries';
+import Icon from '@/components/Icon';
 import type { Profile, Notification, Role, NotifKind } from '@/lib/types';
 
 /**
@@ -227,7 +228,7 @@ export default function AppNav({ role = 'seller' as Role }) {
               className="relative w-10 h-10 rounded-[10px] hover:bg-surface-sunken flex items-center justify-center transition-colors"
               aria-label="알림"
             >
-              <span className="text-[18px]">🔔</span>
+              <Icon name="bell" size={20} className="text-text-secondary" />
               {unread > 0 && <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-danger" />}
             </button>
             {notifOpen && (

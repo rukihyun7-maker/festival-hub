@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import {
   fetchMyProfile,
   fetchMyHostEvents,
@@ -333,7 +334,7 @@ function ApplicantCard({
                         </div>
                         {rv.praise_tags && rv.praise_tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mb-1">
-                            {rv.praise_tags.map((t) => <span key={t} className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}>👍{t}</span>)}
+                            {rv.praise_tags.map((t) => <span key={t} className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}><Icon name="thumb" size={12} /> {t}</span>)}
                           </div>
                         )}
                         {rv.comment && <div className="text-[12px] text-ink-soft leading-relaxed">{rv.comment}</div>}
@@ -352,7 +353,7 @@ function ApplicantCard({
                     {appDocs.map((ad) => (
                       <div key={ad.id} className="flex items-center justify-between gap-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
                         <div className="min-w-0">
-                          <div className="text-[12.5px] font-bold text-ink truncate">📎 {ad.label}</div>
+                          <div className="text-[12.5px] font-bold text-ink truncate"><Icon name="clip" size={14} /> {ad.label}</div>
                           {ad.file_name && <div className="text-[11px] text-text-tertiary truncate">{ad.file_name}</div>}
                         </div>
                         {ad.file_url && (
@@ -426,7 +427,7 @@ function ApplicantCard({
                     const path = slot?.doc?.file_url;
                     return path ? (
                       <span key={kind} className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-input badge-success">
-                        📷 {label}
+                        <Icon name="camera" size={14} /> {label}
                         <button onClick={() => openDoc(path)} className="font-bold underline hover:opacity-70">열람</button>
                         <button onClick={() => openDoc(path, `${label}.jpg`)} className="font-bold underline hover:opacity-70">다운로드</button>
                       </span>
@@ -521,7 +522,7 @@ function DetailRow({ label, value, locked }: { label: string; value?: string | n
     <div className="p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
       <div className="text-[10.5px] text-text-tertiary mb-0.5">{label}</div>
       {locked ? (
-        <div className="text-[12px] font-semibold text-text-tertiary break-words">🔒 승인 후 공개</div>
+        <div className="text-[12px] font-semibold text-text-tertiary break-words"><Icon name="lock" size={13} /> 승인 후 공개</div>
       ) : (
         <div className="text-[13px] font-semibold text-ink break-words">{value || '—'}</div>
       )}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import {
   fetchApplicationsForEvent,
   fetchMyHostEvents,
@@ -228,7 +229,7 @@ export default function HostDashboardPage() {
                     {periodLabel(selectedEvent.start_date, selectedEvent.end_date)} · {days}일간 · {dday !== null && dday > 0 ? `D-${dday}` : dday === 0 ? '오늘' : '종료'}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-[12px] text-text-tertiary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    <span>👁 조회 <b className="text-ink-soft">{(selectedEvent.view_count ?? 0).toLocaleString()}</b></span>
+                    <span><Icon name="eye" size={13} /> 조회 <b className="text-ink-soft">{(selectedEvent.view_count ?? 0).toLocaleString()}</b></span>
                     <span>★ 관심 <b className="text-ink-soft">{favCounts[selectedEvent.id] ?? 0}</b></span>
                   </div>
                 </>
@@ -391,7 +392,7 @@ function HostStatusBanner({ status }: { status?: string | null }) {
     return (
       <div className="card mb-3" style={{ borderColor: '#E4C97E', background: 'var(--warning-bg, #FBF5E6)' }}>
         <div className="flex items-start gap-3">
-          <div className="text-[20px] leading-none mt-0.5">🕓</div>
+          <div className="leading-none mt-0.5"><Icon name="clock" size={20} className="text-warning" /></div>
           <div>
             <div className="text-[14px] font-bold text-ink mb-0.5">가입 심사 중입니다</div>
             <div className="text-[12px] text-text-secondary leading-relaxed">
@@ -406,7 +407,7 @@ function HostStatusBanner({ status }: { status?: string | null }) {
     return (
       <div className="card mb-3" style={{ borderColor: '#E0A99B', background: 'var(--danger-bg, #FBECE8)' }}>
         <div className="flex items-start gap-3">
-          <div className="text-[20px] leading-none mt-0.5">⚠️</div>
+          <div className="leading-none mt-0.5"><Icon name="warn" size={20} className="text-danger" /></div>
           <div>
             <div className="text-[14px] font-bold text-ink mb-0.5">가입이 반려되었습니다</div>
             <div className="text-[12px] text-text-secondary leading-relaxed">
@@ -445,7 +446,7 @@ function BusinessCardPrompt({ profile, onDone }: { profile: Profile; onDone: (ur
   return (
     <div className="card" style={{ borderColor: '#E4C97E', background: 'var(--warning-bg, #FBF5E6)' }}>
       <div className="flex items-start gap-3">
-        <div className="text-[20px] leading-none mt-0.5">🪪</div>
+        <div className="leading-none mt-0.5"><Icon name="id" size={20} className="text-warning" /></div>
         <div className="flex-1 min-w-0">
           <div className="text-[14px] font-bold text-ink mb-0.5">담당자 명함이 등록되지 않았습니다</div>
           <div className="text-[12px] text-text-secondary mb-3">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import {
   deleteEvent,
   fetchAllEventsAdmin,
@@ -428,7 +429,7 @@ function PendingCard({
         {/* 주최 신원 */}
         <div className="text-[12px]">
           <span className={ownerIdentified ? 'text-success font-bold' : 'text-warning font-bold'}>
-            {ownerIdentified ? '✓ 주최 신원 확인' : '⚠ 주최 신원 정보 부족'}
+            {ownerIdentified ? '✓ 주최 신원 확인' : <><Icon name="warn" size={12} /> 주최 신원 정보 부족</>}
           </span>
           {loaded && owner && (
             <span className="text-text-secondary">
@@ -454,7 +455,7 @@ function PendingCard({
         {/* 중복 의심 */}
         {dupSuspect.length > 0 && (
           <div className="text-[12px]">
-            <span className="text-warning font-bold">⚠ 유사 행사 {dupSuspect.length}건</span>
+            <span className="text-warning font-bold"><Icon name="warn" size={13} /> 유사 행사 {dupSuspect.length}건</span>
             <span className="text-text-secondary"> (중복 등록·기존 정보형 확인)</span>
             <div className="mt-1 space-y-0.5">
               {dupSuspect.slice(0, 3).map((s) => (
@@ -487,7 +488,7 @@ function MetricsEditor({ event: e, saving, onSave }: { event: EventRow; saving: 
   if (!open) {
     return (
       <div className="flex items-center gap-2 mt-1.5 text-[11px] text-text-tertiary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        <span>👁 조회 <b className="text-ink-soft">{(e.view_count ?? 0).toLocaleString()}</b></span>
+        <span><Icon name="eye" size={13} /> 조회 <b className="text-ink-soft">{(e.view_count ?? 0).toLocaleString()}</b></span>
         <span>★ 관심 가산 <b className="text-ink-soft">{(e.fav_boost ?? 0) > 0 ? `+${e.fav_boost}` : (e.fav_boost ?? 0)}</b></span>
         <button onClick={() => { setView(String(e.view_count ?? 0)); setBoost(String(e.fav_boost ?? 0)); setOpen(true); }} className="text-info font-bold hover:underline">지표 수정</button>
       </div>

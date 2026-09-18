@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import { fetchDeadlineSoon, fetchMyApplications, fetchMyDocumentSlots, fetchMyProfile, fetchMySales, countVerified, flushPendingBizDoc } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, requiredDocsVerified } from '@/lib/types';
 import type { EventRow, ApplicationWithRelations, Profile, SaleWithEvent, DocumentSlot } from '@/lib/types';
@@ -107,7 +108,7 @@ export default function DashboardPage() {
           <section className="mt-6">
             <div className="card" style={{ background: 'var(--danger-bg, #FBEDEA)', borderColor: '#E5B8AE' }}>
               <div className="flex items-start gap-3">
-                <span className="text-[20px] leading-none mt-0.5">🔔</span>
+                <span className="text-danger mt-0.5"><Icon name="warn" size={20} /></span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[14px] font-extrabold text-danger mb-1">서류 만료 알림 · {expiryAlerts.length}건</div>
                   <div className="text-[12.5px] text-text-secondary mb-3">

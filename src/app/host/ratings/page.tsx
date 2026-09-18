@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import {
   fetchMyProfile,
   fetchMyHostEvents,
@@ -194,7 +195,7 @@ function RatingCard({
 
       {/* 칭찬 태그 (공개) */}
       <div className="mb-4">
-        <div className="text-[12px] font-bold text-ink mb-1.5">👍 좋았던 점 <span className="text-[11px] font-normal text-text-tertiary">· 파트너·다른 주최에 공개</span></div>
+        <div className="text-[12px] font-bold text-ink mb-1.5"><Icon name="thumb" size={14} /> 좋았던 점 <span className="text-[11px] font-normal text-text-tertiary">· 파트너·다른 주최에 공개</span></div>
         <div className="flex flex-wrap gap-1.5">
           {PRAISE_TAGS.map((t) => (
             <button key={t} type="button" disabled={disabled} onClick={() => toggle(praise, setPraise, t)}
@@ -205,7 +206,7 @@ function RatingCard({
 
       {/* 개선점 태그 (비공개) */}
       <div className="mb-4">
-        <div className="text-[12px] font-bold text-ink mb-1.5">🔒 개선점 <span className="text-[11px] font-normal text-text-tertiary">· 비공개(파트너 본인만, 닉네임) · 신뢰도에 반영</span></div>
+        <div className="text-[12px] font-bold text-ink mb-1.5"><Icon name="lock" size={14} /> 개선점 <span className="text-[11px] font-normal text-text-tertiary">· 비공개(파트너 본인만, 닉네임) · 신뢰도에 반영</span></div>
         <div className="flex flex-wrap gap-1.5">
           {IMPROVE_TAGS.map((t) => (
             <button key={t} type="button" disabled={disabled} onClick={() => toggle(improve, setImprove, t)}

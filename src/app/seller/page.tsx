@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon, { type IconName } from '@/components/Icon';
 import {
   fetchMyApplications,
   fetchMyMenus,
@@ -718,7 +719,7 @@ function MenuCard({
   const [busy, setBusy] = useState(false);
 
   const margin = m.price > 0 ? Math.round(((m.price - m.cost) / m.price) * 100) : 0;
-  const emoji = m.category === 'MAIN' ? '🍽️' : m.category === 'SIDE' ? '🍤' : m.category === 'DRINK' ? '🥤' : '🎁';
+  const emoji: IconName = m.category === 'MAIN' ? 'utensils' : m.category === 'SIDE' ? 'utensils' : m.category === 'DRINK' ? 'cup' : 'gift';
 
   async function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -793,7 +794,7 @@ function MenuCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={m.image_url} alt={m.name} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[36px]">{emoji}</div>
+          <div className="w-full h-full flex items-center justify-center text-text-tertiary"><Icon name={emoji} size={36} /></div>
         )}
         {m.signature && (
           <span className="absolute top-2 left-2 badge badge-warning">★ 대표</span>
@@ -1136,7 +1137,7 @@ function RatingsTab({ loading, ratings, summary }: { loading: boolean; ratings: 
           <span className="text-[15px] font-extrabold text-ink">★ {summary.avg_score} <span className="text-[12px] font-semibold text-success">· 재섭외 {recommend}</span></span>
         )}
       </div>
-      <div className="t-sub mb-4">평가는 행사 종료 14일 후 <b>닉네임(익명)</b>으로 반영됩니다. 🔒 개선점은 나에게만 보입니다.</div>
+      <div className="t-sub mb-4">평가는 행사 종료 14일 후 <b>닉네임(익명)</b>으로 반영됩니다. <Icon name="lock" size={14} /> 개선점은 나에게만 보입니다.</div>
       {ratings.length === 0 ? (
         <div className="text-center py-12 text-[13px] text-text-tertiary">아직 반영된 평가가 없습니다.</div>
       ) : (
@@ -1153,13 +1154,13 @@ function RatingsTab({ loading, ratings, summary }: { loading: boolean; ratings: 
               {r.praise_tags && r.praise_tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {r.praise_tags.map((t) => (
-                    <span key={t} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}>👍 {t}</span>
+                    <span key={t} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#EAF3EC', color: '#2E7D46' }}><Icon name="thumb" size={12} /> {t}</span>
                   ))}
                 </div>
               )}
               {r.improve_tags && r.improve_tags.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                  <span className="text-[10.5px] font-bold text-text-tertiary">🔒 개선점(나만 보임)</span>
+                  <span className="text-[10.5px] font-bold text-text-tertiary"><Icon name="lock" size={12} /> 개선점(나만 보임)</span>
                   {r.improve_tags.map((t) => (
                     <span key={t} className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FBECE8', color: '#9B2C22' }}>{t}</span>
                   ))}

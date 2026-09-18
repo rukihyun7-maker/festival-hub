@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Icon, { type IconName } from '@/components/Icon';
 
 /**
  * 시스템 둘러보기 · 로그인 없이 주요 화면을 소개하는 공개 페이지
@@ -161,7 +162,7 @@ function MockFit() {
           <div key={k} className="contents">
             <div className="text-ink font-semibold py-1 border-t border-line-faint">{k}</div>
             <div className="text-ink text-center py-1 border-t border-line-faint">{a}</div>
-            <div className={`text-center py-1 border-t border-line-faint font-bold ${t === 'warn' ? 'text-warning' : 'text-success'}`}>{b} {t === 'warn' ? '⚠' : '✓'}</div>
+            <div className={`text-center py-1 border-t border-line-faint font-bold ${t === 'warn' ? 'text-warning' : 'text-success'}`}>{b} {t === 'warn' ? <Icon name="warn" size={11} /> : '✓'}</div>
           </div>
         ))}
       </div>
@@ -181,21 +182,21 @@ function MockFavorites() {
             <span className="text-accent text-[13px]">★</span>
             <span className="text-[11px] font-bold text-ink truncate">{n}</span>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0"><Badge tone={t}>{d}</Badge><span className="text-[9px] text-info font-bold">🔔</span></div>
+          <div className="flex items-center gap-1.5 shrink-0"><Badge tone={t}>{d}</Badge><span className="text-info font-bold"><Icon name="bell" size={11} /></span></div>
         </div>
       ))}
     </div>
   );
 }
 function MockNearby() {
-  const tiles = [['🏢 아파트 단지', '12'], ['🚇 지하철역', '2'], ['🎓 대학교', '1'], ['🛒 대형마트', '3']];
+  const tiles: [IconName, string, string][] = [['building', '아파트 단지', '12'], ['train', '지하철역', '2'], ['cap', '대학교', '1'], ['cart', '대형마트', '3']];
   return (
     <div>
-      <div className="text-[10px] font-extrabold mb-2" style={{ color: 'var(--info, #2B4B9B)' }}>📍 이 자리 반경 1km 상권 (자동 분석)</div>
+      <div className="text-[10px] font-extrabold mb-2" style={{ color: 'var(--info, #2B4B9B)' }}><Icon name="pin" size={12} /> 이 자리 반경 1km 상권 (자동 분석)</div>
       <div className="grid grid-cols-2 gap-2">
-        {tiles.map(([k, v]) => (
+        {tiles.map(([ic, k, v]) => (
           <div key={k} className="flex items-center justify-between rounded-input border border-line-faint px-2.5 py-2">
-            <span className="text-[10px] font-semibold text-ink">{k}</span>
+            <span className="text-[10px] font-semibold text-ink"><Icon name={ic} size={12} /> {k}</span>
             <span className="text-[13px] font-extrabold text-ink" style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</span>
           </div>
         ))}

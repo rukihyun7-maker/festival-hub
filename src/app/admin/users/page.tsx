@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import Icon from '@/components/Icon';
 import {
   fetchAllProfiles, fetchMyProfile, updateProfileRole, updateProfileStatus, deleteHostAccount, deleteUserAccount,
   fetchMyDocumentSlots, fetchMyMenus, getSignedDocumentUrl, reviewDocument, countVerified,
@@ -577,7 +578,7 @@ function HostReviewDetail({ host, onDeleted }: { host: Profile; onDeleted: () =>
               onClick={async () => { try { window.open(await getSignedDocumentUrl(host.business_card_url!), '_blank', 'noopener'); } catch (e) { alert('열람 실패: ' + (e as Error).message); } }}
               className="mt-2 text-[12px] font-bold text-info hover:underline"
             >
-              📇 명함 이미지 열람
+              <Icon name="contact" size={13} /> 명함 이미지 열람
             </button>
           )}
         </div>
