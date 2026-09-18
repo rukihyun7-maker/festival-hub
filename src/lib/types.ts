@@ -769,6 +769,51 @@ export interface CategoryRule {
 }
 
 // ============================================
+// v50: 내 창고(재고 관리) · 입점 파트너 전용
+// ============================================
+
+export type InventoryMoveType = 'in' | 'out' | 'settle' | 'adjust';
+
+export interface InventoryItem {
+  id: string;
+  seller_id: string;
+  name: string;
+  image_url: string | null;
+  spec: string | null;        // 규격
+  unit: string;               // 단위(개/박스/kg)
+  warehouse_qty: number;      // 창고 재고
+  out_qty: number;            // 현장(출고) 재고
+  min_qty: number;            // 최소재고(재발주점)
+  purchase_price: number | null;
+  purchase_url: string | null;
+  memo: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryMove {
+  id: string;
+  seller_id: string;
+  item_id: string;
+  type: InventoryMoveType;
+  qty: number;
+  note: string | null;
+  created_at: string;
+}
+
+/** 재발주 필요 여부 (창고재고 ≤ 최소재고, 최소재고 설정 시) */
+export function needsReorder(item: Pick<InventoryItem, 'warehouse_qty' | 'min_qty'>): boolean {
+  return item.min_qty > 0 && item.warehouse_qty <= item.min_qty;
+}
+
+export const INVENTORY_MOVE_LABEL: Record<InventoryMoveType, string> = {
+  in: '입고',
+  out: '출고',
+  settle: '종료 정산',
+  adjust: '조정',
+};
+
+// ============================================
 // 파생 유틸
 // ============================================
 

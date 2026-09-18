@@ -6,6 +6,9 @@
 
 import { createClient } from './client';
 import type {
+  InventoryItem,
+  InventoryMove,
+  InventoryMoveType,
   EventRow,
   Application,
   ApplicationWithRelations,
@@ -1794,4 +1797,116 @@ export async function deleteCategoryRule(id: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from('category_rules').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ============================================
+// v50 · 내 창고(재고 관리) · 입점 파트너 본인만
+// ============================================
+
+export async function fetchInventoryItems(sellerId: string): Promise<InventoryItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('inventory_items')
+    .select('*')
+    .eq('seller_id', sellerId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as InventoryItem[];
+}
+
+export type InventoryItemInput = {
+  name: string; image_url?: string | null; spec?: string | null; unit?: string;
+  warehouse_qty?: number; out_qty?: number; min_qty?: number;
+  purchase_price?: number | null; purchase_url?: string | null; memo?: string | null;
+};
+
+export async function createInventoryItem(sellerId: string, input: InventoryItemInput): Promise<InventoryItem> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('inventory_items')
+    .insert({ seller_id: sellerId, unit: '개', warehouse_qty: 0, out_qty: 0, min_qty: 0, ...input })
+    .select().single();
+  if (error) throw error;
+  return data as InventoryItem;
+}
+
+export async function updateInventoryItem(id: string, patch: Partial<InventoryItemInput>): Promise<InventoryItem> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('inventory_items')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id).select().single();
+  if (error) throw error;
+  return data as InventoryItem;
+}
+
+export async function deleteInventoryItem(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** 창고 품목 이미지 업로드 (menu-photos 버킷 재사용) → 공개 URL */
+export async function uploadInventoryImage(sellerId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `${sellerId}/inventory/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('menu-photos').upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  const { data } = supabase.storage.from('menu-photos').getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
+/** 재고 이동 기록 1건 추가 */
+async function logInventoryMove(sellerId: string, itemId: string, type: InventoryMoveType, qty: number, note?: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.from('inventory_moves').insert({ seller_id: sellerId, item_id: itemId, type, qty, note: note ?? null });
+}
+
+/**
+ * 재고 이동 적용 (버킷 갱신 + 이력 기록)
+ *  - in     : 창고 += qty (입고/재발주)
+ *  - out    : 창고 -= qty, 현장 += qty (행사 출고)
+ *  - settle : 현장 잔여(remain) 입력 → 소진 = 현장 − 잔여, 현장=0, 창고 += 잔여
+ * 반환: 갱신된 품목
+ */
+export async function applyInventoryMove(
+  item: InventoryItem,
+  action: { type: 'in'; qty: number } | { type: 'out'; qty: number } | { type: 'settle'; remain: number },
+  note?: string,
+): Promise<InventoryItem> {
+  let warehouse = item.warehouse_qty;
+  let out = item.out_qty;
+  let moveType: InventoryMoveType = 'adjust';
+  let moveQty = 0;
+  let moveNote = note;
+
+  if (action.type === 'in') {
+    const q = Math.max(0, Math.floor(action.qty));
+    warehouse += q; moveType = 'in'; moveQty = q;
+  } else if (action.type === 'out') {
+    const q = Math.max(0, Math.min(Math.floor(action.qty), warehouse));
+    warehouse -= q; out += q; moveType = 'out'; moveQty = q;
+  } else {
+    const remain = Math.max(0, Math.min(Math.floor(action.remain), out));
+    const consumed = out - remain;
+    warehouse += remain; out = 0; moveType = 'settle'; moveQty = consumed;
+    moveNote = `잔여 ${remain}${item.unit} 창고 복귀 · 소진 ${consumed}${item.unit}${note ? ` · ${note}` : ''}`;
+  }
+
+  const updated = await updateInventoryItem(item.id, { warehouse_qty: warehouse, out_qty: out });
+  await logInventoryMove(item.seller_id, item.id, moveType, moveQty, moveNote);
+  return updated;
+}
+
+export async function fetchInventoryMoves(itemId: string): Promise<InventoryMove[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('inventory_moves')
+    .select('*')
+    .eq('item_id', itemId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []) as InventoryMove[];
 }

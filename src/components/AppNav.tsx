@@ -24,6 +24,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/seller/applications': '내 신청',
   '/seller/simulator': '손익 시뮬레이터',
   '/seller/documents': '서류 관리',
+  '/seller/inventory': '내 창고',
   '/calendar': '일정',
   '/settings': '설정',
   '/host': '홈',
@@ -59,6 +60,7 @@ function profileMenu(role: Role): { href: string; label: string }[] {
   return [
     { href: '/seller', label: '내 참여 이력' },
     { href: '/seller/documents', label: '서류 관리' },
+    { href: '/seller/inventory', label: '내 창고' },
     { href: '/seller/simulator', label: '손익 시뮬레이터' },
     { href: '/settings', label: '설정' },
   ];
@@ -130,6 +132,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/calendar', label: '일정' },
         { href: '/seller', label: '내 참여' },
         { href: '/seller/simulator', label: '손익 시뮬' },
+        { href: '/seller/inventory', label: '창고' },
       ];
 
   async function openNotif() {
