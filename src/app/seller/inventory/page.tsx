@@ -197,9 +197,10 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
   const [name, setName] = useState(item?.name ?? '');
   const [spec, setSpec] = useState(item?.spec ?? '');
   const [baseUnit, setBaseUnit] = useState(item?.base_unit ?? '개');
+  const [useBox, setUseBox] = useState<boolean>(item ? item.pack_size > 1 : false);
   const [packUnit, setPackUnit] = useState(item && item.pack_size > 1 ? item.unit : '');
   const [packSizeStr, setPackSizeStr] = useState(item && item.pack_size > 1 ? String(item.pack_size) : '');
-  const packed = packUnit.trim() !== '' && (Number(packSizeStr) || 0) > 1;
+  const packed = useBox && packUnit.trim() !== '' && (Number(packSizeStr) || 0) > 1;
   const pack = packed ? Number(packSizeStr) : 1;
   // 창고 초기 수량 (박스+개)
   const initP = item && item.pack_size > 1 ? String(Math.floor(item.warehouse_qty / item.pack_size)) : '';
@@ -227,6 +228,10 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
 
   async function save() {
     if (!name.trim()) { alert('상품명을 입력해 주세요'); return; }
+    if (useBox && (!packUnit.trim() || (Number(packSizeStr) || 0) <= 1)) {
+      alert('박스·묶음으로 세려면 “1박스 = ?”에 2 이상의 수량을 입력해 주세요.\n낱개로만 관리하려면 위에서 “낱개로 세기”를 선택하세요.');
+      return;
+    }
     setSaving(true);
     const payload: InventoryItemInput = {
       name: name.trim(), spec: spec.trim() || null,
@@ -258,28 +263,50 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
       <Field label="상품명" req><input value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="예: 종이컵" /></Field>
       <Field label="규격" hint="선택"><input value={spec} onChange={(e) => setSpec(e.target.value)} className="input" placeholder="예: 13oz · 1박스 1,000개" /></Field>
 
-      {/* 단위 · 묶음 */}
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="낱개 단위" hint="개·장·병">
-          <input value={baseUnit} maxLength={6} onChange={(e) => setBaseUnit(e.target.value)} className="input" list="inv-units" placeholder="개" />
-          <datalist id="inv-units">{UNIT_SUGGEST.map((u) => <option key={u} value={u} />)}</datalist>
-        </Field>
-        <Field label="묶음 단위" hint="선택"><input value={packUnit} maxLength={6} onChange={(e) => setPackUnit(e.target.value)} className="input" placeholder="예: 박스" /></Field>
-        <Field label={`1${packUnit.trim() || '묶음'} = ?`} hint={`${baseUnit || '개'} 수`}>
-          <input type="number" min={0} value={packSizeStr} onChange={(e) => setPackSizeStr(e.target.value)} className="input" placeholder="예: 100" disabled={packUnit.trim() === ''} />
-        </Field>
-      </div>
-      {/* 입력 해석 미리보기 (단위 혼동 방지) */}
-      <p className="-mt-1 mb-2.5 text-[11.5px] text-text-tertiary">
-        {packed
-          ? <>이렇게 등록됩니다 → <b className="text-ink-soft">1{packUnit.trim()} = {pack}{baseUnit.trim() || '개'}</b> · 수량은 &quot;{packUnit.trim()}+{baseUnit.trim() || '개'}&quot;로 관리</>
-          : <>낱개(<b className="text-ink-soft">{baseUnit.trim() || '개'}</b>) 단위로만 관리합니다. 박스 단위로 세려면 묶음 단위를 입력하세요.</>}
-      </p>
-
-      {/* 현재 창고 수량 (품목 추가 시 초기 재고 · 현장 사용량은 '상품 출고'에서 처리) */}
-      <Field label="현재 창고 수량" hint={packed ? `${packUnit}+${baseUnit}` : baseUnit}>
-        <QtyFields pack={pack} unit={packUnit.trim() || baseUnit} baseUnit={baseUnit || '개'} packStr={whP} remStr={whR} onPack={setWhP} onRem={setWhR} />
+      {/* 세는 방식 먼저 선택 (단위 칸에 수량을 넣는 혼동 방지) */}
+      <Field label="세는 방식">
+        <div className="grid grid-cols-2 gap-1.5">
+          <SegBtn active={!useBox} onClick={() => setUseBox(false)}>낱개로 세기</SegBtn>
+          <SegBtn active={useBox} onClick={() => setUseBox(true)}>박스·묶음으로</SegBtn>
+        </div>
       </Field>
+
+      {!useBox ? (
+        /* 낱개만: 단위 1개 + 수량 */
+        <div className="grid grid-cols-[1fr_1.25fr] gap-2">
+          <Field label="단위" hint="세는 단위">
+            <input value={baseUnit} maxLength={6} onChange={(e) => setBaseUnit(e.target.value)} className="input" list="inv-units" placeholder="개" />
+            <datalist id="inv-units">{UNIT_SUGGEST.map((u) => <option key={u} value={u} />)}</datalist>
+          </Field>
+          <Field label="현재 창고 수량" hint="지금 창고에 있는 양">
+            <div className="flex items-center gap-1.5">
+              <input type="number" min={0} inputMode="numeric" value={whR} onChange={(e) => setWhR(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 100 }} placeholder="0" />
+              <span className="text-[12px] text-text-tertiary shrink-0">{baseUnit.trim() || '개'}</span>
+            </div>
+          </Field>
+        </div>
+      ) : (
+        /* 박스·묶음: "1 [박스] = [100] [개]" 한 줄로 명확히 */
+        <>
+          <Field label="박스·낱개 설정" hint="예: 1박스 = 100개">
+            <div className="flex items-center gap-1.5 flex-wrap text-[13px] text-ink-soft">
+              <span>1</span>
+              <input value={packUnit} maxLength={6} onChange={(e) => setPackUnit(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 68 }} placeholder="박스" />
+              <span>=</span>
+              <input type="number" min={0} inputMode="numeric" value={packSizeStr} onChange={(e) => setPackSizeStr(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 76 }} placeholder="100" />
+              <input value={baseUnit} maxLength={6} onChange={(e) => setBaseUnit(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 60 }} placeholder="개" />
+            </div>
+          </Field>
+          <Field label="현재 창고 수량" hint={`${packUnit.trim() || '박스'} + ${baseUnit.trim() || '개'}`}>
+            <QtyFields pack={pack} unit={packUnit.trim() || '박스'} baseUnit={baseUnit.trim() || '개'} packStr={whP} remStr={whR} onPack={setWhP} onRem={setWhR} />
+          </Field>
+          {packed && (
+            <p className="-mt-1 mb-2.5 text-[11.5px] text-text-tertiary">
+              입력 확인 → <b className="text-ink-soft">{fmtQty(toBase(pack, whP, whR), { unit: packUnit.trim() || '박스', base_unit: baseUnit.trim() || '개', pack_size: pack })}</b>
+            </p>
+          )}
+        </>
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <Field label="적정재고량" hint="재발주 시점">
@@ -470,6 +497,18 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         {children}
       </div>
     </div>
+  );
+}
+
+function SegBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick}
+      className="text-[13px] py-2 rounded-input border font-semibold transition-colors"
+      style={active
+        ? { borderColor: 'var(--brand,#E8A33D)', background: 'var(--brand-weak,#FFF6E6)', color: 'var(--ink,#14120E)' }
+        : { borderColor: 'var(--line-faint,#E7E2D6)', background: 'var(--bg-surface,#fff)', color: 'var(--text-secondary,#6b6357)' }}>
+      {children}
+    </button>
   );
 }
 
