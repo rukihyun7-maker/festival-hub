@@ -128,17 +128,11 @@ function Tile({ label, value, tone }: { label: string; value: number; tone?: 'in
   );
 }
 
-/** 이미지 없으면 상품명 첫 글자를 크게(텍스트 우선) */
+/** 이미지가 있을 때만 썸네일 표시 (없으면 아예 미노출 → 텍스트가 넓게) */
 function Thumb({ item, size = 64 }: { item: Pick<InventoryItem, 'name' | 'image_url'>; size?: number }) {
-  if (item.image_url) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={item.image_url} alt={item.name} className="rounded-input object-cover border border-line-faint" style={{ width: size, height: size }} />;
-  }
-  return (
-    <div className="rounded-input flex items-center justify-center font-extrabold text-ink-soft" style={{ width: size, height: size, background: 'var(--warning-bg,#FFF3C4)', fontSize: size * 0.4 }}>
-      {(item.name || '?').trim().charAt(0)}
-    </div>
-  );
+  if (!item.image_url) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={item.image_url} alt={item.name} className="rounded-input object-cover border border-line-faint" style={{ width: size, height: size }} />;
 }
 
 function ItemCard({ item, onEdit, onRestock, onHistory }: {
@@ -180,15 +174,15 @@ function QtyFields({ pack, unit, baseUnit, packStr, remStr, onPack, onRem }: {
   onPack: (v: string) => void; onRem: (v: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 shrink-0">
       {pack > 1 && (
         <>
-          <input type="number" min={0} value={packStr} onChange={(e) => onPack(e.target.value)} className="input py-1.5" style={{ width: 60 }} placeholder="0" />
-          <span className="text-[12px] text-text-tertiary">{unit}</span>
+          <input type="number" min={0} inputMode="numeric" value={packStr} onChange={(e) => onPack(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 72 }} placeholder="0" />
+          <span className="text-[12px] text-text-tertiary shrink-0">{unit}</span>
         </>
       )}
-      <input type="number" min={0} value={remStr} onChange={(e) => onRem(e.target.value)} className="input py-1.5" style={{ width: 60 }} placeholder="0" />
-      <span className="text-[12px] text-text-tertiary">{baseUnit}</span>
+      <input type="number" min={0} inputMode="numeric" value={remStr} onChange={(e) => onRem(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 72 }} placeholder="0" />
+      <span className="text-[12px] text-text-tertiary shrink-0">{baseUnit}</span>
     </div>
   );
 }
@@ -266,15 +260,21 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
 
       {/* 단위 · 묶음 */}
       <div className="grid grid-cols-3 gap-2">
-        <Field label="낱개 단위">
-          <input value={baseUnit} onChange={(e) => setBaseUnit(e.target.value)} className="input" list="inv-units" placeholder="개" />
+        <Field label="낱개 단위" hint="개·장·병">
+          <input value={baseUnit} maxLength={6} onChange={(e) => setBaseUnit(e.target.value)} className="input" list="inv-units" placeholder="개" />
           <datalist id="inv-units">{UNIT_SUGGEST.map((u) => <option key={u} value={u} />)}</datalist>
         </Field>
-        <Field label="묶음 단위" hint="선택"><input value={packUnit} onChange={(e) => setPackUnit(e.target.value)} className="input" placeholder="예: 박스" /></Field>
-        <Field label={`1${packUnit.trim() || '묶음'} = ?`} hint={baseUnit || '개'}>
-          <input type="number" min={0} value={packSizeStr} onChange={(e) => setPackSizeStr(e.target.value)} className="input" placeholder="예: 20" disabled={packUnit.trim() === ''} />
+        <Field label="묶음 단위" hint="선택"><input value={packUnit} maxLength={6} onChange={(e) => setPackUnit(e.target.value)} className="input" placeholder="예: 박스" /></Field>
+        <Field label={`1${packUnit.trim() || '묶음'} = ?`} hint={`${baseUnit || '개'} 수`}>
+          <input type="number" min={0} value={packSizeStr} onChange={(e) => setPackSizeStr(e.target.value)} className="input" placeholder="예: 100" disabled={packUnit.trim() === ''} />
         </Field>
       </div>
+      {/* 입력 해석 미리보기 (단위 혼동 방지) */}
+      <p className="-mt-1 mb-2.5 text-[11.5px] text-text-tertiary">
+        {packed
+          ? <>이렇게 등록됩니다 → <b className="text-ink-soft">1{packUnit.trim()} = {pack}{baseUnit.trim() || '개'}</b> · 수량은 &quot;{packUnit.trim()}+{baseUnit.trim() || '개'}&quot;로 관리</>
+          : <>낱개(<b className="text-ink-soft">{baseUnit.trim() || '개'}</b>) 단위로만 관리합니다. 박스 단위로 세려면 묶음 단위를 입력하세요.</>}
+      </p>
 
       {/* 현재 창고 수량 (품목 추가 시 초기 재고 · 현장 사용량은 '상품 출고'에서 처리) */}
       <Field label="현재 창고 수량" hint={packed ? `${packUnit}+${baseUnit}` : baseUnit}>

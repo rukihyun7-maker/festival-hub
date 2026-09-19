@@ -795,15 +795,16 @@ export interface InventoryItem {
 
 /** 수량(낱개)을 "N박스 M개"로 표시 · pack_size>1일 때 묶음 환산 */
 export function fmtQty(qty: number, item: Pick<InventoryItem, 'unit' | 'base_unit' | 'pack_size'>): string {
-  const ps = item.pack_size ?? 1;
+  const n = Number(qty) || 0;                 // 문자열/NaN 방어 (문자열 + 연산 방지)
+  const ps = Number(item.pack_size) || 1;     // pack_size 문자열 방어
   const base = item.base_unit || '개';
   if (ps > 1) {
-    const packs = Math.floor(qty / ps);
-    const rem = qty % ps;
+    const packs = Math.floor(n / ps);
+    const rem = n % ps;
     if (packs === 0) return `${rem}${base}`;
     return rem === 0 ? `${packs}${item.unit}` : `${packs}${item.unit} ${rem}${base}`;
   }
-  return `${qty}${item.unit || base}`;
+  return `${n}${item.unit || base}`;
 }
 
 export interface InventoryMove {
