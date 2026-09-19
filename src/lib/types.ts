@@ -780,15 +780,30 @@ export interface InventoryItem {
   name: string;
   image_url: string | null;
   spec: string | null;        // 규격
-  unit: string;               // 단위(개/박스/kg)
-  warehouse_qty: number;      // 창고 재고
-  out_qty: number;            // 현장(출고) 재고
-  min_qty: number;            // 최소재고(재발주점)
+  unit: string;               // 묶음 단위 이름(박스/봉) · 낱개만 관리하면 base_unit과 동일
+  base_unit: string;          // v51: 낱개 단위(개) · 모든 수량은 이 단위로 저장
+  pack_size: number;          // v51: 1묶음 = N낱개 (1이면 낱개 단위만)
+  warehouse_qty: number;      // 창고 재고 (낱개 기준)
+  out_qty: number;            // 현장 사용량/출고분 (낱개 기준)
+  min_qty: number;            // 적정재고량 (낱개 기준) · 이하면 재발주
   purchase_price: number | null;
   purchase_url: string | null;
   memo: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** 수량(낱개)을 "N박스 M개"로 표시 · pack_size>1일 때 묶음 환산 */
+export function fmtQty(qty: number, item: Pick<InventoryItem, 'unit' | 'base_unit' | 'pack_size'>): string {
+  const ps = item.pack_size ?? 1;
+  const base = item.base_unit || '개';
+  if (ps > 1) {
+    const packs = Math.floor(qty / ps);
+    const rem = qty % ps;
+    if (packs === 0) return `${rem}${base}`;
+    return rem === 0 ? `${packs}${item.unit}` : `${packs}${item.unit} ${rem}${base}`;
+  }
+  return `${qty}${item.unit || base}`;
 }
 
 export interface InventoryMove {

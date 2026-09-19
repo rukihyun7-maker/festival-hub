@@ -1,19 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import {
   fetchMyProfile, fetchInventoryItems, createInventoryItem, updateInventoryItem,
   deleteInventoryItem, uploadInventoryImage, applyInventoryMove, fetchInventoryMoves,
   type InventoryItemInput,
 } from '@/lib/supabase/queries';
-import { needsReorder, INVENTORY_MOVE_LABEL } from '@/lib/types';
+import { needsReorder, INVENTORY_MOVE_LABEL, fmtQty } from '@/lib/types';
 import type { Profile, InventoryItem, InventoryMove } from '@/lib/types';
 
 /**
  * 내 창고 (재고 관리) · 입점 파트너 전용 · 비공개 개인 도구
- * 창고재고 ↔ 현장(출고)재고 2버킷. 축제 전 출고 → 종료 후 정산(잔여→소진 자동) → 재발주.
+ * 창고 재고 ↔ 현장 사용량. 상품 출고 → 재고 파악(남은 수량 입력 → 사용량 자동).
+ * 수량은 낱개 기준 저장, pack_size>1이면 "N박스 M개"로 표시.
  */
 export default function InventoryPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -25,9 +25,7 @@ export default function InventoryPage() {
   const [restock, setRestock] = useState<InventoryItem | null>(null);
   const [history, setHistory] = useState<InventoryItem | null>(null);
 
-  async function reload(uid: string) {
-    setItems(await fetchInventoryItems(uid));
-  }
+  async function reload(uid: string) { setItems(await fetchInventoryItems(uid)); }
 
   useEffect(() => {
     (async () => {
@@ -35,9 +33,7 @@ export default function InventoryPage() {
         const p = await fetchMyProfile();
         setProfile(p);
         if (p) await reload(p.id);
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     })();
   }, []);
 
@@ -51,9 +47,7 @@ export default function InventoryPage() {
     return (
       <main className="min-h-screen bg-page">
         <AppNav role="seller" />
-        <div className="container-app py-12">
-          <div className="card"><div className="text-[15px] font-bold text-ink">입점 파트너 전용 기능입니다</div></div>
-        </div>
+        <div className="container-app py-12"><div className="card"><div className="text-[15px] font-bold text-ink">입점 파트너 전용 기능입니다</div></div></div>
       </main>
     );
   }
@@ -65,23 +59,21 @@ export default function InventoryPage() {
         <div className="flex items-start justify-between gap-3 mb-2">
           <div>
             <h1 className="t-title mb-1">내 창고</h1>
-            <p className="t-sub">창고 재고와 현장 출고를 한 곳에서. 축제 전 출고 → 종료 후 잔여 입력하면 소진량이 자동 계산됩니다.</p>
+            <p className="t-sub">창고 재고와 현장 사용량을 한 곳에서. 축제 전 상품을 출고하고, 끝난 뒤 남은 수량만 입력하면 사용량이 자동 계산됩니다.</p>
           </div>
           {profile && <button onClick={() => setEditing('new')} className="btn-primary text-[13px] shrink-0 hidden sm:inline-flex">+ 품목 추가</button>}
         </div>
 
-        {/* 요약 */}
         <div className="grid grid-cols-3 gap-2 my-5">
           <Tile label="품목" value={stats.total} />
-          <Tile label="현장 출고중" value={stats.outActive} tone={stats.outActive > 0 ? 'info' : undefined} />
+          <Tile label="현장 사용 중" value={stats.outActive} tone={stats.outActive > 0 ? 'info' : undefined} />
           <Tile label="재발주 필요" value={stats.reorder} tone={stats.reorder > 0 ? 'danger' : undefined} />
         </div>
 
-        {/* 액션 바 */}
         <div className="flex flex-wrap gap-2 mb-5">
           <button onClick={() => setEditing('new')} className="btn-primary text-[13px] sm:hidden">+ 품목 추가</button>
-          <button onClick={() => setShipOpen(true)} disabled={items.length === 0} className="btn-secondary text-[13px]">행사 출고</button>
-          <button onClick={() => setSettleOpen(true)} disabled={stats.outActive === 0} className="btn-secondary text-[13px]">종료 정산</button>
+          <button onClick={() => setShipOpen(true)} disabled={items.length === 0} className="btn-secondary text-[13px]">상품 출고</button>
+          <button onClick={() => setSettleOpen(true)} disabled={stats.outActive === 0} className="btn-secondary text-[13px]">재고 파악</button>
         </div>
 
         {loading ? (
@@ -99,22 +91,15 @@ export default function InventoryPage() {
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
             {items.map((it) => (
               <ItemCard key={it.id} item={it}
-                onEdit={() => setEditing(it)}
-                onRestock={() => setRestock(it)}
-                onHistory={() => setHistory(it)}
-              />
+                onEdit={() => setEditing(it)} onRestock={() => setRestock(it)} onHistory={() => setHistory(it)} />
             ))}
           </div>
         )}
       </div>
 
       {editing && profile && (
-        <ItemFormModal
-          sellerId={profile.id}
-          item={editing === 'new' ? null : editing}
-          onClose={() => setEditing(null)}
-          onSaved={async () => { setEditing(null); await reload(profile.id); }}
-        />
+        <ItemFormModal sellerId={profile.id} item={editing === 'new' ? null : editing}
+          onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await reload(profile.id); }} />
       )}
       {shipOpen && profile && (
         <ShipModal items={items.filter((i) => i.warehouse_qty > 0)} onClose={() => setShipOpen(false)}
@@ -143,6 +128,19 @@ function Tile({ label, value, tone }: { label: string; value: number; tone?: 'in
   );
 }
 
+/** 이미지 없으면 상품명 첫 글자를 크게(텍스트 우선) */
+function Thumb({ item, size = 64 }: { item: Pick<InventoryItem, 'name' | 'image_url'>; size?: number }) {
+  if (item.image_url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={item.image_url} alt={item.name} className="rounded-input object-cover border border-line-faint" style={{ width: size, height: size }} />;
+  }
+  return (
+    <div className="rounded-input flex items-center justify-center font-extrabold text-ink-soft" style={{ width: size, height: size, background: 'var(--warning-bg,#FFF3C4)', fontSize: size * 0.4 }}>
+      {(item.name || '?').trim().charAt(0)}
+    </div>
+  );
+}
+
 function ItemCard({ item, onEdit, onRestock, onHistory }: {
   item: InventoryItem; onEdit: () => void; onRestock: () => void; onHistory: () => void;
 }) {
@@ -150,21 +148,16 @@ function ItemCard({ item, onEdit, onRestock, onHistory }: {
   return (
     <div className="card p-0 overflow-hidden flex flex-col">
       <div className="flex gap-3 p-4">
-        <div className="w-16 h-16 rounded-input overflow-hidden shrink-0 flex items-center justify-center" style={{ background: 'var(--bg-muted,#F0ECE1)' }}>
-          {item.image_url
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-            : <span className="text-text-tertiary"><BoxIcon size={24} /></span>}
-        </div>
+        <Thumb item={item} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[14px] font-bold text-ink truncate">{item.name}</span>
             {low && <span className="badge badge-danger">재발주</span>}
           </div>
           {item.spec && <div className="text-[11.5px] text-text-tertiary truncate mt-0.5">{item.spec}</div>}
-          <div className="flex gap-3 mt-1.5 text-[12px]" style={{ fontVariantNumeric: 'tabular-nums' }}>
-            <span>창고 <b className="text-ink">{item.warehouse_qty}</b>{item.unit}</span>
-            <span className={item.out_qty > 0 ? 'text-info' : 'text-text-tertiary'}>현장 <b>{item.out_qty}</b>{item.unit}</span>
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[12px]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <span>창고 <b className="text-ink">{fmtQty(item.warehouse_qty, item)}</b></span>
+            <span className={item.out_qty > 0 ? 'text-info' : 'text-text-tertiary'}>현장 사용 <b>{fmtQty(item.out_qty, item)}</b></span>
           </div>
         </div>
       </div>
@@ -181,17 +174,45 @@ function ItemCard({ item, onEdit, onRestock, onHistory }: {
   );
 }
 
-const UNITS = ['개', '박스', '팩', 'kg', 'L', '통', '병', '봉'];
+/** 수량 입력(박스+개) · pack>1이면 박스/개 두 칸, 아니면 낱개 한 칸. onChange(낱개 합계) */
+function QtyFields({ pack, unit, baseUnit, packStr, remStr, onPack, onRem }: {
+  pack: number; unit: string; baseUnit: string; packStr: string; remStr: string;
+  onPack: (v: string) => void; onRem: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {pack > 1 && (
+        <>
+          <input type="number" min={0} value={packStr} onChange={(e) => onPack(e.target.value)} className="input py-1.5" style={{ width: 60 }} placeholder="0" />
+          <span className="text-[12px] text-text-tertiary">{unit}</span>
+        </>
+      )}
+      <input type="number" min={0} value={remStr} onChange={(e) => onRem(e.target.value)} className="input py-1.5" style={{ width: 60 }} placeholder="0" />
+      <span className="text-[12px] text-text-tertiary">{baseUnit}</span>
+    </div>
+  );
+}
+const toBase = (pack: number, packStr: string, remStr: string) =>
+  (pack > 1 ? (Number(packStr) || 0) * pack : 0) + (Number(remStr) || 0);
+
+const UNIT_SUGGEST = ['개', '박스', '봉', '팩', 'kg', 'L', '통', '병'];
 
 function ItemFormModal({ sellerId, item, onClose, onSaved }: {
   sellerId: string; item: InventoryItem | null; onClose: () => void; onSaved: () => void;
 }) {
   const [name, setName] = useState(item?.name ?? '');
   const [spec, setSpec] = useState(item?.spec ?? '');
-  const [unit, setUnit] = useState(item?.unit ?? '개');
-  const [wh, setWh] = useState(String(item?.warehouse_qty ?? 0));
-  const [out, setOut] = useState(String(item?.out_qty ?? 0));
-  const [min, setMin] = useState(String(item?.min_qty ?? 0));
+  const [baseUnit, setBaseUnit] = useState(item?.base_unit ?? '개');
+  const [packUnit, setPackUnit] = useState(item && item.pack_size > 1 ? item.unit : '');
+  const [packSizeStr, setPackSizeStr] = useState(item && item.pack_size > 1 ? String(item.pack_size) : '');
+  const packed = packUnit.trim() !== '' && (Number(packSizeStr) || 0) > 1;
+  const pack = packed ? Number(packSizeStr) : 1;
+  // 창고 초기 수량 (박스+개)
+  const initP = item && item.pack_size > 1 ? String(Math.floor(item.warehouse_qty / item.pack_size)) : '';
+  const initR = item ? String(item.pack_size > 1 ? item.warehouse_qty % item.pack_size : item.warehouse_qty) : '';
+  const [whP, setWhP] = useState(initP);
+  const [whR, setWhR] = useState(initR);
+  const [min, setMin] = useState(item ? String(item.min_qty) : '0');
   const [price, setPrice] = useState(item?.purchase_price != null ? String(item.purchase_price) : '');
   const [url, setUrl] = useState(item?.purchase_url ?? '');
   const [memo, setMemo] = useState(item?.memo ?? '');
@@ -214,13 +235,17 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
     if (!name.trim()) { alert('상품명을 입력해 주세요'); return; }
     setSaving(true);
     const payload: InventoryItemInput = {
-      name: name.trim(), spec: spec.trim() || null, unit,
-      warehouse_qty: Number(wh) || 0, out_qty: Number(out) || 0, min_qty: Number(min) || 0,
+      name: name.trim(), spec: spec.trim() || null,
+      base_unit: baseUnit.trim() || '개',
+      unit: packed ? packUnit.trim() : (baseUnit.trim() || '개'),
+      pack_size: packed ? Number(packSizeStr) : 1,
+      warehouse_qty: toBase(pack, whP, whR),
+      min_qty: Number(min) || 0,
       purchase_price: price.trim() === '' ? null : Number(price) || 0,
       purchase_url: url.trim() || null, memo: memo.trim() || null, image_url: imageUrl,
     };
     try {
-      if (item) await updateInventoryItem(item.id, payload);
+      if (item) await updateInventoryItem(item.id, payload); // out_qty 보존(미포함)
       else await createInventoryItem(sellerId, payload);
       onSaved();
     } catch (err) { alert('저장 실패: ' + (err as Error).message); setSaving(false); }
@@ -236,42 +261,46 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
 
   return (
     <Modal title={item ? '품목 편집' : '품목 추가'} onClose={onClose}>
-      <div className="flex gap-3 mb-3">
-        <div className="w-20 h-20 rounded-input overflow-hidden shrink-0 flex items-center justify-center" style={{ background: 'var(--bg-muted,#F0ECE1)' }}>
-          {imageUrl
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={imageUrl} alt="" className="w-full h-full object-cover" />
-            : <span className="text-text-tertiary"><BoxIcon size={26} /></span>}
-        </div>
-        <div className="flex flex-col gap-1.5 justify-center">
+      <Field label="상품명" req><input value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="예: 종이컵" /></Field>
+      <Field label="규격" hint="선택"><input value={spec} onChange={(e) => setSpec(e.target.value)} className="input" placeholder="예: 13oz · 1박스 1,000개" /></Field>
+
+      {/* 단위 · 묶음 */}
+      <div className="grid grid-cols-3 gap-2">
+        <Field label="낱개 단위">
+          <input value={baseUnit} onChange={(e) => setBaseUnit(e.target.value)} className="input" list="inv-units" placeholder="개" />
+          <datalist id="inv-units">{UNIT_SUGGEST.map((u) => <option key={u} value={u} />)}</datalist>
+        </Field>
+        <Field label="묶음 단위" hint="선택"><input value={packUnit} onChange={(e) => setPackUnit(e.target.value)} className="input" placeholder="예: 박스" /></Field>
+        <Field label={`1${packUnit.trim() || '묶음'} = ?`} hint={baseUnit || '개'}>
+          <input type="number" min={0} value={packSizeStr} onChange={(e) => setPackSizeStr(e.target.value)} className="input" placeholder="예: 20" disabled={packUnit.trim() === ''} />
+        </Field>
+      </div>
+
+      {/* 현재 창고 수량 (품목 추가 시 초기 재고 · 현장 사용량은 '상품 출고'에서 처리) */}
+      <Field label="현재 창고 수량" hint={packed ? `${packUnit}+${baseUnit}` : baseUnit}>
+        <QtyFields pack={pack} unit={packUnit.trim() || baseUnit} baseUnit={baseUnit || '개'} packStr={whP} remStr={whR} onPack={setWhP} onRem={setWhR} />
+      </Field>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Field label="적정재고량" hint="재발주 시점">
+          <div className="flex items-center gap-1.5"><input type="number" min={0} value={min} onChange={(e) => setMin(e.target.value)} className="input" /><span className="text-[12px] text-text-tertiary">{baseUnit || '개'}</span></div>
+        </Field>
+        <Field label="구매 단가(원)" hint="선택"><input type="number" min={0} value={price} onChange={(e) => setPrice(e.target.value)} className="input" placeholder="예: 12000" /></Field>
+        <Field label="구매처 링크" hint="선택"><input value={url} onChange={(e) => setUrl(e.target.value)} className="input" placeholder="https://…" /></Field>
+      </div>
+      <Field label="비고" hint="선택"><input value={memo} onChange={(e) => setMemo(e.target.value)} className="input" placeholder="보관 위치·특이사항 등" /></Field>
+
+      {/* 상품 사진 · 선택 (부담 없이 건너뛰기) */}
+      <Field label="상품 사진" hint="선택 · 없어도 됩니다">
+        <div className="flex items-center gap-3">
+          <Thumb item={{ name, image_url: imageUrl }} size={52} />
           <label className={`btn-secondary text-[12px] py-1.5 px-3 cursor-pointer inline-flex ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
             {uploading ? '업로드 중…' : imageUrl ? '사진 변경' : '사진 첨부'}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
           </label>
-          {imageUrl && <button type="button" onClick={() => setImageUrl(null)} className="text-[11px] text-danger hover:underline text-left">사진 제거</button>}
+          {imageUrl && <button type="button" onClick={() => setImageUrl(null)} className="text-[11px] text-danger hover:underline">제거</button>}
         </div>
-      </div>
-
-      <Field label="상품명" req><input value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="예: 원두 1kg" /></Field>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="규격"><input value={spec} onChange={(e) => setSpec(e.target.value)} className="input" placeholder="예: 1kg · 500ml" /></Field>
-        <Field label="단위">
-          <select value={unit} onChange={(e) => setUnit(e.target.value)} className="input">
-            {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-            {!UNITS.includes(unit) && <option value={unit}>{unit}</option>}
-          </select>
-        </Field>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="창고 재고"><input type="number" min={0} value={wh} onChange={(e) => setWh(e.target.value)} className="input" /></Field>
-        <Field label="현장 재고"><input type="number" min={0} value={out} onChange={(e) => setOut(e.target.value)} className="input" /></Field>
-        <Field label="최소재고" hint="재발주점"><input type="number" min={0} value={min} onChange={(e) => setMin(e.target.value)} className="input" /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="구매 단가(원)" hint="선택"><input type="number" min={0} value={price} onChange={(e) => setPrice(e.target.value)} className="input" placeholder="예: 12000" /></Field>
-        <Field label="구매처 링크" hint="재발주용"><input value={url} onChange={(e) => setUrl(e.target.value)} className="input" placeholder="https://…" /></Field>
-      </div>
-      <Field label="비고"><input value={memo} onChange={(e) => setMemo(e.target.value)} className="input" placeholder="보관 위치·특이사항 등" /></Field>
+      </Field>
 
       <div className="flex gap-2 mt-4">
         {item && <button onClick={remove} disabled={saving} className="text-[13px] text-danger font-semibold hover:underline mr-auto px-2">삭제</button>}
@@ -282,17 +311,18 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
   );
 }
 
-/** 행사 출고 (창고 → 현장) · 여러 품목 일괄 */
+/** 상품 출고 (창고 → 현장) · 여러 품목 일괄 */
 function ShipModal({ items, onClose, onDone }: { items: InventoryItem[]; onClose: () => void; onDone: () => void }) {
-  const [qty, setQty] = useState<Record<string, string>>({});
+  const [vals, setVals] = useState<Record<string, { p: string; r: string }>>({});
   const [busy, setBusy] = useState(false);
-  const any = items.some((i) => (Number(qty[i.id]) || 0) > 0);
+  const get = (id: string) => vals[id] ?? { p: '', r: '' };
+  const any = items.some((it) => toBase(it.pack_size, get(it.id).p, get(it.id).r) > 0);
 
   async function submit() {
     setBusy(true);
     try {
       for (const it of items) {
-        const q = Number(qty[it.id]) || 0;
+        const q = toBase(it.pack_size, get(it.id).p, get(it.id).r);
         if (q > 0) await applyInventoryMove(it, { type: 'out', qty: q });
       }
       onDone();
@@ -300,22 +330,21 @@ function ShipModal({ items, onClose, onDone }: { items: InventoryItem[]; onClose
   }
 
   return (
-    <Modal title="행사 출고 · 창고 → 현장" onClose={onClose}>
-      <p className="text-[12px] text-text-secondary mb-3">이번 행사에 가져갈 수량을 입력하면 창고에서 차감되고 현장 재고로 이동합니다.</p>
+    <Modal title="상품 출고 · 창고 → 현장" onClose={onClose}>
+      <p className="text-[12px] text-text-secondary mb-3">이번 행사에 가져갈 수량을 입력하면 창고에서 차감되고 현장으로 이동합니다.</p>
       {items.length === 0 ? (
         <div className="text-[13px] text-text-tertiary py-6 text-center">창고에 재고가 있는 품목이 없습니다.</div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[46vh] overflow-y-auto">
           {items.map((it) => (
-            <div key={it.id} className="flex items-center gap-2 p-2 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+            <div key={it.id} className="flex items-center justify-between gap-2 p-2 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-semibold text-ink truncate">{it.name}</div>
-                <div className="text-[11px] text-text-tertiary">창고 {it.warehouse_qty}{it.unit}</div>
+                <div className="text-[11px] text-text-tertiary">창고 {fmtQty(it.warehouse_qty, it)}</div>
               </div>
-              <input type="number" min={0} max={it.warehouse_qty} value={qty[it.id] ?? ''} placeholder="0"
-                onChange={(e) => setQty((p) => ({ ...p, [it.id]: e.target.value }))}
-                className="input py-1.5" style={{ width: 84 }} />
-              <span className="text-[12px] text-text-tertiary w-8">{it.unit}</span>
+              <QtyFields pack={it.pack_size} unit={it.unit} baseUnit={it.base_unit} packStr={get(it.id).p} remStr={get(it.id).r}
+                onPack={(v) => setVals((p) => ({ ...p, [it.id]: { ...get(it.id), p: v } }))}
+                onRem={(v) => setVals((p) => ({ ...p, [it.id]: { ...get(it.id), r: v } }))} />
             </div>
           ))}
         </div>
@@ -328,67 +357,71 @@ function ShipModal({ items, onClose, onDone }: { items: InventoryItem[]; onClose
   );
 }
 
-/** 행사 종료 정산 (현장 잔여 입력 → 소진 자동 · 잔여는 창고 복귀) */
+/** 재고 파악 (남은 수량 입력 → 사용량 자동 · 잔여는 창고 복귀) */
 function SettleModal({ items, onClose, onDone }: { items: InventoryItem[]; onClose: () => void; onDone: () => void }) {
-  const [remain, setRemain] = useState<Record<string, string>>(() => Object.fromEntries(items.map((i) => [i.id, ''])));
+  const [vals, setVals] = useState<Record<string, { p: string; r: string }>>(
+    () => Object.fromEntries(items.map((i) => [i.id, { p: '', r: '' }]))
+  );
   const [busy, setBusy] = useState(false);
+  const get = (id: string) => vals[id] ?? { p: '', r: '' };
+  const touched = (it: InventoryItem) => get(it.id).p !== '' || get(it.id).r !== '';
 
   async function submit() {
     setBusy(true);
     try {
       for (const it of items) {
-        const r = remain[it.id] === '' ? it.out_qty : (Number(remain[it.id]) || 0); // 미입력=전량 잔여(변동 없음)
-        await applyInventoryMove(it, { type: 'settle', remain: r });
+        const remain = touched(it) ? Math.min(toBase(it.pack_size, get(it.id).p, get(it.id).r), it.out_qty) : it.out_qty;
+        await applyInventoryMove(it, { type: 'settle', remain });
       }
       onDone();
-    } catch (e) { alert('정산 실패: ' + (e as Error).message); setBusy(false); }
+    } catch (e) { alert('처리 실패: ' + (e as Error).message); setBusy(false); }
   }
 
   return (
-    <Modal title="행사 종료 정산 · 잔여 입력" onClose={onClose}>
-      <p className="text-[12px] text-text-secondary mb-3">현장에 <b>남은 수량(잔여)</b>을 입력하세요. 잔여는 창고로 복귀하고, <b>소진량(출고−잔여)</b>이 이력에 자동 기록됩니다.</p>
+    <Modal title="재고 파악" onClose={onClose}>
+      <p className="text-[12px] text-text-secondary mb-3">행사에서 <b>사용하고 남은 수량(잔여)</b>을 입력해 주세요. 잔여는 창고로 돌아가고, <b>사용량</b>이 자동 기록됩니다. (미입력 품목은 전량 잔여로 처리)</p>
       <div className="flex flex-col gap-2 max-h-[46vh] overflow-y-auto">
         {items.map((it) => {
-          const r = remain[it.id] === '' ? null : Number(remain[it.id]) || 0;
-          const consumed = r == null ? null : Math.max(0, it.out_qty - r);
+          const remain = touched(it) ? Math.min(toBase(it.pack_size, get(it.id).p, get(it.id).r), it.out_qty) : null;
+          const used = remain == null ? null : Math.max(0, it.out_qty - remain);
           return (
-            <div key={it.id} className="flex items-center gap-2 p-2 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-semibold text-ink truncate">{it.name}</div>
-                <div className="text-[11px] text-text-tertiary">현장 {it.out_qty}{it.unit}{consumed != null && ` · 소진 ${consumed}${it.unit}`}</div>
+            <div key={it.id} className="p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-ink truncate">{it.name}</div>
+                  <div className="text-[11px] text-text-tertiary">현장 {fmtQty(it.out_qty, it)}{used != null && ` · 사용 ${fmtQty(used, it)}`}</div>
+                </div>
+                <QtyFields pack={it.pack_size} unit={it.unit} baseUnit={it.base_unit} packStr={get(it.id).p} remStr={get(it.id).r}
+                  onPack={(v) => setVals((p) => ({ ...p, [it.id]: { ...get(it.id), p: v } }))}
+                  onRem={(v) => setVals((p) => ({ ...p, [it.id]: { ...get(it.id), r: v } }))} />
               </div>
-              <input type="number" min={0} max={it.out_qty} value={remain[it.id] ?? ''} placeholder={`잔여 (최대 ${it.out_qty})`}
-                onChange={(e) => setRemain((p) => ({ ...p, [it.id]: e.target.value }))}
-                className="input py-1.5" style={{ width: 96 }} />
-              <span className="text-[12px] text-text-tertiary w-8">{it.unit}</span>
             </div>
           );
         })}
       </div>
       <div className="flex gap-2 mt-4">
         <button onClick={onClose} className="btn-secondary flex-1">취소</button>
-        <button onClick={submit} disabled={busy} className="btn-primary flex-1">{busy ? '처리 중…' : '정산 확정'}</button>
+        <button onClick={submit} disabled={busy} className="btn-primary flex-1">{busy ? '처리 중…' : '재고 반영'}</button>
       </div>
     </Modal>
   );
 }
 
-/** 입고(재발주 후) · 창고 += */
+/** 입고 (재발주 후) · 창고 += */
 function RestockModal({ item, onClose, onDone }: { item: InventoryItem; onClose: () => void; onDone: () => void }) {
-  const [qty, setQty] = useState('');
+  const [p, setP] = useState('');
+  const [r, setR] = useState('');
   const [busy, setBusy] = useState(false);
+  const base = toBase(item.pack_size, p, r);
   return (
     <Modal title={`입고 · ${item.name}`} onClose={onClose}>
-      <p className="text-[12px] text-text-secondary mb-3">구매·재발주해서 창고에 들어온 수량을 입력하세요. 창고 재고에 더해집니다. (현재 {item.warehouse_qty}{item.unit})</p>
-      <div className="flex items-center gap-2">
-        <input type="number" min={1} value={qty} autoFocus placeholder="입고 수량" onChange={(e) => setQty(e.target.value)} className="input flex-1" />
-        <span className="text-[13px] text-text-tertiary">{item.unit}</span>
-      </div>
+      <p className="text-[12px] text-text-secondary mb-3">구매·재발주로 창고에 들어온 수량을 입력하세요. 창고 재고에 더해집니다. (현재 {fmtQty(item.warehouse_qty, item)})</p>
+      <QtyFields pack={item.pack_size} unit={item.unit} baseUnit={item.base_unit} packStr={p} remStr={r} onPack={setP} onRem={setR} />
       {item.purchase_url && <a href={item.purchase_url} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-info hover:underline inline-block mt-2">구매처에서 주문하기 ↗</a>}
       <div className="flex gap-2 mt-4">
         <button onClick={onClose} className="btn-secondary flex-1">취소</button>
-        <button disabled={busy || (Number(qty) || 0) <= 0}
-          onClick={async () => { setBusy(true); try { await applyInventoryMove(item, { type: 'in', qty: Number(qty) || 0 }); onDone(); } catch (e) { alert('입고 실패: ' + (e as Error).message); setBusy(false); } }}
+        <button disabled={busy || base <= 0}
+          onClick={async () => { setBusy(true); try { await applyInventoryMove(item, { type: 'in', qty: base }); onDone(); } catch (e) { alert('입고 실패: ' + (e as Error).message); setBusy(false); } }}
           className="btn-primary flex-1">{busy ? '처리 중…' : '입고'}</button>
       </div>
     </Modal>
@@ -412,7 +445,7 @@ function HistoryModal({ item, onClose }: { item: InventoryItem; onClose: () => v
               <div key={m.id} className="flex items-start gap-2 p-2.5 rounded-input" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
                 <span className={`badge ${tone} shrink-0`}>{INVENTORY_MOVE_LABEL[m.type]}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold text-ink">{m.qty}{item.unit}{m.note ? '' : ''}</div>
+                  <div className="text-[13px] font-semibold text-ink">{fmtQty(m.qty, item)}</div>
                   {m.note && <div className="text-[11px] text-text-tertiary">{m.note}</div>}
                 </div>
                 <div className="text-[11px] text-text-tertiary shrink-0">{new Date(m.created_at).toLocaleDateString('ko-KR')}</div>

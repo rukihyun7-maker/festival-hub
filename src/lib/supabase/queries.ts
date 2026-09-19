@@ -1816,6 +1816,7 @@ export async function fetchInventoryItems(sellerId: string): Promise<InventoryIt
 
 export type InventoryItemInput = {
   name: string; image_url?: string | null; spec?: string | null; unit?: string;
+  base_unit?: string; pack_size?: number;
   warehouse_qty?: number; out_qty?: number; min_qty?: number;
   purchase_price?: number | null; purchase_url?: string | null; memo?: string | null;
 };
@@ -1824,7 +1825,7 @@ export async function createInventoryItem(sellerId: string, input: InventoryItem
   const supabase = createClient();
   const { data, error } = await supabase
     .from('inventory_items')
-    .insert({ seller_id: sellerId, unit: '개', warehouse_qty: 0, out_qty: 0, min_qty: 0, ...input })
+    .insert({ seller_id: sellerId, unit: '개', base_unit: '개', pack_size: 1, warehouse_qty: 0, out_qty: 0, min_qty: 0, ...input })
     .select().single();
   if (error) throw error;
   return data as InventoryItem;
@@ -1891,7 +1892,8 @@ export async function applyInventoryMove(
     const remain = Math.max(0, Math.min(Math.floor(action.remain), out));
     const consumed = out - remain;
     warehouse += remain; out = 0; moveType = 'settle'; moveQty = consumed;
-    moveNote = `잔여 ${remain}${item.unit} 창고 복귀 · 소진 ${consumed}${item.unit}${note ? ` · ${note}` : ''}`;
+    const bu = item.base_unit || item.unit;
+    moveNote = `잔여 ${remain}${bu} 창고 복귀 · 사용 ${consumed}${bu}${note ? ` · ${note}` : ''}`;
   }
 
   const updated = await updateInventoryItem(item.id, { warehouse_qty: warehouse, out_qty: out });
