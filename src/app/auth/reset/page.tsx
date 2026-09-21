@@ -44,7 +44,17 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) {
-      setError('재설정 링크가 만료되었거나 유효하지 않습니다. 재설정을 다시 요청해 주세요.');
+      const code = (error as { code?: string }).code ?? '';
+      const msg = (error.message ?? '').toLowerCase();
+      if (code === 'same_password' || msg.includes('should be different')) {
+        setError('기존 비밀번호와 다른 새 비밀번호를 입력해 주세요.');
+      } else if (code === 'weak_password' || msg.includes('weak') || msg.includes('pwned') || msg.includes('leak')) {
+        setError('보안에 취약한 비밀번호입니다. 다른 조합으로 다시 시도해 주세요.');
+      } else if (msg.includes('session') || msg.includes('jwt') || msg.includes('token') || msg.includes('expired')) {
+        setError('재설정 링크가 만료되었거나 유효하지 않습니다. 재설정을 다시 요청해 주세요.');
+      } else {
+        setError(error.message || '비밀번호 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      }
       return;
     }
     setDone(true);
