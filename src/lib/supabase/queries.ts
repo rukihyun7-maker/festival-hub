@@ -1371,6 +1371,31 @@ export async function createNotification(input: {
 }
 
 // ============================================
+// v53 · Push subscriptions (기기별 웹 푸시)
+// ============================================
+
+/** 이 기기의 푸시 구독 저장 (endpoint 기준 upsert · RLS: 본인만) */
+export async function savePushSubscription(sub: { endpoint: string; p256dh: string; auth: string; ua?: string }): Promise<void> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('로그인이 필요합니다');
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .upsert(
+      { user_id: user.id, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, ua: sub.ua ?? null },
+      { onConflict: 'endpoint' },
+    );
+  if (error) throw error;
+}
+
+/** 이 기기의 푸시 구독 삭제 */
+export async function dropPushSubscription(endpoint: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+  if (error) throw error;
+}
+
+// ============================================
 // v3 · Settlements (주최사 개별 지급)
 // ============================================
 

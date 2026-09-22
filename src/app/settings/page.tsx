@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
+import { PushToggle } from '@/components/PushToggle';
 import { fetchMyProfile, updateProfile } from '@/lib/supabase/queries';
 import type { Profile, NotifPrefs, ShareFlags } from '@/lib/types';
 
@@ -13,7 +14,7 @@ import type { Profile, NotifPrefs, ShareFlags } from '@/lib/types';
  */
 
 const DEFAULT_NOTIF: NotifPrefs = {
-  days: 7, app: true, email: true, deadline: true, review: true, docs: true, new_event: true,
+  days: 7, app: true, email: true, push: true, deadline: true, review: true, docs: true, new_event: true,
 };
 const DEFAULT_SHARE: ShareFlags = {
   sales_revenue: true, sales_count: true, biz_no: false, phone: true, vehicle: true, hygiene_gear: true,
@@ -27,6 +28,23 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState('');
+
+  async function sendTestPush() {
+    setTesting(true);
+    setTestMsg('');
+    try {
+      const r = await fetch('/api/push/test', { method: 'POST' });
+      const j = await r.json().catch(() => ({}));
+      if (j.ok) setTestMsg(`✓ ${j.devices}대 기기로 테스트 알림을 보냈습니다. 잠시 후 알림을 확인하세요.`);
+      else setTestMsg(j.note || j.error || '테스트 알림을 보내지 못했습니다.');
+    } catch {
+      setTestMsg('테스트 알림을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setTesting(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -128,7 +146,26 @@ export default function SettingsPage() {
           <div className="t-section mb-1">알림 채널</div>
           <div className="t-sub mb-4">받고 싶은 경로를 선택하세요.</div>
           <Toggle label="앱 알림함" desc="앱 안에서 받는 알림" on={notif.app} onChange={(v) => setNotif({ ...notif, app: v })} />
-          <Toggle label="이메일" desc={profile.email} on={notif.email} onChange={(v) => setNotif({ ...notif, email: v })} />
+          <Toggle label="이메일" desc={`${profile.email} · 푸시를 못 보셨을 때 이메일로도 남습니다`} on={notif.email} onChange={(v) => setNotif({ ...notif, email: v })} />
+        </section>
+
+        {/* 기기 푸시 알림 */}
+        <section className="card mb-4">
+          <div className="t-section mb-1">기기 푸시 알림</div>
+          <div className="t-sub mb-4">앱을 닫아 두어도 폰·PC 화면으로 바로 알려 드립니다.</div>
+          <PushToggle />
+          <Toggle
+            label="모든 기기에서 받기"
+            desc="여기를 끄면 켜 둔 기기에도 보내지 않습니다."
+            on={notif.push !== false}
+            onChange={(v) => setNotif({ ...notif, push: v })}
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button onClick={sendTestPush} disabled={testing} className="btn-secondary text-[13px] disabled:opacity-60">
+              {testing ? '보내는 중…' : '테스트 알림 보내기'}
+            </button>
+            {testMsg && <span className="text-[12px] text-text-secondary">{testMsg}</span>}
+          </div>
         </section>
 
         {/* 알림 종류 */}

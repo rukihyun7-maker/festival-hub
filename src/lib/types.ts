@@ -141,10 +141,22 @@ export interface NotifPrefs {
   days: 7 | 3 | 1;
   app: boolean;
   email: boolean;
+  push?: boolean;      // v53: 웹 푸시 마스터(모든 기기) on/off · 미설정이면 on 취급
   deadline: boolean;
   review: boolean;
   docs: boolean;
   new_event: boolean;
+}
+
+/** v53: 웹 푸시 구독 (기기별) */
+export interface PushSubscriptionRow {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  ua: string | null;
+  created_at: string;
 }
 
 /** v49: 현수막 위치별 등록 (위치명 + 규격 mm + 사진) */
