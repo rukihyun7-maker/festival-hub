@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
-import { notifyUser } from '@/lib/notify-server';
 
 /**
  * 서류 만료 사전 알림 · Vercel Cron 매일 호출
@@ -49,7 +48,8 @@ export async function GET(req: Request) {
     const days = Math.ceil((exp.getTime() - today.getTime()) / 86400000);
     const msg = days < 0 ? `「${label}」이(가) 만료되었습니다. 갱신 후 재등록해 주세요.`
       : `「${label}」이(가) ${days}일 후 만료됩니다. 미리 갱신해 주세요.`;
-    await notifyUser({ userId: d.seller_id, kind: 'docs', title: '서류 만료 안내', body: msg, href: '/dashboard' });
+    // 인앱 알림 insert → 웹훅(/api/notify/dispatch)이 푸시·이메일 발송
+    await admin.from('notifications').insert({ user_id: d.seller_id, kind: 'docs', title: '서류 만료 안내', body: msg });
     await admin.from('documents').update({ expiry_notified: true }).eq('id', d.id);
     notified++;
   }

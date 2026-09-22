@@ -5,7 +5,7 @@ import type { NotifKind, NotifPrefs } from '@/lib/types';
 
 /**
  * 알림 발송 (서버 전용) · 비밀 VAPID/서비스롤 키가 클라이언트로 새지 않도록 이 파일은 서버에서만.
- *  - notifyUser(): 인앱 알림함 기록 + (설정에 따라) 웹 푸시 + 이메일
+ *  - dispatchNotificationRow(): 이미 생성된 알림 행을 (설정에 따라) 웹 푸시 + 이메일 발송 (웹훅에서 호출)
  *  - sendPushToUser(): 특정 사용자의 모든 기기에 푸시 (테스트/저수준)
  * 발송 실패는 삼킵니다 — 알림이 안 갔다고 승인·처리가 취소되면 안 됩니다.
  *
@@ -114,29 +114,30 @@ async function sendMail(to: string, subject: string, html: string) {
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
 }
 
+/** 알림 종류별 클릭 시 이동 경로 (역할 무관 안전 기본값) */
+function hrefForKind(kind: NotifKind): string {
+  switch (kind) {
+    case 'settlement': return '/dashboard';
+    case 'docs': return '/dashboard';
+    default: return '/dashboard';
+  }
+}
+
 /**
- * 사용자에게 알림 발송: 인앱 기록(항상) + 푸시(마스터·종류 설정 on) + 이메일(설정 on)
- * 실패해도 던지지 않습니다.
+ * 이미 생성된 notifications 행을 푸시·이메일로 발송 (인앱 insert는 하지 않음).
+ * DB 트리거가 만든 알림을 웹훅(/api/notify/dispatch)이 이 함수로 넘겨 발송.
+ * 설정(notif_prefs: 종류별·push 마스터·email) 반영. 실패해도 던지지 않습니다.
  */
-export async function notifyUser(opts: {
-  userId: string;
+export async function dispatchNotificationRow(row: {
+  user_id: string;
   kind: NotifKind;
   title: string;
   body?: string | null;
   event_id?: string | null;
-  href?: string | null;
-}): Promise<void> {
+}): Promise<{ push: number; email: boolean }> {
   const db = admin();
 
-  // 1) 인앱 알림함 기록 (항상 남김 — 벨/히스토리)
-  try {
-    await db.from('notifications').insert({
-      user_id: opts.userId, kind: opts.kind, title: opts.title,
-      body: opts.body ?? null, event_id: opts.event_id ?? null,
-    });
-  } catch { /* 인앱 실패해도 계속 */ }
-
-  // 2) 설정 + 연락처
+  // 설정 + 연락처
   let prefs: Partial<NotifPrefs> = {};
   let email: string | null = null;
   let name = '회원';
@@ -144,30 +145,35 @@ export async function notifyUser(opts: {
     const { data: prof } = await db
       .from('profiles')
       .select('email, name, business_name, notif_prefs')
-      .eq('id', opts.userId)
+      .eq('id', row.user_id)
       .maybeSingle();
     prefs = (prof?.notif_prefs ?? {}) as Partial<NotifPrefs>;
     email = prof?.email ?? null;
     name = prof?.business_name || prof?.name || '회원';
   } catch { /* 설정 못 읽으면 기본값(수신)로 진행 */ }
 
-  const kindKey = prefKeyFor(opts.kind);
+  const kindKey = prefKeyFor(row.kind);
   const kindOn = kindKey ? prefs[kindKey] !== false : true; // 기본 on
-  if (!kindOn) return; // 이 종류를 끔 → 푸시·이메일 생략(인앱은 남김)
+  if (!kindOn) return { push: 0, email: false }; // 이 종류를 끔 → 발송 생략(인앱은 이미 남음)
 
-  // 3) 웹 푸시 (마스터 on 기본)
+  const href = hrefForKind(row.kind);
+
+  // 웹 푸시 (마스터 on 기본)
+  let push = 0;
   if (pushReady && prefs.push !== false) {
     try {
-      await sendPushToUser(opts.userId, {
-        title: opts.title, body: opts.body ?? '', href: opts.href ?? '/dashboard', tag: opts.kind,
-      });
+      push = await sendPushToUser(row.user_id, { title: row.title, body: row.body ?? '', href, tag: row.kind });
     } catch { /* noop */ }
   }
 
-  // 4) 이메일 (설정 on 기본)
+  // 이메일 (설정 on 기본)
+  let emailed = false;
   if (mailReady && prefs.email !== false && email) {
     try {
-      await sendMail(email, `[Festival Hub] ${opts.title}`, mailHtml(opts.title, opts.body ?? '', opts.href ?? null, name));
+      await sendMail(email, `[Festival Hub] ${row.title}`, mailHtml(row.title, row.body ?? '', href, name));
+      emailed = true;
     } catch { /* noop */ }
   }
+
+  return { push, email: emailed };
 }
