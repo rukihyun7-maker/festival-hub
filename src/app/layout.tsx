@@ -1,9 +1,19 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
   title: 'Festival Hub · 야외행사 QR결제 플랫폼',
   description: '푸드트럭·축제·팝업 결제 SaaS + 판매자 플랫폼',
+  manifest: '/manifest.webmanifest',
+  // iOS 웹 푸시: 홈 화면에 추가 → standalone 실행이어야 알림 사용 가능
+  appleWebApp: { capable: true, title: 'Festival Hub', statusBarStyle: 'default' },
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#1A140C',
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
