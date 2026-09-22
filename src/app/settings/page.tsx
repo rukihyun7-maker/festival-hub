@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import { PushToggle } from '@/components/PushToggle';
+import { PushGuide } from '@/components/PushGuide';
 import { fetchMyProfile, updateProfile } from '@/lib/supabase/queries';
 import type { Profile, NotifPrefs, ShareFlags } from '@/lib/types';
 
@@ -166,6 +167,7 @@ export default function SettingsPage() {
             </button>
             {testMsg && <span className="text-[12px] text-text-secondary">{testMsg}</span>}
           </div>
+          <PushGuide />
         </section>
 
         {/* 알림 종류 */}
