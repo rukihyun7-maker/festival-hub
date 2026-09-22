@@ -17,14 +17,23 @@ export const captchaEnabled = !!SITE_KEY;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare global { interface Window { turnstile?: any } }
 
-type Status = 'loading' | 'ready' | 'error';
+export type TurnstileStatus = 'loading' | 'ready' | 'error';
+type Status = TurnstileStatus;
 
-export default function Turnstile({ onToken }: { onToken: (token: string | null) => void }) {
+export default function Turnstile({ onToken, onStatusChange }: {
+  onToken: (token: string | null) => void;
+  onStatusChange?: (s: TurnstileStatus) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
   const cb = useRef(onToken);
   cb.current = onToken;
+  const statusCb = useRef(onStatusChange);
+  statusCb.current = onStatusChange;
   const [status, setStatus] = useState<Status>('loading');
+
+  // 상태 변화를 부모에 알림 (소프트 처리: 부모가 error면 캡차 없이 진행 가능)
+  useEffect(() => { statusCb.current?.(status); }, [status]);
 
   function doRender() {
     if (!ref.current || !window.turnstile) return;
@@ -83,9 +92,9 @@ export default function Turnstile({ onToken }: { onToken: (token: string | null)
       <div ref={ref} />
       {status === 'error' && (
         <div className="mt-2 rounded-input p-3 text-[12px] leading-relaxed" style={{ background: 'var(--danger-bg, #FBEDEA)', border: '1px solid #E5B8AE' }}>
-          <div className="font-semibold text-danger mb-1">보안 확인에 연결하지 못했습니다</div>
+          <div className="font-semibold text-danger mb-1">보안 확인을 불러오지 못했습니다</div>
           <div className="text-text-secondary mb-2">
-            사내망·광고차단·개인정보보호 확장이 차단하는 경우가 있습니다. 다른 네트워크(휴대폰 테더링)나 시크릿 창을 이용하거나 아래 버튼으로 다시 시도해 주세요.
+            사내망·백신·광고차단이 차단하는 경우가 있습니다. <b className="text-ink-soft">그대로 버튼을 눌러 계속 진행</b>하실 수 있고, 다시 확인하려면 아래 버튼을 눌러 주세요.
           </div>
           <button type="button" onClick={retry} className="btn-secondary text-[12px] py-1.5 px-3">보안 확인 다시 시도</button>
         </div>

@@ -80,6 +80,8 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [needConfirm, setNeedConfirm] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaBlocked, setCaptchaBlocked] = useState(false); // 위젯 로드 실패(차단) → 소프트 통과
+  const captchaPending = captchaEnabled && !captchaToken && !captchaBlocked;
 
   // 이전 버전이 sessionStorage에 저장했던 입력값(비밀번호 포함) 정리 · 재진입 시 폼은 항상 빈 값으로 시작
   // (약관·개인정보 링크는 새 탭으로 열려 입력값이 유지되므로 별도 저장이 불필요)
@@ -94,7 +96,7 @@ export default function SignupPage() {
       setError('이용약관과 개인정보 수집·이용에 동의해 주세요. (필수)');
       return;
     }
-    if (captchaEnabled && !captchaToken) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
+    if (captchaPending) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
     if (role === 'host' && !cardFile) { setError('명함 이미지를 첨부해주세요. (주최 가입 필수)'); return; }
     if (role === 'host' && bizNo.replace(/\D/g, '').length < 10) { setError('사업자등록번호를 정확히 입력해 주세요. (주최 가입 필수)'); return; }
     if (bizFile) { const fe = fileError(bizFile); if (fe) { setError(fe); return; } }
@@ -377,7 +379,7 @@ export default function SignupPage() {
             )}
           </div>
 
-          <Turnstile onToken={setCaptchaToken} />
+          <Turnstile onToken={setCaptchaToken} onStatusChange={(s) => setCaptchaBlocked(s === 'error')} />
 
           {error && (
             <div className="text-[12px] p-3 rounded-input badge-danger" style={{ display: 'block' }}>{error}</div>

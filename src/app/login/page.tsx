@@ -37,6 +37,9 @@ export default function LoginPage() {
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaBlocked, setCaptchaBlocked] = useState(false); // 위젯 로드 실패(차단) → 소프트 통과
+  // 캡차가 켜져 있고, 토큰도 없고, 차단 상태도 아니면 → 아직 확인 대기(막음)
+  const captchaPending = captchaEnabled && !captchaToken && !captchaBlocked;
   const [stats, setStats] = useState({ partners: 0, events: 0, recruiting: 0 });
   const [resendEmail, setResendEmail] = useState<string | null>(null); // 미인증 계정 → 인증 메일 재발송 대상
   const [resendMsg, setResendMsg] = useState('');
@@ -53,7 +56,7 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (captchaEnabled && !captchaToken) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
+    if (captchaPending) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
@@ -79,7 +82,7 @@ export default function LoginPage() {
 
   async function resendConfirm() {
     if (!resendEmail) return;
-    if (captchaEnabled && !captchaToken) { setResendMsg('먼저 보안 확인을 완료해 주세요.'); return; }
+    if (captchaPending) { setResendMsg('먼저 보안 확인을 완료해 주세요.'); return; }
     setResendMsg('전송 중…');
     const supabase = createClient();
     const { error } = await supabase.auth.resend({
@@ -95,7 +98,7 @@ export default function LoginPage() {
 
   async function loginDemo(email: string, pw: string, dest: string) {
     setError('');
-    if (captchaEnabled && !captchaToken) { setError('먼저 보안 확인을 완료해 주세요.'); return; }
+    if (captchaPending) { setError('먼저 보안 확인을 완료해 주세요.'); return; }
     setDemoLoading(email);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password: pw, options: captchaToken ? { captchaToken } : undefined });
@@ -209,7 +212,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <Turnstile onToken={setCaptchaToken} />
+              <Turnstile onToken={setCaptchaToken} onStatusChange={(s) => setCaptchaBlocked(s === 'error')} />
 
               <button type="submit" disabled={loading} className="btn-primary mt-2 py-3.5 text-[15px]">
                 {loading ? '처리 중…' : '로그인'}

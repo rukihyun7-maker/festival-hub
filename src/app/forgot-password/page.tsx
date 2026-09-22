@@ -12,6 +12,8 @@ import Turnstile, { captchaEnabled } from '@/components/Turnstile';
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaBlocked, setCaptchaBlocked] = useState(false); // 위젯 로드 실패(차단) → 소프트 통과
+  const captchaPending = captchaEnabled && !captchaToken && !captchaBlocked;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
@@ -19,7 +21,7 @@ export default function ForgotPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (captchaEnabled && !captchaToken) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
+    if (captchaPending) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
     setLoading(true);
     const supabase = createClient();
     const redirectTo = `${window.location.origin}/auth/reset`;
@@ -68,7 +70,7 @@ export default function ForgotPasswordPage() {
                 {error && (
                   <div className="text-[13px] text-danger bg-danger-bg rounded-input px-3 py-2.5 border border-danger/20">{error}</div>
                 )}
-                <Turnstile onToken={setCaptchaToken} />
+                <Turnstile onToken={setCaptchaToken} onStatusChange={(s) => setCaptchaBlocked(s === 'error')} />
                 <button type="submit" disabled={loading} className="btn-primary py-3.5 text-[15px]">
                   {loading ? '전송 중…' : '재설정 링크 받기'}
                 </button>
