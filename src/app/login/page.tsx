@@ -7,12 +7,22 @@ import { createClient } from '@/lib/supabase/client';
 import { fetchMyProfile, fetchPlatformSettings } from '@/lib/supabase/queries';
 import Turnstile, { captchaEnabled } from '@/components/Turnstile';
 import FestivalBackdrop from '@/components/FestivalBackdrop';
-import type { Role } from '@/lib/types';
+import type { Role, Profile } from '@/lib/types';
 
 function destForRole(role: Role | undefined): string {
   if (role === 'host') return '/host';
   if (role === 'admin') return '/admin';
   return '/dashboard';
+}
+
+/** 가입 승인 게이트: 승인('정상') 안 된 파트너·주최는 로그인 차단 + 안내 문구 반환(null이면 통과) */
+function accountGateMessage(p: Profile | null): string | null {
+  if (!p || p.role === 'admin') return null;      // 관리자는 항상 통과 / 프로필 없으면 통과(기존 계정 보호)
+  const s = p.status ?? '정상';                   // status 없는 기존 계정은 '정상' 취급
+  if (s === '정상') return null;
+  if (s === '반려') return '가입이 반려되었습니다. 안내 메일을 확인하시거나 고객센터로 문의해 주세요.';
+  if (s === '정지') return '이용이 정지된 계정입니다. 고객센터로 문의해 주세요.';
+  return '회원가입이 접수되어 관리자 승인을 기다리고 있습니다. 승인되면 이메일로 안내드리며, 승인 후 로그인하실 수 있습니다.';
 }
 
 /**
@@ -75,6 +85,13 @@ export default function LoginPage() {
     // 로그인 성공 후 실제 프로필 role 조회해서 알맞은 진입점으로 (조회 실패해도 진입은 막지 않음)
     let p: Awaited<ReturnType<typeof fetchMyProfile>> = null;
     try { p = await fetchMyProfile(); } catch { /* 프로필 조회 실패 → 기본 진입 */ }
+    // 가입 승인 게이트: 관리자 외 계정은 status='정상'이어야 로그인 유지 (승인 전엔 세션 종료)
+    const gate = accountGateMessage(p);
+    if (gate) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      return setError(gate);
+    }
     setLoading(false);
     router.push(destForRole(p?.role));
     router.refresh();

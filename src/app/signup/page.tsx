@@ -211,18 +211,23 @@ export default function SignupPage() {
       <main className="min-h-screen flex items-center justify-center p-6 bg-page">
         <div className="card w-full max-w-[440px] text-center">
           <div className="text-[40px] mb-3">✓</div>
-          <div className="t-section mb-2">가입 신청 완료</div>
+          <div className="t-section mb-2">가입 신청이 접수되었습니다</div>
           <div className="t-sub mb-4">
-            <b>{email}</b> 로 인증 메일을 보냈습니다. 메일의 링크를 눌러 인증을 마치면 로그인할 수 있어요.
+            <b>{email}</b> 로 인증 메일을 보냈습니다. 다음 순서로 진행됩니다:
           </div>
+          <ol className="text-[12.5px] text-text-secondary leading-relaxed text-left mx-auto max-w-[320px] mb-5 space-y-1.5">
+            <li><b className="text-ink">1.</b> 메일의 링크를 눌러 <b>이메일 인증</b>을 완료</li>
+            <li><b className="text-ink">2.</b> <b>관리자 승인</b>을 기다립니다 (결과는 이 이메일로 안내)</li>
+            <li><b className="text-ink">3.</b> 승인되면 <b>로그인</b>하여 서비스를 이용</li>
+          </ol>
           {role === 'seller' && (
             <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input mb-5" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
-              로그인 후 <b>[필수 서류]</b>에서 <b>사업자등록증</b>과 나머지 서류를 등록하세요. 서류 완료 + 관리자 승인 후 행사 찾기·신청을 이용할 수 있습니다.
+              승인 후 로그인하여 <b>[필수 서류]</b>(사업자등록증 등)를 등록·검증받으면 행사 찾기·신청을 이용할 수 있습니다.
             </div>
           )}
           {role === 'host' && (
             <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input mb-5" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
-              가입은 <b>관리자 승인</b> 후 이용할 수 있습니다. 승인 결과는 이 이메일로 안내드리며, 승인되면 로그인해 행사를 등록할 수 있습니다.
+              승인 후 로그인하여 행사를 등록할 수 있습니다. (등록한 행사는 관리자 확인 후 노출됩니다.)
             </div>
           )}
           <Link href="/login" className="btn-primary inline-flex">로그인으로 이동</Link>
