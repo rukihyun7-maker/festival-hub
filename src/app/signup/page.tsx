@@ -58,6 +58,18 @@ async function fileToStoredDataUrl(file: File): Promise<string> {
   });
 }
 
+/** 가입 시 서류 즉시 업로드 (세션 없음 · 서버 서비스롤). 성공 true / 실패 false → 호출부에서 localStorage 폴백 */
+async function uploadSignupDoc(userId: string, kind: 'business_reg' | 'business_card', file: File): Promise<boolean> {
+  try {
+    const fd = new FormData();
+    fd.set('userId', userId);
+    fd.set('kind', kind);
+    fd.set('file', file);
+    const r = await fetch('/api/signup/upload-doc', { method: 'POST', body: fd });
+    return r.ok;
+  } catch { return false; }
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -99,6 +111,8 @@ export default function SignupPage() {
     if (captchaPending) { setError('보안 확인을 먼저 완료해 주세요.'); return; }
     if (role === 'host' && !cardFile) { setError('명함 이미지를 첨부해주세요. (주최 가입 필수)'); return; }
     if (role === 'host' && bizNo.replace(/\D/g, '').length < 10) { setError('사업자등록번호를 정확히 입력해 주세요. (주최 가입 필수)'); return; }
+    if (role === 'seller' && bizNo.replace(/\D/g, '').length !== 10) { setError('사업자등록번호 10자리를 정확히 입력해 주세요. (가입 필수)'); return; }
+    if (role === 'seller' && !bizFile) { setError('사업자등록증을 첨부해 주세요. (가입 필수)'); return; }
     if (bizFile) { const fe = fileError(bizFile); if (fe) { setError(fe); return; } }
     if (cardFile) { const fe = fileError(cardFile); if (fe) { setError(fe); return; } }
     setLoading(true);
@@ -155,22 +169,28 @@ export default function SignupPage() {
     }
     // 가입 성공 → 임시 저장 입력값 정리
     try { sessionStorage.removeItem('fh_signup'); } catch { /* noop */ }
-    // 이메일 확인이 켜져 있으면 세션이 없음 → 명함은 브라우저에 임시 보관 후, 첫 로그인 시 자동 업로드
+    // 이메일 확인 ON → 세션 없음. 서버(서비스롤)로 즉시 업로드해 승인 전에도 관리자가 서류 확인 가능. 실패 시 localStorage 폴백.
     if (!data.session) {
-      if (role === 'host' && cardFile && data.user?.id) {
-        try {
-          const dataUrl = await fileToStoredDataUrl(cardFile);
-          const ext = (cardFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-          localStorage.setItem('fh_pending_card', JSON.stringify({ uid: data.user.id, dataUrl, ext }));
-        } catch { /* 임시 저장 실패는 무시 (로그인 후 프로필에서 재업로드 가능) */ }
+      const uid = data.user?.id;
+      if (uid && role === 'host' && cardFile) {
+        const ok = await uploadSignupDoc(uid, 'business_card', cardFile);
+        if (!ok) {
+          try {
+            const dataUrl = await fileToStoredDataUrl(cardFile);
+            const ext = (cardFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+            localStorage.setItem('fh_pending_card', JSON.stringify({ uid, dataUrl, ext }));
+          } catch { /* noop */ }
+        }
       }
-      // 파트너 사업자등록증도 임시 보관 → 첫 로그인 시 자동 업로드(유실 방지)
-      if (role === 'seller' && bizFile && data.user?.id) {
-        try {
-          const dataUrl = await fileToStoredDataUrl(bizFile);
-          const ext = (bizFile.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
-          localStorage.setItem('fh_pending_biz', JSON.stringify({ uid: data.user.id, dataUrl, ext, name: bizFile.name }));
-        } catch { /* 임시 저장 실패는 무시 (로그인 후 서류 페이지에서 재업로드 가능) */ }
+      if (uid && role === 'seller' && bizFile) {
+        const ok = await uploadSignupDoc(uid, 'business_reg', bizFile);
+        if (!ok) {
+          try {
+            const dataUrl = await fileToStoredDataUrl(bizFile);
+            const ext = (bizFile.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+            localStorage.setItem('fh_pending_biz', JSON.stringify({ uid, dataUrl, ext, name: bizFile.name }));
+          } catch { /* noop */ }
+        }
       }
       setLoading(false);
       setNeedConfirm(true);
@@ -326,22 +346,22 @@ export default function SignupPage() {
             <input type="password" required minLength={6} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="6자 이상" />
           </label>
 
-          {/* 입점 파트너 사업자등록번호 + 사업자등록증(선택 첨부) */}
+          {/* 입점 파트너 사업자등록번호 + 사업자등록증 (가입 필수) */}
           {role === 'seller' && (
             <>
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-ink-soft">사업자등록번호</span>
-                <input type="text" value={bizNo} onChange={(e) => setBizNo(e.target.value)} className="input" placeholder="000-00-00000" />
+                <span className="text-[12px] font-semibold text-ink-soft">사업자등록번호 <span className="text-danger">*</span></span>
+                <input type="text" value={bizNo} onChange={(e) => setBizNo(e.target.value)} className="input" placeholder="000-00-00000" inputMode="numeric" required />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-ink-soft">사업자등록증 첨부 <span className="text-text-tertiary font-normal">(가입 시 또는 로그인 후 등록)</span></span>
+                <span className="text-[12px] font-semibold text-ink-soft">사업자등록증 첨부 <span className="text-danger">*</span></span>
                 <input
                   type="file"
                   accept="image/*,application/pdf"
                   onChange={(e) => setBizFile(e.target.files?.[0] ?? null)}
                   className="text-[12px] file:mr-3 file:py-2 file:px-3 file:rounded-input file:border-0 file:bg-ink file:text-accent file:font-bold file:text-[12px] file:cursor-pointer"
                 />
-                {bizFile && <span className="text-[11px] text-success">첨부됨: {bizFile.name}</span>}
+                {bizFile ? <span className="text-[11px] text-success">첨부됨: {bizFile.name}</span> : <span className="text-[11px] text-text-tertiary">이미지 또는 PDF · 관리자 승인 심사에 사용됩니다.</span>}
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-[12px] font-semibold text-ink-soft">추천인 코드 <span className="text-text-tertiary font-normal">(선택)</span></span>
@@ -353,7 +373,7 @@ export default function SignupPage() {
 
           {role === 'seller' ? (
             <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
-              가입 후 <b>필수 서류(사업자등록증 포함)를 모두 등록</b>하고 <b>관리자 승인</b>을 마치면 행사 찾기·신청을 이용할 수 있습니다. 이메일 인증이 켜진 경우 인증 후 로그인해 서류를 등록하세요.
+              가입 시 제출한 <b>사업자등록증</b>으로 <b>관리자 승인 심사</b>가 진행됩니다. 승인 후 로그인하여 <b>나머지 필수 서류</b>를 등록하면 행사 찾기·신청을 이용할 수 있습니다.
             </div>
           ) : (
             <div className="text-[12px] text-text-secondary leading-relaxed p-3 rounded-input" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
