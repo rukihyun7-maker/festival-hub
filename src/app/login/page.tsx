@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { fetchMyProfile, fetchPlatformSettings } from '@/lib/supabase/queries';
+import { fetchMyProfile, fetchPlatformSettings, flushPendingBizDoc, flushPendingBusinessCard } from '@/lib/supabase/queries';
 import Turnstile, { captchaEnabled } from '@/components/Turnstile';
 import FestivalBackdrop from '@/components/FestivalBackdrop';
 import type { Role, Profile } from '@/lib/types';
@@ -85,6 +85,14 @@ export default function LoginPage() {
     // 로그인 성공 후 실제 프로필 role 조회해서 알맞은 진입점으로 (조회 실패해도 진입은 막지 않음)
     let p: Awaited<ReturnType<typeof fetchMyProfile>> = null;
     try { p = await fetchMyProfile(); } catch { /* 프로필 조회 실패 → 기본 진입 */ }
+    // 세션이 살아 있는 지금, 가입 시 서버 업로드가 실패해 localStorage에 남은 서류를 업로드(복구).
+    // 승인 게이트로 대시보드 flush가 막히는 계정도 여기서 서류가 채워져 관리자가 검토 가능.
+    if (p) {
+      try {
+        if (p.role === 'seller') await flushPendingBizDoc(p.id);
+        if (p.role === 'host') await flushPendingBusinessCard(p.id);
+      } catch { /* 복구 실패는 무시 (승인 후 재업로드 가능) */ }
+    }
     // 가입 승인 게이트: 관리자 외 계정은 status='정상'이어야 로그인 유지 (승인 전엔 세션 종료)
     const gate = accountGateMessage(p);
     if (gate) {

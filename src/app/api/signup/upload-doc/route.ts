@@ -31,12 +31,12 @@ export async function POST(req: Request) {
 
   const admin = createAdmin(url, svc, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  // 가드: 방금 가입한 '가입 심사' 계정만 (트리거 지연 대비 1회 재시도)
+  // 가드: 방금 가입한 '가입 심사' 계정만 (프로필 생성 트리거 지연 대비 재시도 ~2.5s)
   let prof: { status?: string } | null = null;
-  for (let i = 0; i < 2 && !prof; i++) {
+  for (let i = 0; i < 5 && !prof; i++) {
     const { data } = await admin.from('profiles').select('status').eq('id', userId).maybeSingle();
     prof = data;
-    if (!prof) await new Promise((r) => setTimeout(r, 400));
+    if (!prof) await new Promise((r) => setTimeout(r, 500));
   }
   if (!prof) return NextResponse.json({ error: '대상을 찾을 수 없습니다' }, { status: 404 });
   if (prof.status !== '가입 심사') return NextResponse.json({ error: '가입 심사 상태에서만 업로드할 수 있습니다' }, { status: 403 });

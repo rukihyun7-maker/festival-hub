@@ -60,14 +60,18 @@ async function fileToStoredDataUrl(file: File): Promise<string> {
 
 /** 가입 시 서류 즉시 업로드 (세션 없음 · 서버 서비스롤). 성공 true / 실패 false → 호출부에서 localStorage 폴백 */
 async function uploadSignupDoc(userId: string, kind: 'business_reg' | 'business_card', file: File): Promise<boolean> {
-  try {
-    const fd = new FormData();
-    fd.set('userId', userId);
-    fd.set('kind', kind);
-    fd.set('file', file);
-    const r = await fetch('/api/signup/upload-doc', { method: 'POST', body: fd });
-    return r.ok;
-  } catch { return false; }
+  for (let i = 0; i < 3; i++) {
+    try {
+      const fd = new FormData();
+      fd.set('userId', userId);
+      fd.set('kind', kind);
+      fd.set('file', file);
+      const r = await fetch('/api/signup/upload-doc', { method: 'POST', body: fd });
+      if (r.ok) return true;
+    } catch { /* 네트워크 오류 → 재시도 */ }
+    await new Promise((res) => setTimeout(res, 700));
+  }
+  return false;
 }
 
 export default function SignupPage() {
