@@ -82,7 +82,24 @@ export default function AdminUsersPage() {
   /** 가입 승인/반려 (파트너·주최 공통) → 상태 변경 후 안내 메일 발송 */
   async function decide(profileId: string, decision: 'approved' | 'rejected') {
     const status: SellerStatus = decision === 'approved' ? '정상' : '반려';
-    if (decision === 'approved' && !confirm('가입을 승인하시겠어요? 승인 안내 메일이 발송됩니다.')) return;
+    const target = profiles.find((p) => p.id === profileId);
+    if (decision === 'approved') {
+      // 파트너 승인 가드: 사업자등록증(필수)이 첨부되어야만 승인 가능
+      if (target?.role === 'seller') {
+        setUpdatingId(profileId);
+        let hasBiz = false;
+        try {
+          const slots = await fetchMyDocumentSlots(profileId);
+          hasBiz = slots.some((s) => s.kind === 'business_reg' && !!s.doc?.file_url);
+        } catch { /* 조회 실패 → 안전하게 차단 */ }
+        setUpdatingId(null);
+        if (!hasBiz) {
+          alert('사업자등록증이 미첨부 상태라 승인할 수 없습니다.\n\n가입자가 로그인을 한 번 시도하면 가입 시 첨부한 서류가 자동 등록됩니다. 서류가 표시되면 다시 승인해 주세요.');
+          return;
+        }
+      }
+      if (!confirm('가입을 승인하시겠어요? 승인 안내 메일이 발송됩니다.')) return;
+    }
     let reason: string | undefined;
     if (decision === 'rejected') {
       const r = window.prompt('가입을 반려합니다. 반려 사유(선택) — 안내 메일에 포함됩니다:', '');
