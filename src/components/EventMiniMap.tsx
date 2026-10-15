@@ -12,26 +12,12 @@ import { useEffect, useRef, useState } from 'react';
 export default function EventMiniMap({
   lat, lng, name, address,
 }: { lat: number; lng: number; name: string; address?: string | null }) {
-  const boxRef = useRef<HTMLDivElement>(null);
   const mapElRef = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  // 화면에 들어올 때만 로드
+  // 마운트 시 Leaflet 동적 로드 + 지도 생성 (leaflet은 dynamic import라 메인 번들 미포함)
   useEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => { if (entries.some((e) => e.isIntersecting)) { setInView(true); io.disconnect(); } },
-      { rootMargin: '200px' },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  // 뷰 진입 시 Leaflet 동적 로드 + 지도 생성
-  useEffect(() => {
-    if (!inView || !mapElRef.current) return;
+    if (!mapElRef.current) return;
     let map: import('leaflet').Map | null = null;
     let cancelled = false;
     (async () => {
@@ -51,11 +37,11 @@ export default function EventMiniMap({
         });
         L.marker([lat, lng], { icon }).addTo(map);
         // 레이아웃 확정 후 타일 재계산(회색 지도 방지)
-        setTimeout(() => { try { map?.invalidateSize(); } catch { /* noop */ } }, 120);
+        setTimeout(() => { try { map?.invalidateSize(); } catch { /* noop */ } }, 150);
       } catch { if (!cancelled) setFailed(true); }
     })();
     return () => { cancelled = true; try { map?.remove(); } catch { /* noop */ } };
-  }, [inView, lat, lng]);
+  }, [lat, lng]);
 
   const kakaoLink = `https://map.kakao.com/link/map/${encodeURIComponent(name)},${lat},${lng}`;
 
@@ -66,7 +52,7 @@ export default function EventMiniMap({
         <a href={kakaoLink} target="_blank" rel="noopener noreferrer" className="btn-secondary text-[12px] py-1.5 px-3 shrink-0">지도 앱에서 열기 ↗</a>
       </div>
       {address && <div className="text-[12.5px] text-text-secondary mb-3">{address}</div>}
-      <div ref={boxRef} className="rounded-input overflow-hidden border border-line-faint" style={{ height: 240 }}>
+      <div className="rounded-input overflow-hidden border border-line-faint" style={{ height: 240 }}>
         {failed ? (
           <div className="w-full h-full flex items-center justify-center text-center text-[12px] text-text-tertiary px-4" style={{ background: 'var(--bg-surface-sunken,#FDFBF6)' }}>
             지도를 불러오지 못했습니다.<br />위의 &ldquo;지도 앱에서 열기&rdquo;를 이용해 주세요.
