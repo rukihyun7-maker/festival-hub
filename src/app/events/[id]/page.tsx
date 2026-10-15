@@ -358,8 +358,22 @@ export default function EventDetailPage() {
                   {t === 'apply' && event.settlement_method && <InfoRow label="정산 방식" value={event.settlement_method} />}
                   {t === 'apply' && <InfoRow label="정산 주기" value={event.settlement_cycle || '주최 측 안내 예정'} />}
                   {t === 'apply' && <InfoRow label="결제 방식" value={event.payment_method || '주최 측 안내 예정'} />}
-                  {t === 'info' && event.phone && <InfoRow label="문의 전화" value={event.phone} />}
-                  {t === 'info' && event.homepage && <InfoLinkRow label="공식 홈페이지" href={event.homepage} />}
+                  {t === 'info' && (event.homepage || event.phone) && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {event.homepage && (
+                        <a href={cleanUrl(event.homepage).href} target="_blank" rel="noopener noreferrer"
+                          className="btn-secondary text-[13px] inline-flex items-center gap-1.5">
+                          <Icon name="file" size={15} /> 공식 홈페이지 <span className="text-text-tertiary">↗</span>
+                        </a>
+                      )}
+                      {event.phone && (
+                        <a href={`tel:${event.phone.replace(/[^0-9+]/g, '')}`}
+                          className="btn-secondary text-[13px] inline-flex items-center gap-1.5">
+                          <Icon name="contact" size={15} /> 전화 문의 <b className="text-ink">{event.phone}</b>
+                        </a>
+                      )}
+                    </div>
+                  )}
                   {t === 'info' && !event.homepage && !event.phone && (
                     <div className="text-[13px] text-text-tertiary">상세 정보·문의는 아래 출처(공식 채널)에서 확인해 주세요.</div>
                   )}
@@ -633,18 +647,6 @@ function cleanUrl(raw: string): { href: string; label: string } {
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url.replace(/^\/+/, '');
   const label = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
   return { href: url, label };
-}
-
-function InfoLinkRow({ label, href }: { label: string; href: string }) {
-  const { href: url, label: pretty } = cleanUrl(href);
-  return (
-    <div className="flex gap-3 py-1">
-      <span className="w-20 shrink-0 text-[13px] font-semibold text-text-tertiary">{label}</span>
-      <a href={url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-[14px] font-bold text-info hover:underline break-all">
-        {pretty} ↗
-      </a>
-    </div>
-  );
 }
 
 function ApplyModal({
