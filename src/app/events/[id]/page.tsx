@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import NearbyInfoCard from '@/components/NearbyInfoCard';
+import EventMiniMap from '@/components/EventMiniMap';
 import Icon from '@/components/Icon';
 import { fetchEventById, createApplication, fetchMyProfile, fetchMyDocumentSlots, fetchMyMenus, fetchEventContact, fetchMyFavorites, addFavorite, removeFavorite, uploadApplicationDoc, addApplicationDocument, fetchMyApplicationForEvent, incrementEventView, fetchEventFavoriteCount } from '@/lib/supabase/queries';
 import { periodLabel, feeLabel, deadlineLabel, daysUntil, filledSiteDetails, filledSiteDetailRows, fitCheck, applyChecklist, requiredDocsVerified, REQUIRED_DOC_KINDS, DOC_META, siteNoun, slotUnit, vatNote } from '@/lib/types';
@@ -338,6 +339,10 @@ export default function EventDetailPage() {
                   </div>
                 )}
               </div>
+            )}
+
+            {event.lat != null && event.lng != null && (
+              <EventMiniMap lat={event.lat} lng={event.lng} name={event.name} address={event.address} />
             )}
 
             <NearbyInfoCard eventId={event.id} />
