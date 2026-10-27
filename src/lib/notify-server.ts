@@ -114,13 +114,12 @@ async function sendMail(to: string, subject: string, html: string) {
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
 }
 
-/** 알림 종류별 클릭 시 이동 경로 (역할 무관 안전 기본값) */
-function hrefForKind(kind: NotifKind): string {
-  switch (kind) {
-    case 'settlement': return '/dashboard';
-    case 'docs': return '/dashboard';
-    default: return '/dashboard';
-  }
+/** 클릭 시 이동 경로: 행사 관련이면 해당 행사로, 아니면 수신자 역할 홈으로 */
+function hrefFor(eventId: string | null | undefined, role: string | null | undefined): string {
+  if (eventId) return `/events/${eventId}`;
+  if (role === 'host') return '/host';
+  if (role === 'admin') return '/admin';
+  return '/dashboard';
 }
 
 /**
@@ -137,26 +136,29 @@ export async function dispatchNotificationRow(row: {
 }): Promise<{ push: number; email: boolean }> {
   const db = admin();
 
-  // 설정 + 연락처
+  // 설정 + 연락처 + 역할
   let prefs: Partial<NotifPrefs> = {};
   let email: string | null = null;
   let name = '회원';
+  let role: string | null = null;
   try {
     const { data: prof } = await db
       .from('profiles')
-      .select('email, name, business_name, notif_prefs')
+      .select('email, name, business_name, role, notif_prefs')
       .eq('id', row.user_id)
       .maybeSingle();
     prefs = (prof?.notif_prefs ?? {}) as Partial<NotifPrefs>;
     email = prof?.email ?? null;
     name = prof?.business_name || prof?.name || '회원';
+    role = prof?.role ?? null;
   } catch { /* 설정 못 읽으면 기본값(수신)로 진행 */ }
 
   const kindKey = prefKeyFor(row.kind);
   const kindOn = kindKey ? prefs[kindKey] !== false : true; // 기본 on
   if (!kindOn) return { push: 0, email: false }; // 이 종류를 끔 → 발송 생략(인앱은 이미 남음)
 
-  const href = hrefForKind(row.kind);
+  // 행사 관련 알림은 해당 행사로, 아니면 수신자 역할 홈으로 (주최가 /dashboard로 잘못 가는 문제 수정)
+  const href = hrefFor(row.event_id, role);
 
   // 웹 푸시 (마스터 on 기본)
   let push = 0;

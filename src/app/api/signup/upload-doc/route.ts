@@ -54,7 +54,8 @@ export async function POST(req: Request) {
     );
     if (dErr) return NextResponse.json({ error: '문서 기록 실패: ' + dErr.message }, { status: 502 });
   } else {
-    await admin.from('profiles').update({ business_card_url: path }).eq('id', userId);
+    const { error: cErr } = await admin.from('profiles').update({ business_card_url: path }).eq('id', userId);
+    if (cErr) return NextResponse.json({ error: '명함 기록 실패: ' + cErr.message }, { status: 502 });
   }
   return NextResponse.json({ ok: true, path });
 }

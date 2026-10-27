@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 out/
 build/
+
+# graphify 구조 그래프 산출물(로컬 전용)
+graphify-out/
