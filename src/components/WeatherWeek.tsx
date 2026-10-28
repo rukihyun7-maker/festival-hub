@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
  */
 type WDay = {
   date: string; dow: string; today: boolean; weekend: boolean;
-  rain: number | null; tmin: number | null; tmax: number | null; sky: string;
+  rain: number | null; tmin: number | null; tmax: number | null; sky: string; cur: number | null;
 };
 type WData = { configured: boolean; sido?: string; sidos?: string[]; shortTerm?: boolean; days?: WDay[] };
 type AirLevel = { value: number; grade: number; label: string };
@@ -136,9 +136,15 @@ export default function WeatherWeek({ defaultRegion }: { defaultRegion?: string 
                   <>
                     <div className="text-[20px] leading-none mb-1">{skyEmoji(d.sky, d.rain)}</div>
                     <div className="text-[11px] text-info font-semibold">{d.rain != null ? `${d.rain}%` : '·'}</div>
-                    <div className="text-[11.5px] text-text-secondary mt-0.5">
-                      {d.tmin != null ? `${d.tmin}°` : '·'}<span className="text-text-tertiary">/</span>{d.tmax != null ? `${d.tmax}°` : '·'}
-                    </div>
+                    {d.today && d.cur != null ? (
+                      <div className="text-[11.5px] text-text-secondary mt-0.5">
+                        <span className="text-text-tertiary">현재 </span>{d.cur}°
+                      </div>
+                    ) : (
+                      <div className="text-[11.5px] text-text-secondary mt-0.5">
+                        {d.tmin != null ? `${d.tmin}°` : '·'}<span className="text-text-tertiary">/</span>{d.tmax != null ? `${d.tmax}°` : '·'}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

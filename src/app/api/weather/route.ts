@@ -92,7 +92,7 @@ function skyText(pty: string, sky: string): string {
   }
   return '맑음';
 }
-type DayAgg = { tmin: number | null; tmax: number | null; rain: number | null; sky: string };
+type DayAgg = { tmin: number | null; tmax: number | null; rain: number | null; sky: string; cur: number | null };
 /** 단기예보 응답을 fcstDate(YYYYMMDD) → 일별 요약으로 집계 */
 async function fetchVilage(nx: number, ny: number): Promise<Record<string, DayAgg>> {
   const { date, time } = latestVilageBase();
@@ -103,30 +103,44 @@ async function fetchVilage(nx: number, ny: number): Promise<Record<string, DayAg
   const items = (j as { response?: { body?: { items?: { item?: unknown } } } })?.response?.body?.items?.item;
   if (!Array.isArray(items)) return {};
 
-  type Bucket = { pops: number[]; temps: number[]; tmn?: number; tmx?: number; skies: Record<string, string>; ptys: Record<string, string> };
+  type Bucket = { pops: number[]; tmps: Record<string, number>; tmn?: number; tmx?: number; skies: Record<string, string>; ptys: Record<string, string> };
   const byDate: Record<string, Bucket> = {};
   for (const raw of items) {
     const it = raw as { fcstDate: string; fcstTime: string; category: string; fcstValue: string };
-    const b = (byDate[it.fcstDate] ??= { pops: [], temps: [], skies: {}, ptys: {} });
+    const b = (byDate[it.fcstDate] ??= { pops: [], tmps: {}, skies: {}, ptys: {} });
     const v = it.fcstValue;
     switch (it.category) {
       case 'POP': b.pops.push(Number(v)); break;
       case 'TMN': b.tmn = Number(v); break;
       case 'TMX': b.tmx = Number(v); break;
-      case 'TMP': b.temps.push(Number(v)); break;
+      case 'TMP': b.tmps[it.fcstTime] = Number(v); break;
       case 'SKY': b.skies[it.fcstTime] = v; break;
       case 'PTY': b.ptys[it.fcstTime] = v; break;
     }
   }
   // 낮 대표시각(1400→1200→1500 순)
   const pickMid = (m: Record<string, string>): string | undefined => m['1400'] ?? m['1200'] ?? m['1500'] ?? Object.values(m)[0];
+  const kst = kstNow();
+  const todayKey = ymd(kst);
+  const curHH = kst.getUTCHours();
   const out: Record<string, DayAgg> = {};
   for (const [d, b] of Object.entries(byDate)) {
+    const temps = Object.values(b.tmps);
+    // 오늘: 현재 시각에 가장 가까운 예보 기온 = "현재 기온"
+    let cur: number | null = null;
+    if (d === todayKey) {
+      const entries = Object.entries(b.tmps).map(([t, val]) => ({ h: Number(t.slice(0, 2)), val }));
+      if (entries.length) {
+        entries.sort((a, z) => Math.abs(a.h - curHH) - Math.abs(z.h - curHH));
+        cur = entries[0].val;
+      }
+    }
     out[d] = {
       rain: b.pops.length ? Math.max(...b.pops) : null,
-      tmin: b.tmn ?? (b.temps.length ? Math.min(...b.temps) : null),
-      tmax: b.tmx ?? (b.temps.length ? Math.max(...b.temps) : null),
+      tmin: b.tmn ?? (temps.length ? Math.min(...temps) : null),
+      tmax: b.tmx ?? (temps.length ? Math.max(...temps) : null),
       sky: skyText(pickMid(b.ptys) ?? '0', pickMid(b.skies) ?? '1'),
+      cur,
     };
   }
   return out;
@@ -177,11 +191,11 @@ export async function GET(req: Request) {
     const dt = new Date(m);
     const label = `${dt.getUTCMonth() + 1}/${dt.getUTCDate()}`;
     const dow = DOW[dt.getUTCDay()];
-    let rain: number | null = null, tmin: number | null = null, tmax: number | null = null, sky = '';
+    let rain: number | null = null, tmin: number | null = null, tmax: number | null = null, sky = '', cur: number | null = null;
 
     const vk = vil[ymd(dt)];
     if (vk) {
-      rain = vk.rain; tmin = vk.tmin; tmax = vk.tmax; sky = vk.sky;
+      rain = vk.rain; tmin = vk.tmin; tmax = vk.tmax; sky = vk.sky; cur = vk.cur;
     } else {
       const N = Math.round((m - baseMid) / DAY); // 중기 발표일 기준 N일 후
       if (N >= 3 && N <= 10) {
@@ -193,7 +207,7 @@ export async function GET(req: Request) {
         sky = (land?.[`wf${N}Am`] ?? land?.[`wf${N}`] ?? '') as string;
       }
     }
-    return { date: label, dow, today: i === 0, weekend: dt.getUTCDay() === 0 || dt.getUTCDay() === 6, rain, tmin, tmax, sky };
+    return { date: label, dow, today: i === 0, weekend: dt.getUTCDay() === 0 || dt.getUTCDay() === 6, rain, tmin, tmax, sky, cur: i === 0 ? cur : null };
   });
 
   return NextResponse.json({
