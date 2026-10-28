@@ -46,7 +46,7 @@ export default function WeatherStrip() {
           </div>
         ))}
       </div>
-      <div className="mt-2 text-[11px] text-text-tertiary">숫자는 토요일 강수확률 · 최저/최고 기온입니다.</div>
+      <div className="mt-2 text-[11px] text-text-tertiary">숫자는 주말 강수확률 · 최저/최고 기온입니다. (기상청 중기예보 · day4~10)</div>
     </section>
   );
 }

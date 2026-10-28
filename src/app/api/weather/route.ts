@@ -86,8 +86,9 @@ export async function GET() {
   const wk = weekendOffsets();
   if (!wk) return NextResponse.json({ configured: true, items: [] });
 
-  // 토요일 기준으로 요약(강수확률은 오전/오후 중 큰 값)
-  const day = wk.satDay; // 3~9
+  // 중기예보는 발표일 기준 day4~10만 제공(day3는 단기예보 영역) → 최소 4로 보정.
+  // 주말이 3일 뒤면 토요일 데이터가 없으므로 일요일(day4)을 대표값으로 사용.
+  const day = Math.min(Math.max(wk.satDay, 4), 10);
   const landCache = new Map<string, MidItem | null>();
   const taCache = new Map<string, MidItem | null>();
 
