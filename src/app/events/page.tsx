@@ -24,13 +24,24 @@ const TYPES = [
 ];
 type TypeKey = 'all' | 'apply' | 'festival' | 'event';
 const SORTS = [
+  { key: 'near' as const, label: '내 주변 가까운 순' },
   { key: 'start' as const, label: '진행 임박순' },
   { key: 'deadline' as const, label: '마감 임박순' },
   { key: 'demand' as const, label: '입지 좋은순' },
   { key: 'recent' as const, label: '최신 등록순' },
   { key: 'fee' as const, label: '참가비 낮은순' },
 ];
-type SortKey = 'start' | 'deadline' | 'demand' | 'recent' | 'fee';
+type SortKey = 'near' | 'start' | 'deadline' | 'demand' | 'recent' | 'fee';
+
+/** 두 좌표 간 거리(km) · haversine */
+function distKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // 진행 상태 (오늘 기준 시작·종료일 비교)
 type Phase = 'ongoing' | 'upcoming' | 'ended';
@@ -87,7 +98,26 @@ export default function EventsListPage() {
   const [statusFilter, setStatusFilter] = useState<StatusKey>('all');
   const [month, setMonth] = useState<string>('all'); // 'all' | 'YYYY-MM'
   const [sort, setSort] = useState<SortKey>('start');
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [locBusy, setLocBusy] = useState(false);
+  const [locError, setLocError] = useState('');
   const [q, setQ] = useState('');
+
+  // "내 주변 가까운 순": 위치 권한 요청 → 내 좌표 확보 후 거리순 정렬
+  function requestNearSort() {
+    setLocError('');
+    if (userLoc) { setSort('near'); return; }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocError('이 브라우저에서는 위치를 사용할 수 없습니다.');
+      return;
+    }
+    setLocBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setSort('near'); setLocBusy(false); },
+      () => { setLocError('위치 권한이 필요합니다. 주소창 옆에서 위치를 허용한 뒤 다시 눌러 주세요.'); setLocBusy(false); },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
+    );
+  }
   const today = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -197,8 +227,12 @@ export default function EventsListPage() {
     if (sort === 'demand') list = [...list].sort((a, b) => (b.demand_score ?? -1) - (a.demand_score ?? -1));
     if (sort === 'fee') list = [...list].sort((a, b) => a.fee - b.fee);
     if (sort === 'recent') list = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    if (sort === 'near' && userLoc) {
+      const d = (e: EventRow) => (e.lat != null && e.lng != null) ? distKm(userLoc.lat, userLoc.lng, e.lat, e.lng) : Infinity;
+      list = [...list].sort((a, b) => d(a) - d(b));
+    }
     return list;
-  }, [base, statusFilter, sort, today]);
+  }, [base, statusFilter, sort, today, userLoc]);
 
   // 정지·반려 계정만 완전 잠금. 그 외 미검증은 정보형 열람 허용(아래 배너)
   if (gateChecked && suspended) {
@@ -295,11 +329,17 @@ export default function EventsListPage() {
               <FilterGroup label="정렬">
                 <div className="flex flex-wrap gap-1.5">
                   {SORTS.map((s) => (
-                    <button key={s.key} onClick={() => setSort(s.key)} className={`chip ${sort === s.key ? 'selected' : ''}`}>
-                      {s.label}
+                    <button
+                      key={s.key}
+                      onClick={() => (s.key === 'near' ? requestNearSort() : setSort(s.key))}
+                      disabled={s.key === 'near' && locBusy}
+                      className={`chip ${sort === s.key ? 'selected' : ''} ${s.key === 'near' && locBusy ? 'opacity-60' : ''}`}
+                    >
+                      {s.key === 'near' && locBusy ? '위치 확인 중…' : s.label}
                     </button>
                   ))}
                 </div>
+                {locError && <div className="mt-2 text-[12px] text-danger">{locError}</div>}
               </FilterGroup>
             </div>
           </div>
