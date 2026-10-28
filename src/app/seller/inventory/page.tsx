@@ -11,6 +11,19 @@ import { needsReorder, INVENTORY_MOVE_LABEL, fmtQty } from '@/lib/types';
 import type { Profile, InventoryItem, InventoryMove } from '@/lib/types';
 
 /**
+ * 레거시 데이터 방어: 단위 "이름"에 숫자가 들어간 옛 레코드(예: 묶음이름 "1", 낱개이름 "100개")를
+ * 표시·모달·폼에서 기본 이름(박스/개)으로 정규화. "5박스"가 "51"로 깨지던 문제 차단.
+ * (편집 후 저장하면 DB에도 반영됨)
+ */
+function normInvItem(it: InventoryItem): InventoryItem {
+  const base = (!it.base_unit || /\d/.test(it.base_unit)) ? '개' : it.base_unit;
+  const unit = it.pack_size > 1
+    ? (!it.unit || /^\s*\d+\s*$/.test(it.unit) ? '박스' : it.unit) // 묶음 이름이 비었거나 숫자뿐이면 '박스'
+    : base;                                                        // 낱개면 base와 동일
+  return { ...it, unit, base_unit: base };
+}
+
+/**
  * 내 창고 (재고 관리) · 입점 파트너 전용 · 비공개 개인 도구
  * 창고 재고 ↔ 현장 사용량. 상품 출고 → 재고 파악(남은 수량 입력 → 사용량 자동).
  * 수량은 낱개 기준 저장, pack_size>1이면 "N박스 M개"로 표시.
@@ -25,7 +38,7 @@ export default function InventoryPage() {
   const [restock, setRestock] = useState<InventoryItem | null>(null);
   const [history, setHistory] = useState<InventoryItem | null>(null);
 
-  async function reload(uid: string) { setItems(await fetchInventoryItems(uid)); }
+  async function reload(uid: string) { setItems((await fetchInventoryItems(uid)).map(normInvItem)); }
 
   useEffect(() => {
     (async () => {
