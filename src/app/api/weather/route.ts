@@ -65,32 +65,42 @@ function kstNow(): Date { return new Date(Date.now() + 9 * 3600 * 1000); }
 const ymdh = (dt: Date, hh: number) =>
   `${dt.getUTCFullYear()}${String(dt.getUTCMonth() + 1).padStart(2, '0')}${String(dt.getUTCDate()).padStart(2, '0')}${String(hh).padStart(2, '0')}00`;
 
-/** 중기예보 tmFc: 최근 발표(오늘 06시, 그 전엔 어제 18시) · KST 기준 */
-function latestTmFc(): string {
+/**
+ * 중기예보는 "N일 후"(발표일 기준) 필드로 제공된다.
+ *  - 06시 발표: rnSt4~rnSt10 (day4~10 제공)
+ *  - 18시 발표: rnSt5~rnSt10 (day5~10 제공, day4 없음)
+ * 따라서 이번 주말을 최대한 포함하려면 항상 06시 발표를 쓴다.
+ * 조회 가능한 가장 가까운 주말 날짜(보통 일요일)를 N(day)과 함께 반환.
+ * 토요일(day3)은 중기예보 범위 밖이라, 그 경우 일요일(day4)을 대표값으로 사용.
+ */
+function pickWeekend(): { tmFc: string; day: number; label: string } {
   const kst = kstNow();
   const h = kst.getUTCHours();
-  if (h >= 18) return ymdh(kst, 18);
-  if (h >= 6) return ymdh(kst, 6);
-  return ymdh(new Date(kst.getTime() - 86400000), 18);
-}
+  // 06시 발표가 나온 뒤(=07시 이후)엔 오늘 06시, 아니면 어제 06시 발표를 조회
+  const fcBase = h >= 7 ? kst : new Date(kst.getTime() - 86400000);
+  const tmFc = ymdh(fcBase, 6);
+  const dayMs = 86400000;
+  const midOf = (dt: Date) => Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
+  const fcMid = midOf(fcBase);
+  const todayMid = midOf(kst);
 
-/** 오늘(KST) 기준 가장 가까운 토요일까지의 일수(3~10 범위면 중기예보로 조회 가능) */
-function weekendOffsets(): { satDay: number; sunDay: number; satDate: string; sunDate: string } | null {
-  const kst = kstNow();
-  const dow = kst.getUTCDay(); // 0=일 (KST 벽시계)
-  let toSat = (6 - dow + 7) % 7; if (toSat === 0) toSat = 7; // 다음 토요일(오늘이 토면 다음 주)
-  const toSun = toSat + 1;
-  const fmt = (addDays: number) => {
-    const dt = new Date(kst.getTime() + addDays * 86400000);
-    return `${dt.getUTCMonth() + 1}/${dt.getUTCDate()}`;
+  // 오늘(KST) 기준 이번 주 토/일
+  const dow = kst.getUTCDay(); // 0=일
+  let toSat = (6 - dow + 7) % 7; if (toSat === 0) toSat = 7; // 오늘이 토요일이면 다음 주 토요일
+  const satMid = todayMid + toSat * dayMs;
+  const sunMid = satMid + dayMs;
+  const nOf = (mid: number) => Math.round((mid - fcMid) / dayMs);
+  const label = (mid: number, wd: string) => {
+    const d = new Date(mid);
+    return `${d.getUTCMonth() + 1}/${d.getUTCDate()}(${wd})`;
   };
-  // 중기예보는 3~10일만 제공
-  if (toSat < 3 || toSun > 10) {
-    // 주말이 너무 가깝거나(단기예보 영역) 멀면, 조회 가능한 토/일로 보정
-    const sat = Math.min(Math.max(toSat, 3), 9);
-    return { satDay: sat, sunDay: sat + 1, satDate: fmt(sat), sunDate: fmt(sat + 1) };
+  // 토 → 일 순으로 day4~10 범위에 드는 첫 날을 사용
+  for (const [mid, wd] of [[satMid, '토'], [sunMid, '일']] as const) {
+    const n = nOf(mid);
+    if (n >= 4 && n <= 10) return { tmFc, day: n, label: label(mid, wd) };
   }
-  return { satDay: toSat, sunDay: toSun, satDate: fmt(toSat), sunDate: fmt(toSun) };
+  // 둘 다 범위를 벗어나면(주말이 너무 가까움) 일요일을 day4로 보정
+  return { tmFc, day: 4, label: label(sunMid, '일') };
 }
 
 type MidItem = Record<string, string | number>;
@@ -106,21 +116,19 @@ async function fetchMid(endpoint: string, regId: string, tmFc: string): Promise<
 
 export async function GET(req: Request) {
   if (!KEY) return NextResponse.json({ configured: false });
-  const tmFc = latestTmFc();
+  const { tmFc, day, label } = pickWeekend();
 
   // 진단용: /api/weather?debug=1 → node:https raw 경로 전송 결과
   if (new URL(req.url).searchParams.get('debug')) {
     const r = await rawGet(midPath('getMidLandFcst', '11B00000', tmFc));
     const ok = r.text.includes('NORMAL_SERVICE');
     const err = r.text.match(/errMsg"?\s*:?\s*"?([A-Z_]+)/)?.[1];
-    return NextResponse.json({ ver: 'v3-rawhttps', tmFc, keyLen: KEY.length, status: r.status, result: ok ? 'OK' : (err ?? r.text.slice(0, 60)) });
+    const j = ok ? JSON.parse(r.text) : null;
+    const it = j?.response?.body?.items?.item;
+    const first = Array.isArray(it) ? it[0] : it;
+    return NextResponse.json({ ver: 'v4-weekend', tmFc, day, label, keyLen: KEY.length, status: r.status, result: ok ? 'OK' : (err ?? r.text.slice(0, 60)), sample: first ? { [`rnSt${day}Am`]: first[`rnSt${day}Am`], [`wf${day}Am`]: first[`wf${day}Am`] } : null });
   }
-  const wk = weekendOffsets();
-  if (!wk) return NextResponse.json({ configured: true, items: [] });
 
-  // 중기예보는 발표일 기준 day4~10만 제공(day3는 단기예보 영역) → 최소 4로 보정.
-  // 주말이 3일 뒤면 토요일 데이터가 없으므로 일요일(day4)을 대표값으로 사용.
-  const day = Math.min(Math.max(wk.satDay, 4), 10);
   const landCache = new Map<string, MidItem | null>();
   const taCache = new Map<string, MidItem | null>();
 
@@ -145,7 +153,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     configured: true,
     tmFc,
-    weekend: { sat: wk.satDate, sun: wk.sunDate },
+    weekend: label,   // 조회된 주말 날짜 (예: "11/1(일)")
     items: results,
   });
 }

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
  * - 키(DATA_GO_KR_KEY) 미설정이면 아무것도 렌더하지 않음(조용히 숨김)
  */
 type WItem = { sido: string; rain: number | null; tmin: number | null; tmax: number | null; sky: string };
-type WData = { configured: boolean; weekend?: { sat: string; sun: string }; items?: WItem[] };
+type WData = { configured: boolean; weekend?: string; items?: WItem[] };
 
 function rainIcon(rain: number | null): string {
   if (rain == null) return '🌦';
@@ -33,7 +33,7 @@ export default function WeatherStrip() {
   return (
     <section className="card mb-4" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
       <div className="text-[13px] font-bold text-ink mb-2">
-        🌤 이번 주말 {data.weekend ? `${data.weekend.sat}(토)·${data.weekend.sun}(일)` : ''} 지역별 날씨
+        🌤 이번 주말 {data.weekend ?? ''} 지역별 날씨
         <span className="ml-1.5 text-[11px] font-normal text-text-tertiary">기상청 중기예보</span>
       </div>
       <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
