@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const KEY = process.env.DATA_GO_KR_KEY ?? '';
+const KEY = (process.env.DATA_GO_KR_KEY ?? '').trim();
 const MID = 'https://apis.data.go.kr/1360000/MidFcstInfoService';
 
 // 시도 → 중기육상 regId / 중기기온 regId(대표도시)
@@ -72,7 +72,7 @@ type MidItem = Record<string, string | number>;
 async function fetchMid(path: string, regId: string, tmFc: string): Promise<MidItem | null> {
   const url = `${MID}/${path}?serviceKey=${KEY}&numOfRows=10&pageNo=1&dataType=JSON&regId=${regId}&tmFc=${tmFc}`;
   try {
-    const r = await fetch(url, { next: { revalidate: 10800 } });
+    const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) return null;
     const j = await r.json();
     const items = j?.response?.body?.items?.item;
@@ -80,9 +80,21 @@ async function fetchMid(path: string, regId: string, tmFc: string): Promise<MidI
   } catch { return null; }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   if (!KEY) return NextResponse.json({ configured: false });
   const tmFc = latestTmFc();
+
+  // 진단용: /api/weather?debug=1 → 상류 응답 원문/상태 확인 (키 길이는 노출 안 함)
+  if (new URL(req.url).searchParams.get('debug')) {
+    const url = `${MID}/getMidLandFcst?serviceKey=${KEY}&numOfRows=10&pageNo=1&dataType=JSON&regId=11B00000&tmFc=${tmFc}`;
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      const text = await r.text();
+      return NextResponse.json({ tmFc, keyLen: KEY.length, status: r.status, body: text.slice(0, 400) });
+    } catch (e) {
+      return NextResponse.json({ tmFc, keyLen: KEY.length, error: String(e).slice(0, 200) });
+    }
+  }
   const wk = weekendOffsets();
   if (!wk) return NextResponse.json({ configured: true, items: [] });
 
