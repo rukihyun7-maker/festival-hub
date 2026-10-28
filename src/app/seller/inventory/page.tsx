@@ -228,6 +228,11 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
 
   async function save() {
     if (!name.trim()) { alert('상품명을 입력해 주세요'); return; }
+    // 단위 "이름"에 숫자가 들어가면 수량 표시가 깨짐(예: 묶음이름 "1" → "5박스"가 "51"로). 숫자 단위명 차단.
+    if (/\d/.test(baseUnit) || (useBox && /\d/.test(packUnit))) {
+      alert('단위 이름에는 숫자를 넣지 마세요.\n예) 개 · 봉 · 박스 · kg\n(수량과 "1박스=몇 개"는 아래 숫자 칸에 입력합니다.)');
+      return;
+    }
     if (useBox && (!packUnit.trim() || (Number(packSizeStr) || 0) <= 1)) {
       alert('박스·묶음으로 세려면 “1박스 = ?”에 2 이상의 수량을 입력해 주세요.\n낱개로만 관리하려면 위에서 “낱개로 세기”를 선택하세요.');
       return;
@@ -288,13 +293,19 @@ function ItemFormModal({ sellerId, item, onClose, onSaved }: {
       ) : (
         /* 박스·묶음: "1 [박스] = [100] [개]" 한 줄로 명확히 */
         <>
-          <Field label="박스·낱개 설정" hint="예: 1박스 = 100개">
-            <div className="flex items-center gap-1.5 flex-wrap text-[13px] text-ink-soft">
-              <span>1</span>
-              <input value={packUnit} maxLength={6} onChange={(e) => setPackUnit(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 68 }} placeholder="박스" />
-              <span>=</span>
-              <input type="number" min={0} inputMode="numeric" value={packSizeStr} onChange={(e) => setPackSizeStr(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 76 }} placeholder="100" />
-              <input value={baseUnit} maxLength={6} onChange={(e) => setBaseUnit(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 60 }} placeholder="개" />
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="묶음 이름" hint="박스·팩 등">
+              <input value={packUnit} maxLength={6} onChange={(e) => setPackUnit(e.target.value)} className="input" placeholder="박스" />
+            </Field>
+            <Field label="낱개 이름" hint="개·장 등">
+              <input value={baseUnit} maxLength={6} onChange={(e) => setBaseUnit(e.target.value)} className="input" placeholder="개" />
+            </Field>
+          </div>
+          <Field label={`1${packUnit.trim() || '박스'}에 든 ${baseUnit.trim() || '개'} 수`} hint="숫자만">
+            <div className="flex items-center gap-1.5 text-[13px] text-ink-soft">
+              <span className="shrink-0">1{packUnit.trim() || '박스'} =</span>
+              <input type="number" min={0} inputMode="numeric" value={packSizeStr} onChange={(e) => setPackSizeStr(e.target.value)} className="input py-1.5 px-2 text-center" style={{ width: 90 }} placeholder="100" />
+              <span className="shrink-0">{baseUnit.trim() || '개'}</span>
             </div>
           </Field>
           <Field label="현재 창고 수량" hint={`${packUnit.trim() || '박스'} + ${baseUnit.trim() || '개'}`}>

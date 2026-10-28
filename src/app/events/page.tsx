@@ -232,8 +232,20 @@ export default function EventsListPage() {
       const d = (e: EventRow) => (e.lat != null && e.lng != null) ? distKm(userLoc.lat, userLoc.lng, e.lat, e.lng) : Infinity;
       list = [...list].sort((a, b) => d(a) - d(b));
     }
+    // 특정 월 선택 시: 그 달에 시작하는 행사 우선 → 일반 진행 → 상설/장기(전후로 걸친 행사)는 뒤로.
+    // (안정 정렬이라 그룹 안에서는 위 정렬 순서 유지)
+    if (month !== 'all') {
+      const rank = (e: EventRow) => {
+        const start = e.start_date ?? '';
+        if (start.slice(0, 7) === month) return 0;         // 해당 월 시작 → 최우선
+        const end = e.end_date ?? start;
+        const longSpan = start < `${month}-01` && end > `${month}-28`; // 월 이전 시작 + 월 말 이후 종료 = 상설/장기
+        return longSpan ? 2 : 1;
+      };
+      list = [...list].sort((a, b) => rank(a) - rank(b));
+    }
     return list;
-  }, [base, statusFilter, sort, today, userLoc]);
+  }, [base, statusFilter, sort, today, userLoc, month]);
 
   // 정지·반려 계정만 완전 잠금. 그 외 미검증은 정보형 열람 허용(아래 배너)
   if (gateChecked && suspended) {
