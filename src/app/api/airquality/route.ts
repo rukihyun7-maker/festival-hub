@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import https from 'node:https';
 
 /**
- * 행사 찾기 상단 날씨 스트립 보조 "대기질(미세먼지) 예보" (에어코리아 대기오염정보)
- *  - getMinuDustFrcstDspth: PM2.5/PM10 예보등급(좋음/보통/나쁨/매우나쁨)을 시도별 문자열로 제공
- *  - 예보는 오늘~모레(글피) 범위라 주말(day4)까지는 닿지 않음 → "가장 먼(최신) 예보일" 등급을 대표로 사용
- * env: DATA_GO_KR_KEY (기상청 중기예보와 동일 키 · 단, 에어코리아 서비스 '활용신청'이 별도로 필요)
- * 키 미설정/미승인 시 { configured:false } → 프런트는 조용히 숨김.
+ * 홈 날씨 위젯 보조 "현재 대기질(미세먼지)" (에어코리아 실시간 시도별 대기정보)
+ *  - getCtprvnRltmMesureDnsty: 시도 내 측정소별 실시간 PM10/PM2.5 → 시도 평균·등급으로 요약
+ *  - 예보통보(getMinuDustFrcstDspth)는 JSON에서 등급 텍스트가 누락되어 실시간값을 사용(현재 기준)
+ * env: DATA_GO_KR_KEY (기상청 중기/단기예보와 동일 키 · 에어코리아 '활용신청' 필요)
+ * 키 미설정/미승인/무측정 시 { configured:false } → 프런트는 조용히 숨김.
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -14,9 +14,7 @@ export const preferredRegion = 'icn1';
 
 const KEY = (process.env.DATA_GO_KR_KEY ?? '').trim();
 const HOST = 'apis.data.go.kr';
-const BASE = '/B552584/ArpltnInforInqireSvc';
 
-/** node:https 원시 경로 전송 (fetch/undici의 %2B→+ 변형 우회) */
 function rawGet(path: string): Promise<{ status: number; text: string }> {
   return new Promise((resolve) => {
     const req = https.request({ host: HOST, path, method: 'GET', timeout: 8000 }, (res) => {
@@ -31,61 +29,59 @@ function rawGet(path: string): Promise<{ status: number; text: string }> {
   });
 }
 
-function frcstPath(informCode: 'PM25' | 'PM10'): string {
-  return `${BASE}/getMinuDustFrcstDspth?serviceKey=${KEY}&returnType=json&numOfRows=100&pageNo=1&informCode=${informCode}&ver=1.0`;
+// 우리 시도 라벨 → 에어코리아 sidoName (전남·광주는 광주로 조회)
+const SIDO_NAME: Record<string, string> = {
+  '서울': '서울', '인천': '인천', '경기': '경기', '강원': '강원',
+  '충북': '충북', '충남': '충남', '대전': '대전', '세종': '세종',
+  '전북': '전북', '전남·광주': '광주', '경북': '경북', '대구': '대구',
+  '경남': '경남', '부산': '부산', '울산': '울산', '제주': '제주',
+};
+
+function rltmPath(sidoName: string): string {
+  return `/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?serviceKey=${KEY}&returnType=json&numOfRows=100&pageNo=1&sidoName=${encodeURIComponent(sidoName)}&ver=1.0`;
 }
 
-type Frcst = { informData: string; informGrade: string; informOverall?: string; dataTime?: string };
-async function fetchFrcst(informCode: 'PM25' | 'PM10'): Promise<Frcst[] | null> {
-  const r = await rawGet(frcstPath(informCode));
-  if (r.status !== 200 || !r.text.includes('"items"')) return null;
-  try {
-    const j = JSON.parse(r.text);
-    const items = j?.response?.body?.items;
-    return Array.isArray(items) ? items : null;
-  } catch { return null; }
-}
+// 등급 산정(환경부 기준 구간): [좋음, 보통, 나쁨, 매우나쁨]
+const GRADE_LABEL = ['좋음', '보통', '나쁨', '매우나쁨'];
+function pm25Grade(v: number): number { return v <= 15 ? 0 : v <= 35 ? 1 : v <= 75 ? 2 : 3; }
+function pm10Grade(v: number): number { return v <= 30 ? 0 : v <= 80 ? 1 : v <= 150 ? 2 : 3; }
 
-/** "서울 : 보통,인천 : 나쁨,..." → { 서울:'보통', 인천:'나쁨' } */
-function parseGrade(informGrade: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const part of (informGrade ?? '').split(',')) {
-    const [k, v] = part.split(':').map((s) => s.trim());
-    if (k && v) out[k] = v;
-  }
-  return out;
+function avg(nums: number[]): number | null {
+  const ok = nums.filter((n) => Number.isFinite(n));
+  return ok.length ? Math.round(ok.reduce((a, b) => a + b, 0) / ok.length) : null;
 }
 
 export async function GET(req: Request) {
   if (!KEY) return NextResponse.json({ configured: false });
+  const sido = new URL(req.url).searchParams.get('sido') || '서울';
+  const sidoName = SIDO_NAME[sido] ?? '서울';
 
-  const pm25 = await fetchFrcst('PM25');
+  const r = await rawGet(rltmPath(sidoName));
+  if (r.status !== 200) return NextResponse.json({ configured: false });
+  let items: Array<Record<string, string>> = [];
+  try {
+    const j = JSON.parse(r.text);
+    const it = j?.response?.body?.items;
+    items = Array.isArray(it) ? it : [];
+  } catch { return NextResponse.json({ configured: false }); }
 
-  // 진단용: /api/airquality?debug=1
+  // 측정소별 값 집계(결측 '-'/null 제외)
+  const toNum = (v: string | undefined) => { const n = Number(v); return v && v !== '-' && Number.isFinite(n) ? n : NaN; };
+  const pm25 = avg(items.map((x) => toNum(x.pm25Value)));
+  const pm10 = avg(items.map((x) => toNum(x.pm10Value)));
+  const dataTime = items.find((x) => x.dataTime)?.dataTime ?? null;
+
   if (new URL(req.url).searchParams.get('debug')) {
-    const r = await rawGet(frcstPath('PM25'));
-    const ok = r.text.includes('"items"');
-    const err = r.text.match(/(?:errMsg|returnReasonCode|resultMsg)"?\s*:?\s*"?([A-Z_0-9 ]+)/)?.[1];
-    const gi = r.text.indexOf('informGrade');
-    const oi = r.text.indexOf('informOverall');
-    return NextResponse.json({
-      ver: 'aq-v3', keyLen: KEY.length, status: r.status,
-      result: ok ? 'OK' : (err ?? r.text.slice(0, 120)),
-      hasGrade: gi >= 0, hasOverall: oi >= 0,
-      gradeSnippet: gi >= 0 ? r.text.slice(gi, gi + 320) : null,
-      tail: r.text.slice(1400, 1900),
-    });
+    return NextResponse.json({ ver: 'aq-rltm', sidoName, status: r.status, count: items.length, pm25, pm10, dataTime, sample: items[0] ? Object.keys(items[0]).slice(0, 12) : null });
   }
 
-  if (!pm25 || !pm25.length) return NextResponse.json({ configured: false });
-
-  // 가장 먼(최신) 예보대상일 = 주말에 가장 가까운 날
-  const latest = [...pm25].sort((a, b) => (a.informData < b.informData ? 1 : -1))[0];
-  const grades = parseGrade(latest.informGrade);
+  if (pm25 == null && pm10 == null) return NextResponse.json({ configured: false });
 
   return NextResponse.json({
     configured: true,
-    informData: latest.informData,     // 예보 대상일 (YYYY-MM-DD)
-    grades,                            // 지역명 → 등급
+    sido,
+    dataTime,
+    pm25: pm25 != null ? { value: pm25, grade: pm25Grade(pm25), label: GRADE_LABEL[pm25Grade(pm25)] } : null,
+    pm10: pm10 != null ? { value: pm10, grade: pm10Grade(pm10), label: GRADE_LABEL[pm10Grade(pm10)] } : null,
   });
 }
