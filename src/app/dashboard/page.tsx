@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import Icon from '@/components/Icon';
+import WeatherWeek from '@/components/WeatherWeek';
 import { fetchDeadlineSoon, fetchMyApplications, fetchMyDocumentSlots, fetchMyProfile, fetchMySales, countVerified, flushPendingBizDoc } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, requiredDocsVerified } from '@/lib/types';
 import type { EventRow, ApplicationWithRelations, Profile, SaleWithEvent, DocumentSlot } from '@/lib/types';
@@ -101,6 +102,11 @@ export default function DashboardPage() {
             </div>
             <Link href="/events" className="btn-primary w-full">행사 찾기</Link>
           </div>
+        </section>
+
+        {/* 내 지역 7일 날씨 (설정 지역 기준) */}
+        <section className="mt-6">
+          <WeatherWeek defaultRegion={profile?.region} />
         </section>
 
         {/* 서류 만료 알림 (만료·임박 시에만) */}
