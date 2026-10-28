@@ -66,13 +66,14 @@ export async function GET(req: Request) {
     const r = await rawGet(frcstPath('PM25'));
     const ok = r.text.includes('"items"');
     const err = r.text.match(/(?:errMsg|returnReasonCode|resultMsg)"?\s*:?\s*"?([A-Z_0-9 ]+)/)?.[1];
-    const dates = pm25 ? [...new Set(pm25.map((f) => f.informData))] : [];
+    const gi = r.text.indexOf('informGrade');
+    const oi = r.text.indexOf('informOverall');
     return NextResponse.json({
-      ver: 'aq-v2', keyLen: KEY.length, status: r.status,
+      ver: 'aq-v3', keyLen: KEY.length, status: r.status,
       result: ok ? 'OK' : (err ?? r.text.slice(0, 120)),
-      informDataDates: dates,
-      count: pm25?.length ?? 0,
-      raw0: r.text.slice(0, 600),
+      hasGrade: gi >= 0, hasOverall: oi >= 0,
+      gradeSnippet: gi >= 0 ? r.text.slice(gi, gi + 320) : null,
+      tail: r.text.slice(1400, 1900),
     });
   }
 
