@@ -13,6 +13,11 @@ type WDay = {
   rain: number | null; tmin: number | null; tmax: number | null; sky: string;
 };
 type WData = { configured: boolean; sido?: string; sidos?: string[]; shortTerm?: boolean; days?: WDay[] };
+type AirLevel = { value: number; grade: number; label: string };
+type AirData = { configured: boolean; pm25?: AirLevel | null; pm10?: AirLevel | null; dataTime?: string | null };
+
+// 등급 색: 좋음·보통·나쁨·매우나쁨
+const GRADE_COLOR = ['#1E88E5', '#1D6B2A', '#E8902A', '#C0392B'];
 
 const SIDOS = ['서울', '인천', '경기', '강원', '충북', '충남', '대전', '세종', '전북', '전남·광주', '경북', '대구', '경남', '부산', '울산', '제주'];
 const ALIASES: Record<string, string[]> = {
@@ -48,6 +53,7 @@ export default function WeatherWeek({ defaultRegion }: { defaultRegion?: string 
   const regionSido = useMemo(() => sidoFromRegion(defaultRegion), [defaultRegion]);
   const [sido, setSido] = useState<string>('');
   const [data, setData] = useState<WData | null>(null);
+  const [air, setAir] = useState<AirData | null>(null);
   const [loading, setLoading] = useState(true);
 
   // 초기 시도 결정: 저장값 > 프로필지역 > 서울
@@ -61,11 +67,17 @@ export default function WeatherWeek({ defaultRegion }: { defaultRegion?: string 
     if (!sido) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/weather?sido=${encodeURIComponent(sido)}`)
+    const q = encodeURIComponent(sido);
+    fetch(`/api/weather?sido=${q}`)
       .then((r) => r.json())
       .then((d) => { if (!cancelled) setData(d); })
       .catch(() => { if (!cancelled) setData({ configured: false }); })
       .finally(() => { if (!cancelled) setLoading(false); });
+    // 현재 대기질(미세먼지) · 실패해도 날씨엔 영향 없음
+    fetch(`/api/airquality?sido=${q}`)
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setAir(d); })
+      .catch(() => { if (!cancelled) setAir(null); });
     return () => { cancelled = true; };
   }, [sido]);
 
@@ -132,6 +144,28 @@ export default function WeatherWeek({ defaultRegion }: { defaultRegion?: string 
               </div>
             );
           })}
+        </div>
+      )}
+
+      {air?.configured && (air.pm25 || air.pm10) && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-input bg-surface/80 border border-line-faint px-2.5 py-1.5 text-[12px]">
+          <span className="text-[11px] font-bold text-text-tertiary">현재 대기질</span>
+          {air.pm25 && (
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: GRADE_COLOR[air.pm25.grade] }} />
+              <span className="text-ink font-semibold">초미세먼지</span>
+              <span style={{ color: GRADE_COLOR[air.pm25.grade] }} className="font-bold">{air.pm25.label}</span>
+              <span className="text-text-tertiary" style={{ fontVariantNumeric: 'tabular-nums' }}>{air.pm25.value}㎍</span>
+            </span>
+          )}
+          {air.pm10 && (
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: GRADE_COLOR[air.pm10.grade] }} />
+              <span className="text-ink font-semibold">미세먼지</span>
+              <span style={{ color: GRADE_COLOR[air.pm10.grade] }} className="font-bold">{air.pm10.label}</span>
+              <span className="text-text-tertiary" style={{ fontVariantNumeric: 'tabular-nums' }}>{air.pm10.value}㎍</span>
+            </span>
+          )}
         </div>
       )}
 

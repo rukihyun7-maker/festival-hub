@@ -71,15 +71,6 @@ export async function GET(req: Request) {
   const pm10 = avg(items.map((x) => toNum(x.pm10Value)));
   const dataTime = items.find((x) => x.dataTime)?.dataTime ?? null;
 
-  if (new URL(req.url).searchParams.get('debug')) {
-    return NextResponse.json({
-      ver: 'aq-rltm2', sidoName, status: r.status, count: items.length, pm25, pm10, dataTime,
-      itemSidos: [...new Set(items.map((x) => x.sidoName))].slice(0, 20),
-      station0: items[0]?.stationName ?? null,
-      reqTail: rltmPath(sidoName).slice(-80),
-    });
-  }
-
   if (pm25 == null && pm10 == null) return NextResponse.json({ configured: false });
 
   return NextResponse.json({
