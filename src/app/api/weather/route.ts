@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import https from 'node:https';
 
 /**
  * 행사 찾기 상단 "이번 주말 지역별 날씨" (기상청 중기예보)
@@ -15,7 +16,29 @@ export const revalidate = 0;
 export const preferredRegion = 'icn1';
 
 const KEY = (process.env.DATA_GO_KR_KEY ?? '').trim();
-const MID = 'https://apis.data.go.kr/1360000/MidFcstInfoService';
+const HOST = 'apis.data.go.kr';
+const PATH_BASE = '/1360000/MidFcstInfoService';
+
+/**
+ * node:https로 경로를 "그대로" 전송 (fetch/undici가 인증키의 %2B를 +로 변형하는 문제 우회).
+ * KEY(인코딩 인증키)의 %2B·%3D 가 재인코딩 없이 data.go.kr에 전달된다.
+ */
+function rawGet(path: string): Promise<{ status: number; text: string }> {
+  return new Promise((resolve) => {
+    const req = https.request({ host: HOST, path, method: 'GET', timeout: 8000 }, (res) => {
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, text: data }));
+    });
+    req.on('error', () => resolve({ status: 0, text: '' }));
+    req.on('timeout', () => { req.destroy(); resolve({ status: 0, text: '' }); });
+    req.end();
+  });
+}
+function midPath(endpoint: string, regId: string, tmFc: string): string {
+  return `${PATH_BASE}/${endpoint}?serviceKey=${KEY}&numOfRows=10&pageNo=1&dataType=JSON&regId=${regId}&tmFc=${tmFc}`;
+}
 
 // 시도 → 중기육상 regId / 중기기온 regId(대표도시)
 const REGIONS: { sido: string; land: string; ta: string }[] = [
@@ -71,19 +94,11 @@ function weekendOffsets(): { satDay: number; sunDay: number; satDate: string; su
 }
 
 type MidItem = Record<string, string | number>;
-/** data.go.kr 요청 URL · Node fetch 이중 인코딩 방지(키 디코드 후 URLSearchParams로 1회 인코딩) */
-function midUrl(path: string, regId: string, tmFc: string): string {
-  const qs = new URLSearchParams({
-    serviceKey: decodeURIComponent(KEY),
-    numOfRows: '10', pageNo: '1', dataType: 'JSON', regId, tmFc,
-  });
-  return `${MID}/${path}?${qs.toString()}`;
-}
-async function fetchMid(path: string, regId: string, tmFc: string): Promise<MidItem | null> {
+async function fetchMid(endpoint: string, regId: string, tmFc: string): Promise<MidItem | null> {
   try {
-    const r = await fetch(midUrl(path, regId, tmFc), { cache: 'no-store' });
-    if (!r.ok) return null;
-    const j = await r.json();
+    const r = await rawGet(midPath(endpoint, regId, tmFc));
+    if (r.status !== 200) return null;
+    const j = JSON.parse(r.text);
     const items = j?.response?.body?.items?.item;
     return Array.isArray(items) ? items[0] : items ?? null;
   } catch { return null; }
@@ -93,25 +108,12 @@ export async function GET(req: Request) {
   if (!KEY) return NextResponse.json({ configured: false });
   const tmFc = latestTmFc();
 
-  // 진단용: /api/weather?debug=1 → Vercel 런타임에서 인코딩 방식별 상류 상태 확인
+  // 진단용: /api/weather?debug=1 → node:https raw 경로 전송 결과
   if (new URL(req.url).searchParams.get('debug')) {
-    const base = `${MID}/getMidLandFcst`;
-    const common = `numOfRows=10&pageNo=1&dataType=JSON&regId=11B00000&tmFc=${tmFc}`;
-    const decoded = decodeURIComponent(KEY);
-    const strategies: Record<string, string> = {
-      directEncoded: `${base}?serviceKey=${KEY}&${common}`,
-      directDecoded: `${base}?serviceKey=${decoded}&${common}`,
-      spDecoded: `${base}?${new URLSearchParams({ serviceKey: decoded, numOfRows: '10', pageNo: '1', dataType: 'JSON', regId: '11B00000', tmFc }).toString()}`,
-    };
-    const out: Record<string, string> = {};
-    for (const [k, u] of Object.entries(strategies)) {
-      try {
-        const r = await fetch(u, { cache: 'no-store' });
-        const t = await r.text();
-        out[k] = `${r.status} ${t.includes('NORMAL_SERVICE') ? 'OK' : (t.match(/errMsg"?\s*:?\s*"?([A-Z_]+)/)?.[1] ?? t.slice(0, 40).replace(/\s+/g, ''))}`;
-      } catch (e) { out[k] = 'ERR ' + String(e).slice(0, 40); }
-    }
-    return NextResponse.json({ ver: 'v2', tmFc, keyLen: KEY.length, strategies: out });
+    const r = await rawGet(midPath('getMidLandFcst', '11B00000', tmFc));
+    const ok = r.text.includes('NORMAL_SERVICE');
+    const err = r.text.match(/errMsg"?\s*:?\s*"?([A-Z_]+)/)?.[1];
+    return NextResponse.json({ ver: 'v3-rawhttps', tmFc, keyLen: KEY.length, status: r.status, result: ok ? 'OK' : (err ?? r.text.slice(0, 60)) });
   }
   const wk = weekendOffsets();
   if (!wk) return NextResponse.json({ configured: true, items: [] });
