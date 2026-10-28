@@ -11,6 +11,8 @@ import { NextResponse } from 'next/server';
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+// data.go.kr(국내 공공 API)는 해외 리전 호출을 거부하는 경우가 있어 함수를 서울 리전에서 실행
+export const preferredRegion = 'icn1';
 
 const KEY = (process.env.DATA_GO_KR_KEY ?? '').trim();
 const MID = 'https://apis.data.go.kr/1360000/MidFcstInfoService';
