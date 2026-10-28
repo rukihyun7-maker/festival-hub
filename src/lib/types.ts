@@ -429,7 +429,7 @@ export const DOC_META: Record<DocKind, { label: string; desc: string; requiresEx
   business_reg: { label: '사업자등록증', desc: '세무서 발급 · 만료 없음', requiresExpiry: false },
   food_hygiene: { label: '식품위생업 신고증', desc: '보건소 발급 · 앞면·뒷면 첨부', requiresExpiry: false },
   insurance:    { label: '영업배상책임보험', desc: '보험사 증권 · 만료일 필수', requiresExpiry: true },
-  hygiene_edu:  { label: '위생교육 이수증', desc: '연 1회 갱신 · 만료일 필수', requiresExpiry: true },
+  hygiene_edu:  { label: '위생교육 이수증', desc: '보건소·온라인 이수 · 만료일 없음', requiresExpiry: false },
   booth_exterior: { label: '부스·트럭 외부 사진', desc: '전체 외관 1컷 · 관리자·주최 확인용', requiresExpiry: false },
   booth_interior: { label: '부스·트럭 내부 사진', desc: '조리 공간 1컷', requiresExpiry: false },
   booth_storage:  { label: '재료 보관 공간 사진', desc: '식자재 보관 상태 1컷', requiresExpiry: false },
@@ -504,7 +504,8 @@ export function computeUrgency(doc: DocumentRow | null): DocUrgency {
   if (!doc) return 'missing';
   if (doc.status === 'rejected') return 'rejected';
   if (doc.status === 'pending') return 'pending';
-  if (doc.expires_at) {
+  // 만료 개념이 있는 서류만 만료 계산(위생교육 이수증 등 만료 없는 서류는 저장값이 있어도 무시)
+  if (doc.expires_at && DOC_META[doc.kind]?.requiresExpiry) {
     const days = Math.ceil((new Date(doc.expires_at).getTime() - Date.now()) / 86400000);
     if (days < 0) return 'expired';
     if (days < 14) return 'expiring';

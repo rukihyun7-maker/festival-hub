@@ -304,7 +304,7 @@ function DocCard({
           {slot.doc && (
             <div className="text-[11px] text-text-tertiary mt-1">
               <Icon name="clip" size={13} /> {slot.doc.file_name ?? '(파일명 없음)'}
-              {slot.doc.expires_at && (
+              {slot.requiresExpiry && slot.doc.expires_at && (
                 <>
                   {' · '}
                   <span className={
@@ -405,17 +405,22 @@ function DocCard({
               </div>
             )}
 
-            {/* 만료일 */}
+            {/* 만료일 (보험 종료일) */}
             {slot.requiresExpiry && (
               <div className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold text-ink-soft">만료일 *</span>
+                <span className="text-[12px] font-semibold text-ink-soft">만료일 · 보험 종료일 *</span>
                 <input
                   type="date"
                   value={expiresAt}
                   onChange={(e) => setExpiresAt(e.target.value)}
                   className="input"
                 />
-                <span className="text-[11px] text-text-tertiary">만료 14일 전부터 &apos;만료 임박&apos;으로 표시됩니다</span>
+                <span className="text-[11px] text-text-tertiary">
+                  증권의 <b>보험기간 중 &apos;종료일&apos;</b>을 입력하세요. (예: 2026.04.16 ~ <b className="text-ink-soft">2027.04.15</b> → <b className="text-ink-soft">2027-04-15</b>)
+                </span>
+                {expiresAt && new Date(expiresAt).getTime() < Date.now() && (
+                  <span className="text-[11px] text-warning font-semibold">입력한 날짜가 오늘보다 과거입니다 — 시작일을 잘못 입력하지 않았는지 확인하세요.</span>
+                )}
               </div>
             )}
           </div>

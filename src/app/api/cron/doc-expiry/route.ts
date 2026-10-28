@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { DOC_META, DOC_KINDS } from '@/lib/types';
+
+// 만료 개념이 있는 서류만 만료 알림 대상(위생교육 이수증 등 만료 없는 서류 제외)
+const EXPIRY_KINDS = DOC_KINDS.filter((k) => DOC_META[k].requiresExpiry);
 
 /**
  * 서류 만료 사전 알림 · Vercel Cron 매일 호출
@@ -37,6 +41,7 @@ export async function GET(req: Request) {
     .select('id, seller_id, kind, expires_at')
     .eq('status', 'verified')
     .eq('expiry_notified', false)
+    .in('kind', EXPIRY_KINDS)
     .not('expires_at', 'is', null)
     .lte('expires_at', soon);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

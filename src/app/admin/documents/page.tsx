@@ -281,7 +281,7 @@ export default function AdminDocumentsPage() {
                               <div className="text-[11px] text-text-tertiary mt-1">
                                 {d.file_name ? <><Icon name="clip" size={13} /> {d.file_name}</> : '파일 없음'}
                                 {' · 제출 '}{new Date(d.uploaded_at).toLocaleDateString('ko-KR')}
-                                {d.expires_at && ` · 만료 ${d.expires_at}`}
+                                {DOC_META[d.kind].requiresExpiry && d.expires_at && ` · 만료 ${d.expires_at}`}
                               </div>
                               {d.memo && d.status === 'rejected' && (
                                 <div className="text-[11px] text-danger font-semibold mt-1">반려 사유: {d.memo}</div>
