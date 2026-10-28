@@ -35,29 +35,29 @@ const REGIONS: { sido: string; land: string; ta: string }[] = [
   { sido: '제주', land: '11G00000', ta: '11G00201' },
 ];
 
-/** 중기예보 tmFc: 최근 발표(오늘 06시, 그 전엔 어제 18시) */
+/** UTC 타임스탬프를 +9h 이동한 Date (KST 벽시계를 getUTC*로 읽기 위함 · 서버 TZ 무관) */
+function kstNow(): Date { return new Date(Date.now() + 9 * 3600 * 1000); }
+const ymdh = (dt: Date, hh: number) =>
+  `${dt.getUTCFullYear()}${String(dt.getUTCMonth() + 1).padStart(2, '0')}${String(dt.getUTCDate()).padStart(2, '0')}${String(hh).padStart(2, '0')}00`;
+
+/** 중기예보 tmFc: 최근 발표(오늘 06시, 그 전엔 어제 18시) · KST 기준 */
 function latestTmFc(): string {
-  const now = new Date();
-  const kst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
-  const y = kst.getFullYear(), m = kst.getMonth(), d = kst.getDate(), h = kst.getHours();
-  const at = (yy: number, mm: number, dd: number, hh: number) =>
-    `${yy}${String(mm + 1).padStart(2, '0')}${String(dd).padStart(2, '0')}${String(hh).padStart(2, '0')}00`;
-  if (h >= 18) return at(y, m, d, 18);
-  if (h >= 6) return at(y, m, d, 6);
-  const yest = new Date(kst.getTime() - 86400000);
-  return at(yest.getFullYear(), yest.getMonth(), yest.getDate(), 18);
+  const kst = kstNow();
+  const h = kst.getUTCHours();
+  if (h >= 18) return ymdh(kst, 18);
+  if (h >= 6) return ymdh(kst, 6);
+  return ymdh(new Date(kst.getTime() - 86400000), 18);
 }
 
 /** 오늘(KST) 기준 가장 가까운 토요일까지의 일수(3~10 범위면 중기예보로 조회 가능) */
 function weekendOffsets(): { satDay: number; sunDay: number; satDate: string; sunDate: string } | null {
-  const now = new Date();
-  const kst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
-  const dow = kst.getDay(); // 0=일
+  const kst = kstNow();
+  const dow = kst.getUTCDay(); // 0=일 (KST 벽시계)
   let toSat = (6 - dow + 7) % 7; if (toSat === 0) toSat = 7; // 다음 토요일(오늘이 토면 다음 주)
   const toSun = toSat + 1;
   const fmt = (addDays: number) => {
     const dt = new Date(kst.getTime() + addDays * 86400000);
-    return `${dt.getMonth() + 1}/${dt.getDate()}`;
+    return `${dt.getUTCMonth() + 1}/${dt.getUTCDate()}`;
   };
   // 중기예보는 3~10일만 제공
   if (toSat < 3 || toSun > 10) {
@@ -69,10 +69,17 @@ function weekendOffsets(): { satDay: number; sunDay: number; satDate: string; su
 }
 
 type MidItem = Record<string, string | number>;
+/** data.go.kr 요청 URL · Node fetch 이중 인코딩 방지(키 디코드 후 URLSearchParams로 1회 인코딩) */
+function midUrl(path: string, regId: string, tmFc: string): string {
+  const qs = new URLSearchParams({
+    serviceKey: decodeURIComponent(KEY),
+    numOfRows: '10', pageNo: '1', dataType: 'JSON', regId, tmFc,
+  });
+  return `${MID}/${path}?${qs.toString()}`;
+}
 async function fetchMid(path: string, regId: string, tmFc: string): Promise<MidItem | null> {
-  const url = `${MID}/${path}?serviceKey=${KEY}&numOfRows=10&pageNo=1&dataType=JSON&regId=${regId}&tmFc=${tmFc}`;
   try {
-    const r = await fetch(url, { cache: 'no-store' });
+    const r = await fetch(midUrl(path, regId, tmFc), { cache: 'no-store' });
     if (!r.ok) return null;
     const j = await r.json();
     const items = j?.response?.body?.items?.item;
@@ -86,9 +93,8 @@ export async function GET(req: Request) {
 
   // 진단용: /api/weather?debug=1 → 상류 응답 원문/상태 확인 (키 길이는 노출 안 함)
   if (new URL(req.url).searchParams.get('debug')) {
-    const url = `${MID}/getMidLandFcst?serviceKey=${KEY}&numOfRows=10&pageNo=1&dataType=JSON&regId=11B00000&tmFc=${tmFc}`;
     try {
-      const r = await fetch(url, { cache: 'no-store' });
+      const r = await fetch(midUrl('getMidLandFcst', '11B00000', tmFc), { cache: 'no-store' });
       const text = await r.text();
       return NextResponse.json({ tmFc, keyLen: KEY.length, status: r.status, body: text.slice(0, 400) });
     } catch (e) {
