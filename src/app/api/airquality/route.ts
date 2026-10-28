@@ -68,10 +68,11 @@ export async function GET(req: Request) {
     const err = r.text.match(/(?:errMsg|returnReasonCode|resultMsg)"?\s*:?\s*"?([A-Z_0-9 ]+)/)?.[1];
     const dates = pm25 ? [...new Set(pm25.map((f) => f.informData))] : [];
     return NextResponse.json({
-      ver: 'aq-v1', keyLen: KEY.length, status: r.status,
+      ver: 'aq-v2', keyLen: KEY.length, status: r.status,
       result: ok ? 'OK' : (err ?? r.text.slice(0, 120)),
       informDataDates: dates,
-      sampleGrade: pm25?.[0]?.informGrade?.slice(0, 160) ?? null,
+      count: pm25?.length ?? 0,
+      raw0: r.text.slice(0, 600),
     });
   }
 
