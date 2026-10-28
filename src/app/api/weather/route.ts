@@ -114,20 +114,9 @@ async function fetchMid(endpoint: string, regId: string, tmFc: string): Promise<
   } catch { return null; }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   if (!KEY) return NextResponse.json({ configured: false });
   const { tmFc, day, label } = pickWeekend();
-
-  // 진단용: /api/weather?debug=1 → node:https raw 경로 전송 결과
-  if (new URL(req.url).searchParams.get('debug')) {
-    const r = await rawGet(midPath('getMidLandFcst', '11B00000', tmFc));
-    const ok = r.text.includes('NORMAL_SERVICE');
-    const err = r.text.match(/errMsg"?\s*:?\s*"?([A-Z_]+)/)?.[1];
-    const j = ok ? JSON.parse(r.text) : null;
-    const it = j?.response?.body?.items?.item;
-    const first = Array.isArray(it) ? it[0] : it;
-    return NextResponse.json({ ver: 'v4-weekend', tmFc, day, label, keyLen: KEY.length, status: r.status, result: ok ? 'OK' : (err ?? r.text.slice(0, 60)), sample: first ? { [`rnSt${day}Am`]: first[`rnSt${day}Am`], [`wf${day}Am`]: first[`wf${day}Am`] } : null });
-  }
 
   const landCache = new Map<string, MidItem | null>();
   const taCache = new Map<string, MidItem | null>();
