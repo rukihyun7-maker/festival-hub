@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import Icon from '@/components/Icon';
+import WeatherStrip from '@/components/WeatherStrip';
 import { fetchEvents, fetchMyProfile, fetchMyDocumentSlots, countVerified } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, demandLevel, requiredDocsVerified, REQUIRED_DOC_KINDS } from '@/lib/types';
 import type { EventRow, Profile } from '@/lib/types';
@@ -265,6 +266,9 @@ export default function EventsListPage() {
             </p>
           </div>
         </div>
+
+        {/* 이번 주말 지역별 날씨 (기상청 중기예보 · 키 없으면 자동 숨김) */}
+        <WeatherStrip />
 
         {/* 상태 탭 (전체/진행중/진행전/종료) */}
         <div className="flex flex-wrap gap-1.5 mb-4">
