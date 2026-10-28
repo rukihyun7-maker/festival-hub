@@ -91,15 +91,25 @@ export async function GET(req: Request) {
   if (!KEY) return NextResponse.json({ configured: false });
   const tmFc = latestTmFc();
 
-  // 진단용: /api/weather?debug=1 → 상류 응답 원문/상태 확인 (키 길이는 노출 안 함)
+  // 진단용: /api/weather?debug=1 → Vercel 런타임에서 인코딩 방식별 상류 상태 확인
   if (new URL(req.url).searchParams.get('debug')) {
-    try {
-      const r = await fetch(midUrl('getMidLandFcst', '11B00000', tmFc), { cache: 'no-store' });
-      const text = await r.text();
-      return NextResponse.json({ tmFc, keyLen: KEY.length, status: r.status, body: text.slice(0, 400) });
-    } catch (e) {
-      return NextResponse.json({ tmFc, keyLen: KEY.length, error: String(e).slice(0, 200) });
+    const base = `${MID}/getMidLandFcst`;
+    const common = `numOfRows=10&pageNo=1&dataType=JSON&regId=11B00000&tmFc=${tmFc}`;
+    const decoded = decodeURIComponent(KEY);
+    const strategies: Record<string, string> = {
+      directEncoded: `${base}?serviceKey=${KEY}&${common}`,
+      directDecoded: `${base}?serviceKey=${decoded}&${common}`,
+      spDecoded: `${base}?${new URLSearchParams({ serviceKey: decoded, numOfRows: '10', pageNo: '1', dataType: 'JSON', regId: '11B00000', tmFc }).toString()}`,
+    };
+    const out: Record<string, string> = {};
+    for (const [k, u] of Object.entries(strategies)) {
+      try {
+        const r = await fetch(u, { cache: 'no-store' });
+        const t = await r.text();
+        out[k] = `${r.status} ${t.includes('NORMAL_SERVICE') ? 'OK' : (t.match(/errMsg"?\s*:?\s*"?([A-Z_]+)/)?.[1] ?? t.slice(0, 40).replace(/\s+/g, ''))}`;
+      } catch (e) { out[k] = 'ERR ' + String(e).slice(0, 40); }
     }
+    return NextResponse.json({ ver: 'v2', tmFc, keyLen: KEY.length, strategies: out });
   }
   const wk = weekendOffsets();
   if (!wk) return NextResponse.json({ configured: true, items: [] });
