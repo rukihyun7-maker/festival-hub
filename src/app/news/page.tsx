@@ -52,14 +52,16 @@ export default function NewsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // 통합 피드: 관리자 글(상단 고정) → 자동 뉴스(최신순), 카테고리 필터
+  // 통합 피드: 관리자 글 + 자동 뉴스를 날짜 내림차순으로 혼합, 카테고리 필터
   const entries = useMemo<FeedEntry[]>(() => {
     const p = (cat === '전체' ? posts : posts.filter((x) => x.category === cat));
     const n = (cat === '전체' ? feed : feed.filter((x) => x.keyword === cat));
-    return [
+    const merged: FeedEntry[] = [
       ...p.map((post): FeedEntry => ({ kind: 'post', post })),
       ...n.map((item): FeedEntry => ({ kind: 'news', item })),
     ];
+    const dateOf = (e: FeedEntry) => (e.kind === 'post' ? e.post.created_at : (e.item.pubDate ?? ''));
+    return merged.sort((a, b) => dateOf(b).localeCompare(dateOf(a)));
   }, [posts, feed, cat]);
 
   if (authed === false) {
