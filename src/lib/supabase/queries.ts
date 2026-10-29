@@ -1992,13 +1992,13 @@ export async function deleteNewsletterPost(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** 두 게시글의 순서(sort_order) 교환 (위/아래 이동) */
-export async function swapNewsletterOrder(a: NewsletterPost, b: NewsletterPost): Promise<void> {
+/** 드래그 정렬 결과 저장: id 배열 순서대로 sort_order = index 재부여 */
+export async function reorderNewsletterPosts(orderedIds: string[]): Promise<void> {
   const supabase = createClient();
-  const { error: e1 } = await supabase.from('newsletter_posts').update({ sort_order: b.sort_order }).eq('id', a.id);
-  if (e1) throw e1;
-  const { error: e2 } = await supabase.from('newsletter_posts').update({ sort_order: a.sort_order }).eq('id', b.id);
-  if (e2) throw e2;
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await supabase.from('newsletter_posts').update({ sort_order: i }).eq('id', orderedIds[i]);
+    if (error) throw error;
+  }
 }
 
 /** 뉴스레터 대표 이미지 업로드(관리자) · 공개 버킷 menu-photos · 소유자 폴더 규칙 */

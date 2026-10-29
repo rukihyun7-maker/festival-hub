@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import AppNav from '@/components/AppNav';
 import {
   fetchMyProfile, fetchNewsletterPosts,
-  createNewsletterPost, updateNewsletterPost, deleteNewsletterPost, swapNewsletterOrder,
+  createNewsletterPost, updateNewsletterPost, deleteNewsletterPost, reorderNewsletterPosts,
   uploadNewsletterImage,
   type NewsletterPostInput,
 } from '@/lib/supabase/queries';
+import { useDragReorder } from '@/lib/useDragReorder';
 import type { Profile, NewsletterPost, NewsFeedItem } from '@/lib/types';
 
 /**
@@ -36,6 +37,12 @@ export default function AdminNewsPage() {
     })();
   }, []);
 
+  // 드래그 정렬(손잡이) · 드롭 시 순서 저장
+  const { order, handlers, dragId } = useDragReorder(posts, async (ids) => {
+    try { await reorderNewsletterPosts(ids); await reload(); }
+    catch (e) { alert('순서 변경 실패: ' + (e as Error).message); await reload(); }
+  });
+
   if (!loading && profile?.role !== 'admin') {
     return (
       <main className="min-h-screen bg-page">
@@ -49,16 +56,6 @@ export default function AdminNewsPage() {
     setBusyId(p.id);
     try { await updateNewsletterPost(p.id, { published: !p.published }); await reload(); }
     catch (e) { alert('변경 실패: ' + (e as Error).message); }
-    finally { setBusyId(null); }
-  }
-
-  async function move(p: NewsletterPost, dir: -1 | 1) {
-    const idx = posts.findIndex((x) => x.id === p.id);
-    const other = posts[idx + dir];
-    if (!other) return;
-    setBusyId(p.id);
-    try { await swapNewsletterOrder(p, other); await reload(); }
-    catch (e) { alert('순서 변경 실패: ' + (e as Error).message); }
     finally { setBusyId(null); }
   }
 
@@ -95,12 +92,11 @@ export default function AdminNewsPage() {
           </div>
         ) : (
           <div className="card divide-y divide-line-faint">
-            {posts.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 py-3">
-                <div className="flex flex-col gap-0.5 shrink-0">
-                  <button onClick={() => move(p, -1)} disabled={i === 0 || busyId === p.id} className="text-[11px] px-1.5 py-0.5 rounded border border-line-faint disabled:opacity-30 hover:bg-surface-sunken">▲</button>
-                  <button onClick={() => move(p, 1)} disabled={i === posts.length - 1 || busyId === p.id} className="text-[11px] px-1.5 py-0.5 rounded border border-line-faint disabled:opacity-30 hover:bg-surface-sunken">▼</button>
-                </div>
+            {order.map((p, i) => (
+              <div key={p.id} {...handlers(i)} className={`flex items-center gap-3 py-3 rounded-input transition-opacity ${dragId === p.id ? 'opacity-40' : ''}`}>
+                <span className="shrink-0 cursor-grab active:cursor-grabbing text-text-tertiary hover:text-ink select-none px-0.5" title="드래그하여 순서 변경" aria-label="순서 변경 손잡이">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+                </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[14px] font-bold text-ink truncate">{p.title}</span>
