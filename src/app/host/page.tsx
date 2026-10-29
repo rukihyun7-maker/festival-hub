@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import Icon from '@/components/Icon';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 import {
   fetchApplicationsForEvent,
   fetchMyHostEvents,
@@ -170,6 +171,9 @@ export default function HostDashboardPage() {
       <AppNav role="host" />
 
       <div className="container-app py-8 md:py-12">
+        {/* 공지 배너 (관리자 발행 · 대상별) */}
+        <AnnouncementBanner />
+
         {/* 인사 */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-[22px] font-extrabold text-ink tracking-[-0.02em]">

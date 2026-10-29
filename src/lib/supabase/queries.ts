@@ -41,6 +41,9 @@ import type {
   ApiSource,
   CategoryRule,
   NewsletterPost,
+  Announcement,
+  AnnouncementAudience,
+  AnnouncementLevel,
 } from '../types';
 import { DOC_KINDS, DOC_META, computeUrgency } from '../types';
 
@@ -2007,4 +2010,67 @@ export async function uploadNewsletterImage(userId: string, file: File): Promise
   if (error) throw error;
   const { data } = supabase.storage.from('menu-photos').getPublicUrl(path);
   return `${data.publicUrl}?v=${Date.now()}`;
+}
+
+// ============================================
+// v58: 공지사항(상단 배너) CRUD
+// ============================================
+export interface AnnouncementInput {
+  title: string;
+  body?: string | null;
+  url?: string | null;
+  audience?: AnnouncementAudience;
+  level?: AnnouncementLevel;
+  published?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+}
+
+/** 현재 사용자에게 노출할 활성 공지(RLS가 대상·기간 필터) · 배너용 */
+export async function fetchActiveAnnouncements(): Promise<Announcement[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .eq('published', true)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  if (error) throw error;
+  return (data ?? []) as Announcement[];
+}
+
+/** 관리자: 전체 공지(미노출 포함) */
+export async function fetchAllAnnouncements(): Promise<Announcement[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Announcement[];
+}
+
+export async function createAnnouncement(input: AnnouncementInput): Promise<Announcement> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('announcements').insert({
+    title: input.title,
+    body: input.body ?? null,
+    url: input.url ?? null,
+    audience: input.audience ?? 'all',
+    level: input.level ?? 'info',
+    published: input.published ?? true,
+    starts_at: input.starts_at ?? null,
+    ends_at: input.ends_at ?? null,
+  }).select('*').single();
+  if (error) throw error;
+  return data as Announcement;
+}
+
+export async function updateAnnouncement(id: string, patch: Partial<AnnouncementInput>): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('announcements').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('announcements').delete().eq('id', id);
+  if (error) throw error;
 }

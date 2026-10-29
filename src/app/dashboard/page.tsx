@@ -6,6 +6,7 @@ import AppNav from '@/components/AppNav';
 import Icon from '@/components/Icon';
 import WeatherWeek from '@/components/WeatherWeek';
 import NewsBanner from '@/components/NewsBanner';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 import { fetchDeadlineSoon, fetchMyApplications, fetchMyDocumentSlots, fetchMyProfile, fetchMySales, countVerified, flushPendingBizDoc } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, requiredDocsVerified } from '@/lib/types';
 import type { EventRow, ApplicationWithRelations, Profile, SaleWithEvent, DocumentSlot } from '@/lib/types';
@@ -78,6 +79,9 @@ export default function DashboardPage() {
       <AppNav role="seller" />
 
       <div className="container-app py-8 md:py-12">
+        {/* 공지 배너 (관리자 발행 · 대상별) */}
+        <AnnouncementBanner />
+
         {/* 히어로 · 인사 + 상태 요약 카드 */}
         <section className="animate-fh-up">
           <h1 className="text-[22px] font-extrabold text-ink tracking-[-0.02em] mb-4">

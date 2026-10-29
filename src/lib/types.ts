@@ -927,3 +927,24 @@ export interface NewsFeedItem {
 
 /** 뉴스레터 자동 수집 검색어 */
 export const NEWS_KEYWORDS = ['페스티벌', '행사', '축제', '푸드트럭', '플리마켓'] as const;
+
+// ============================================
+// v58: 공지사항(상단 배너) — 관리자 대상 선택형
+// ============================================
+export type AnnouncementAudience = 'all' | 'seller' | 'host';
+export type AnnouncementLevel = 'info' | 'update' | 'warning';
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string | null;
+  url: string | null;
+  audience: AnnouncementAudience;
+  level: AnnouncementLevel;
+  published: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export const ANN_AUDIENCE_LABEL: Record<AnnouncementAudience, string> = { all: '전체', seller: '입점 파트너', host: '행사 주최' };
+export const ANN_LEVEL_LABEL: Record<AnnouncementLevel, string> = { info: '일반', update: '업데이트', warning: '주의' };
