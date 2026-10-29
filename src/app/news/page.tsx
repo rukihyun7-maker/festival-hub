@@ -136,19 +136,26 @@ function PostCard({ post }: { post: NewsletterPost }) {
     : <div>{body}</div>;
 }
 
+const KW_EMOJI: Record<string, string> = { 페스티벌: '🎪', 행사: '📅', 축제: '🎉', 푸드트럭: '🚚', 플리마켓: '🛍️' };
+const KW_BG: Record<string, string> = { 페스티벌: '#EAF2FF', 행사: '#FFF3E0', 축제: '#FDEAF1', 푸드트럭: '#E9F7EF', 플리마켓: '#F3EEFB' };
+
 function FeedRow({ item }: { item: NewsFeedItem }) {
   const when = item.pubDate ? relTime(item.pubDate) : '';
   return (
-    <a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 py-3 px-1 hover:bg-surface-sunken transition-colors">
-      <span className="badge badge-info shrink-0 mt-0.5">{item.keyword}</span>
+    <a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 py-3 px-1 hover:bg-surface-sunken transition-colors">
+      {/* 키워드 색상 썸네일 타일 */}
+      <span className="shrink-0 w-11 h-11 rounded-input flex items-center justify-center text-[20px]" style={{ background: KW_BG[item.keyword] ?? 'var(--bg-muted,#F0ECE1)' }} aria-hidden>
+        {KW_EMOJI[item.keyword] ?? '📰'}
+      </span>
       <div className="min-w-0 flex-1">
-        <div className="text-[14px] font-semibold text-ink leading-snug">{item.title}</div>
-        <div className="text-[11.5px] text-text-tertiary mt-0.5 flex items-center gap-1.5">
-          {item.source && <span className="truncate">{item.source}</span>}
+        <div className="text-[14px] font-semibold text-ink leading-snug line-clamp-2">{item.title}</div>
+        <div className="text-[11.5px] text-text-tertiary mt-1 flex items-center gap-1.5">
+          <span className="font-semibold text-info">{item.keyword}</span>
+          {item.source && <span className="truncate">· {item.source}</span>}
           {when && <span>· {when}</span>}
         </div>
       </div>
-      <span className="text-text-tertiary text-[13px] shrink-0 mt-0.5">↗</span>
+      <span className="text-text-tertiary text-[13px] shrink-0">↗</span>
     </a>
   );
 }

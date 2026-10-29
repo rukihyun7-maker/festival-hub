@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppNav from '@/components/AppNav';
 import {
   fetchMyProfile, fetchNewsletterPosts,
   createNewsletterPost, updateNewsletterPost, deleteNewsletterPost, swapNewsletterOrder,
+  uploadNewsletterImage,
   type NewsletterPostInput,
 } from '@/lib/supabase/queries';
-import type { Profile, NewsletterPost } from '@/lib/types';
+import type { Profile, NewsletterPost, NewsFeedItem } from '@/lib/types';
 
 /**
  * 뉴스레터 관리 · 관리자 전용
@@ -18,6 +19,7 @@ export default function AdminNewsPage() {
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<NewsletterPost[]>([]);
   const [editing, setEditing] = useState<NewsletterPost | 'new' | null>(null);
+  const [importing, setImporting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function reload() {
@@ -77,7 +79,10 @@ export default function AdminNewsPage() {
             <h1 className="t-title mb-1">뉴스레터 관리</h1>
             <p className="t-sub">주최·파트너에게 보이는 소식 게시글을 작성·관리합니다. (자동 뉴스피드는 /news에서 실시간 표시)</p>
           </div>
-          <button onClick={() => setEditing('new')} className="btn-primary text-[13px] shrink-0">+ 새 게시글</button>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={() => setImporting(true)} className="btn-secondary text-[13px]">자동 뉴스 가져오기</button>
+            <button onClick={() => setEditing('new')} className="btn-primary text-[13px]">+ 새 게시글</button>
+          </div>
         </div>
 
         {loading ? (
@@ -120,17 +125,26 @@ export default function AdminNewsPage() {
       {editing && (
         <PostModal
           post={editing === 'new' ? null : editing}
+          userId={profile?.id ?? ''}
           nextOrder={posts.length ? Math.max(...posts.map((p) => p.sort_order)) + 1 : 0}
           onClose={() => setEditing(null)}
           onSaved={async () => { setEditing(null); await reload(); }}
+        />
+      )}
+      {importing && (
+        <ImportModal
+          existingUrls={posts.map((p) => p.url).filter(Boolean) as string[]}
+          nextOrder={posts.length ? Math.max(...posts.map((p) => p.sort_order)) + 1 : 0}
+          onClose={() => setImporting(false)}
+          onImported={async () => { await reload(); }}
         />
       )}
     </main>
   );
 }
 
-function PostModal({ post, nextOrder, onClose, onSaved }: {
-  post: NewsletterPost | null; nextOrder: number; onClose: () => void; onSaved: () => void;
+function PostModal({ post, userId, nextOrder, onClose, onSaved }: {
+  post: NewsletterPost | null; userId: string; nextOrder: number; onClose: () => void; onSaved: () => void;
 }) {
   const [title, setTitle] = useState(post?.title ?? '');
   const [summary, setSummary] = useState(post?.summary ?? '');
@@ -139,6 +153,19 @@ function PostModal({ post, nextOrder, onClose, onSaved }: {
   const [source, setSource] = useState(post?.source ?? '');
   const [published, setPublished] = useState(post?.published ?? true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) { alert('이미지가 너무 큽니다 (최대 8MB)'); return; }
+    if (!userId) { alert('업로드 권한을 확인할 수 없습니다. 새로고침 후 다시 시도해 주세요.'); return; }
+    setUploading(true);
+    try { setImageUrl(await uploadNewsletterImage(userId, f)); }
+    catch (err) { alert('업로드 실패: ' + (err as Error).message); }
+    finally { setUploading(false); }
+  }
 
   async function save() {
     if (!title.trim()) { alert('제목을 입력해 주세요'); return; }
@@ -172,7 +199,22 @@ function PostModal({ post, nextOrder, onClose, onSaved }: {
             <Field label="출처" hint="선택"><input value={source} onChange={(e) => setSource(e.target.value)} className="input" placeholder="예: 문화체육관광부" /></Field>
             <Field label="원문 링크" hint="선택"><input value={url} onChange={(e) => setUrl(e.target.value)} className="input" placeholder="https://…" /></Field>
           </div>
-          <Field label="대표 이미지 URL" hint="선택"><input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="input" placeholder="https://…/image.jpg" /></Field>
+          <Field label="대표 이미지" hint="선택 · 파일 업로드 또는 URL">
+            <div className="flex flex-col gap-2">
+              {imageUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={imageUrl} alt="미리보기" className="w-full h-32 object-cover rounded-input border border-line-faint" />
+              )}
+              <div className="flex items-center gap-2">
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
+                <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="btn-secondary text-[12px] py-1.5 px-3">
+                  {uploading ? '업로드 중…' : '파일 선택'}
+                </button>
+                {imageUrl && <button type="button" onClick={() => setImageUrl('')} className="text-[12px] text-danger hover:underline">이미지 제거</button>}
+              </div>
+              <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="input" placeholder="또는 이미지 URL 붙여넣기" />
+            </div>
+          </Field>
           <label className="flex items-center gap-2 text-[13px] text-ink">
             <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} /> 바로 노출(주최·파트너에게 공개)
           </label>
@@ -180,6 +222,83 @@ function PostModal({ post, nextOrder, onClose, onSaved }: {
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="btn-secondary flex-1">취소</button>
           <button onClick={save} disabled={saving} className="btn-primary flex-1">{saving ? '저장 중…' : '저장'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 자동 뉴스(Google 뉴스 RSS)에서 항목을 골라 게시글로 가져오기 */
+function ImportModal({ existingUrls, nextOrder, onClose, onImported }: {
+  existingUrls: string[]; nextOrder: number; onClose: () => void; onImported: () => void;
+}) {
+  const [items, setItems] = useState<NewsFeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [done, setDone] = useState<Set<string>>(new Set(existingUrls));
+  const [busy, setBusy] = useState<string | null>(null);
+  const orderRef = useRef(nextOrder);
+
+  useEffect(() => {
+    let c = false;
+    fetch('/api/news').then((r) => r.json())
+      .then((d) => { if (!c) setItems(d.items ?? []); })
+      .catch(() => {})
+      .finally(() => { if (!c) setLoading(false); });
+    return () => { c = true; };
+  }, []);
+
+  async function importOne(it: NewsFeedItem) {
+    setBusy(it.link);
+    try {
+      await createNewsletterPost({
+        title: it.title,
+        url: it.link,
+        source: it.source,
+        summary: null,
+        published: true,
+        sort_order: orderRef.current++,
+      });
+      setDone((prev) => new Set(prev).add(it.link));
+      onImported();
+    } catch (e) { alert('가져오기 실패: ' + (e as Error).message); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-page w-full sm:max-w-lg rounded-t-card sm:rounded-card p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-[16px] font-extrabold text-ink">자동 뉴스 가져오기</h2>
+          <button onClick={onClose} className="text-text-tertiary text-[18px] px-2">×</button>
+        </div>
+        <p className="t-sub mb-4">Google 뉴스에서 수집한 항목을 게시글로 가져옵니다. 가져온 글은 편집·순서조정할 수 있습니다.</p>
+        {loading ? (
+          <div className="card"><div className="animate-pulse space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-5 bg-muted rounded w-5/6" />)}</div></div>
+        ) : (
+          <div className="divide-y divide-line-faint">
+            {items.map((it) => {
+              const imported = done.has(it.link);
+              return (
+                <div key={it.link} className="flex items-start gap-3 py-3">
+                  <span className="badge badge-info shrink-0 mt-0.5">{it.keyword}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13.5px] font-semibold text-ink leading-snug">{it.title}</div>
+                    <div className="text-[11px] text-text-tertiary mt-0.5">{it.source}{it.pubDate ? ` · ${it.pubDate.slice(0, 10)}` : ''}</div>
+                  </div>
+                  <button
+                    onClick={() => importOne(it)}
+                    disabled={imported || busy === it.link}
+                    className={`shrink-0 text-[12px] py-1.5 px-3 rounded-input font-semibold ${imported ? 'bg-muted text-text-tertiary' : 'btn-primary'}`}
+                  >
+                    {imported ? '가져옴' : busy === it.link ? '…' : '가져오기'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="flex justify-end mt-4">
+          <button onClick={onClose} className="btn-secondary text-[13px] py-2 px-4">닫기</button>
         </div>
       </div>
     </div>

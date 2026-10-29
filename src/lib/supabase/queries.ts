@@ -1997,3 +1997,14 @@ export async function swapNewsletterOrder(a: NewsletterPost, b: NewsletterPost):
   const { error: e2 } = await supabase.from('newsletter_posts').update({ sort_order: a.sort_order }).eq('id', b.id);
   if (e2) throw e2;
 }
+
+/** 뉴스레터 대표 이미지 업로드(관리자) · 공개 버킷 menu-photos · 소유자 폴더 규칙 */
+export async function uploadNewsletterImage(userId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `${userId}/newsletter/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('menu-photos').upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  const { data } = supabase.storage.from('menu-photos').getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
