@@ -1951,6 +1951,7 @@ export interface NewsletterPostInput {
   url?: string | null;
   image_url?: string | null;
   source?: string | null;
+  category?: string;
   published?: boolean;
   sort_order?: number;
 }
@@ -1973,6 +1974,7 @@ export async function createNewsletterPost(input: NewsletterPostInput): Promise<
     url: input.url ?? null,
     image_url: input.image_url ?? null,
     source: input.source ?? null,
+    category: input.category ?? '기타',
     published: input.published ?? true,
     sort_order: input.sort_order ?? 0,
   }).select('*').single();

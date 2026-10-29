@@ -9,6 +9,7 @@ import {
   type NewsletterPostInput,
 } from '@/lib/supabase/queries';
 import { useDragReorder } from '@/lib/useDragReorder';
+import { NEWS_CATEGORIES } from '@/lib/types';
 import type { Profile, NewsletterPost, NewsFeedItem } from '@/lib/types';
 
 /**
@@ -100,6 +101,7 @@ export default function AdminNewsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[14px] font-bold text-ink truncate">{p.title}</span>
+                    <span className="badge badge-info">{p.category}</span>
                     {!p.published && <span className="badge">숨김</span>}
                   </div>
                   <div className="text-[11.5px] text-text-tertiary mt-0.5 truncate">
@@ -147,6 +149,7 @@ function PostModal({ post, userId, nextOrder, onClose, onSaved }: {
   const [url, setUrl] = useState(post?.url ?? '');
   const [imageUrl, setImageUrl] = useState(post?.image_url ?? '');
   const [source, setSource] = useState(post?.source ?? '');
+  const [category, setCategory] = useState(post?.category ?? '기타');
   const [published, setPublished] = useState(post?.published ?? true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -172,6 +175,7 @@ function PostModal({ post, userId, nextOrder, onClose, onSaved }: {
       url: url.trim() || null,
       image_url: imageUrl.trim() || null,
       source: source.trim() || null,
+      category,
       published,
     };
     try {
@@ -192,9 +196,14 @@ function PostModal({ post, userId, nextOrder, onClose, onSaved }: {
           <Field label="제목" req><input value={title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="예: 2026 가을 전국 축제 일정 안내" /></Field>
           <Field label="내용" hint="선택"><textarea rows={4} value={summary} onChange={(e) => setSummary(e.target.value)} className="input resize-none" placeholder="소식 요약·본문을 입력하세요" /></Field>
           <div className="grid grid-cols-2 gap-3">
+            <Field label="카테고리" hint="피드 탭 분류">
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className="input">
+                {NEWS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Field>
             <Field label="출처" hint="선택"><input value={source} onChange={(e) => setSource(e.target.value)} className="input" placeholder="예: 문화체육관광부" /></Field>
-            <Field label="원문 링크" hint="선택"><input value={url} onChange={(e) => setUrl(e.target.value)} className="input" placeholder="https://…" /></Field>
           </div>
+          <Field label="원문 링크" hint="선택"><input value={url} onChange={(e) => setUrl(e.target.value)} className="input" placeholder="https://…" /></Field>
           <Field label="대표 이미지" hint="선택 · 파일 업로드 또는 URL">
             <div className="flex flex-col gap-2">
               {imageUrl && (
@@ -251,6 +260,7 @@ function ImportModal({ existingUrls, nextOrder, onClose, onImported }: {
         url: it.link,
         source: it.source,
         summary: null,
+        category: it.keyword,
         published: true,
         sort_order: orderRef.current++,
       });
