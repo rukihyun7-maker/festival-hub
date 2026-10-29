@@ -50,6 +50,7 @@ function profileMenu(role: Role): { href: string; label: string }[] {
     return [
       { href: '/host', label: '대시보드' },
       { href: '/host/settlement', label: '정산' },
+      { href: '/news', label: '뉴스레터' },
       { href: '/settings', label: '설정' },
     ];
   }
@@ -65,6 +66,7 @@ function profileMenu(role: Role): { href: string; label: string }[] {
     { href: '/seller/documents', label: '서류 관리' },
     { href: '/seller/inventory', label: '내 창고' },
     { href: '/seller/simulator', label: '손익 시뮬레이터' },
+    { href: '/news', label: '뉴스레터' },
     { href: '/settings', label: '설정' },
   ];
 }

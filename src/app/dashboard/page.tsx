@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import Icon from '@/components/Icon';
 import WeatherWeek from '@/components/WeatherWeek';
+import NewsBanner from '@/components/NewsBanner';
 import { fetchDeadlineSoon, fetchMyApplications, fetchMyDocumentSlots, fetchMyProfile, fetchMySales, countVerified, flushPendingBizDoc } from '@/lib/supabase/queries';
 import { deadlineLabel, periodLabel, feeLabel, eventType, daysUntil, requiredDocsVerified } from '@/lib/types';
 import type { EventRow, ApplicationWithRelations, Profile, SaleWithEvent, DocumentSlot } from '@/lib/types';
@@ -82,6 +83,8 @@ export default function DashboardPage() {
           <h1 className="text-[22px] font-extrabold text-ink tracking-[-0.02em] mb-4">
             안녕하세요, {profile?.name ?? '게스트'}님
           </h1>
+          {/* 뉴스레터 배너 (이름 ↔ 첫 카드 사이) */}
+          <div className="mb-4"><NewsBanner /></div>
           <div className="card">
             {/* 상태 한 줄 */}
             <div className="flex items-center gap-2 mb-5 flex-wrap">
