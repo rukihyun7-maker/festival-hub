@@ -27,6 +27,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/seller/documents': '서류 관리',
   '/seller/inventory': '내 창고',
   '/calendar': '일정',
+  '/news': '뉴스레터',
+  '/admin/news': '뉴스레터 관리',
   '/settings': '설정',
   '/host': '홈',
   '/host/events': '내 행사',
@@ -113,6 +115,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/calendar', label: '일정' },
         { href: '/host/ratings', label: '평가' },
         { href: '/host/settlement', label: '정산' },
+        { href: '/news', label: '뉴스레터' },
       ]
     : effectiveRole === 'admin'
     ? [
@@ -121,6 +124,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/admin/events', label: '행사 검수' },
         { href: '/admin/documents', label: '서류 검증' },
         { href: '/admin/ratings', label: '평가 관리' },
+        { href: '/admin/news', label: '뉴스레터' },
         { href: '/admin/api', label: '축제 API' },
         { href: '/admin/settings', label: '정책' },
         { href: '/admin/payments', label: '결제 관제' },
@@ -134,6 +138,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/seller', label: '내 참여' },
         { href: '/seller/simulator', label: '손익 시뮬' },
         { href: '/seller/inventory', label: '창고' },
+        { href: '/news', label: '뉴스레터' },
       ];
 
   async function openNotif() {

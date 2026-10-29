@@ -40,6 +40,7 @@ import type {
   FavoriteWithEvent,
   ApiSource,
   CategoryRule,
+  NewsletterPost,
 } from '../types';
 import { DOC_KINDS, DOC_META, computeUrgency } from '../types';
 
@@ -1936,4 +1937,63 @@ export async function fetchInventoryMoves(itemId: string): Promise<InventoryMove
     .limit(50);
   if (error) throw error;
   return (data ?? []) as InventoryMove[];
+}
+
+// ============================================
+// v57: 뉴스레터(소식) · 관리자 큐레이션 게시글 CRUD
+// ============================================
+export interface NewsletterPostInput {
+  title: string;
+  summary?: string | null;
+  url?: string | null;
+  image_url?: string | null;
+  source?: string | null;
+  published?: boolean;
+  sort_order?: number;
+}
+
+/** 뉴스레터 게시글 조회 · publishedOnly=true면 노출글만(일반 사용자용) */
+export async function fetchNewsletterPosts(publishedOnly = true): Promise<NewsletterPost[]> {
+  const supabase = createClient();
+  let q = supabase.from('newsletter_posts').select('*');
+  if (publishedOnly) q = q.eq('published', true);
+  const { data, error } = await q.order('sort_order', { ascending: true }).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as NewsletterPost[];
+}
+
+export async function createNewsletterPost(input: NewsletterPostInput): Promise<NewsletterPost> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from('newsletter_posts').insert({
+    title: input.title,
+    summary: input.summary ?? null,
+    url: input.url ?? null,
+    image_url: input.image_url ?? null,
+    source: input.source ?? null,
+    published: input.published ?? true,
+    sort_order: input.sort_order ?? 0,
+  }).select('*').single();
+  if (error) throw error;
+  return data as NewsletterPost;
+}
+
+export async function updateNewsletterPost(id: string, patch: Partial<NewsletterPostInput>): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('newsletter_posts').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteNewsletterPost(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from('newsletter_posts').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** 두 게시글의 순서(sort_order) 교환 (위/아래 이동) */
+export async function swapNewsletterOrder(a: NewsletterPost, b: NewsletterPost): Promise<void> {
+  const supabase = createClient();
+  const { error: e1 } = await supabase.from('newsletter_posts').update({ sort_order: b.sort_order }).eq('id', a.id);
+  if (e1) throw e1;
+  const { error: e2 } = await supabase.from('newsletter_posts').update({ sort_order: a.sort_order }).eq('id', b.id);
+  if (e2) throw e2;
 }

@@ -899,3 +899,31 @@ export function feeLabel(fee: number, feeRate: number): string {
   if (feeRate === 0) return `일 ${Math.round(fee / 10000)}만원`;
   return `일 ${Math.round(fee / 10000)}만원 + 매출 ${feeRate}%`;
 }
+
+// ============================================
+// v57: 뉴스레터(소식) — 관리자 큐레이션 게시글 + 자동 뉴스피드(/api/news)
+// ============================================
+export interface NewsletterPost {
+  id: string;
+  title: string;
+  summary: string | null;
+  url: string | null;
+  image_url: string | null;
+  source: string | null;
+  sort_order: number;
+  published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 자동 뉴스피드 항목(Google 뉴스 RSS) */
+export interface NewsFeedItem {
+  title: string;
+  link: string;
+  source: string | null;
+  pubDate: string | null;   // ISO
+  keyword: string;          // 매칭된 검색어
+}
+
+/** 뉴스레터 자동 수집 검색어 */
+export const NEWS_KEYWORDS = ['페스티벌', '행사', '축제', '푸드트럭', '플리마켓'] as const;
