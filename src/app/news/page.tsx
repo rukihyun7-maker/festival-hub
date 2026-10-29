@@ -89,9 +89,8 @@ export default function NewsPage() {
 
         {/* 자동 뉴스피드 */}
         <section>
-          <div className="flex items-end justify-between mb-3 gap-2 flex-wrap">
+          <div className="mb-3">
             <h2 className="t-section">실시간 뉴스</h2>
-            <span className="text-[11px] text-text-tertiary">Google 뉴스 · 30분마다 갱신</span>
           </div>
           {/* 키워드 필터 */}
           <div className="flex flex-wrap gap-1.5 mb-4">
