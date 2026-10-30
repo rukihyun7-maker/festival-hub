@@ -17,8 +17,8 @@ type FeedEntry =
   | { kind: 'post'; post: NewsletterPost }
   | { kind: 'news'; item: NewsFeedItem };
 
-const CAT_EMOJI: Record<string, string> = { 페스티벌: '🎪', 행사: '📅', 축제: '🎉', 푸드트럭: '🚚', 플리마켓: '🛍️', 기타: '📌' };
 const CAT_BG: Record<string, string> = { 페스티벌: '#EAF2FF', 행사: '#FFF3E0', 축제: '#FDEAF1', 푸드트럭: '#E9F7EF', 플리마켓: '#F3EEFB', 기타: '#EEEAE1' };
+const CAT_FG: Record<string, string> = { 페스티벌: '#2B4B9B', 행사: '#8F6D00', 축제: '#B23A7A', 푸드트럭: '#1D6B2A', 플리마켓: '#6B3FA0', 기타: '#6B6456' };
 
 export default function NewsPage() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -114,26 +114,27 @@ export default function NewsPage() {
   );
 }
 
-function CatTile({ cat }: { cat: string }) {
+/** 카테고리 색상 칩(텍스트) · 이모지 없음 */
+function CatChip({ cat }: { cat: string }) {
   return (
-    <span className="shrink-0 w-11 h-11 rounded-input flex items-center justify-center text-[20px]" style={{ background: CAT_BG[cat] ?? 'var(--bg-muted,#F0ECE1)' }} aria-hidden>
-      {CAT_EMOJI[cat] ?? '📰'}
+    <span className="shrink-0 text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: CAT_BG[cat] ?? 'var(--bg-muted,#F0ECE1)', color: CAT_FG[cat] ?? 'var(--text-secondary,#6B6456)' }}>
+      {cat}
     </span>
   );
 }
 
-/** 관리자 글(소식) — 상단 고정 · '소식' 뱃지 · 이미지/요약 지원 */
+/** 관리자 글(소식) — '소식' 뱃지 · 이미지/요약 지원 */
 function PostRow({ post }: { post: NewsletterPost }) {
   const body = (
     <div className="flex items-start gap-3 py-3 px-1">
-      {post.image_url
+      {post.image_url && (
         /* eslint-disable-next-line @next/next/no-img-element */
-        ? <img src={post.image_url} alt="" className="shrink-0 w-11 h-11 rounded-input object-cover" />
-        : <CatTile cat={post.category} />}
+        <img src={post.image_url} alt="" className="shrink-0 w-11 h-11 rounded-input object-cover" />
+      )}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5 mb-0.5">
+        <div className="flex items-center gap-1.5 mb-1">
           <span className="badge badge-warning">소식</span>
-          <span className="text-[11px] font-semibold text-accent-warm">{post.category}</span>
+          <CatChip cat={post.category} />
         </div>
         <div className="text-[14px] font-bold text-ink leading-snug line-clamp-2">{post.title}</div>
         {post.summary && <div className="text-[12.5px] text-text-secondary mt-0.5 line-clamp-2">{post.summary}</div>}
@@ -153,13 +154,12 @@ function PostRow({ post }: { post: NewsletterPost }) {
 function NewsRow({ item }: { item: NewsFeedItem }) {
   const when = item.pubDate ? relTime(item.pubDate) : '';
   return (
-    <a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 py-3 px-1 hover:bg-surface-sunken transition-colors">
-      <CatTile cat={item.keyword} />
+    <a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2.5 py-3 px-1 hover:bg-surface-sunken transition-colors">
+      <CatChip cat={item.keyword} />
       <div className="min-w-0 flex-1">
         <div className="text-[14px] font-semibold text-ink leading-snug line-clamp-2">{item.title}</div>
         <div className="text-[11.5px] text-text-tertiary mt-1 flex items-center gap-1.5">
-          <span className="font-semibold text-info">{item.keyword}</span>
-          {item.source && <span className="truncate">· {item.source}</span>}
+          {item.source && <span className="truncate">{item.source}</span>}
           {when && <span>· {when}</span>}
         </div>
       </div>
