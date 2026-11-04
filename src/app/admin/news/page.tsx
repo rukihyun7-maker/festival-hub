@@ -21,7 +21,6 @@ export default function AdminNewsPage() {
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<NewsletterPost[]>([]);
   const [editing, setEditing] = useState<NewsletterPost | 'new' | null>(null);
-  const [importing, setImporting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function reload() {
@@ -72,16 +71,15 @@ export default function AdminNewsPage() {
     <main className="min-h-screen bg-page">
       <AppNav role="admin" />
       <div className="container-app py-8 md:py-12">
-        <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="flex items-start justify-between gap-3 mb-2">
           <div>
             <h1 className="t-title mb-1">뉴스레터 관리</h1>
-            <p className="t-sub">주최·파트너에게 보이는 소식 게시글을 작성·관리합니다. (자동 뉴스피드는 /news에서 실시간 표시)</p>
+            <p className="t-sub">직접 등록한 기사를 관리하고, 현재 노출 중인 실시간 뉴스를 확인합니다.</p>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <button onClick={() => setImporting(true)} className="btn-secondary text-[13px]">자동 뉴스 가져오기</button>
-            <button onClick={() => setEditing('new')} className="btn-primary text-[13px]">+ 새 게시글</button>
-          </div>
+          <button onClick={() => setEditing('new')} className="btn-primary text-[13px] shrink-0">+ 새 게시글</button>
         </div>
+
+        <h2 className="t-section mt-6 mb-3">직접 등록한 기사</h2>
 
         {loading ? (
           <div className="card"><div className="animate-pulse h-24 bg-muted rounded" /></div>
@@ -118,6 +116,11 @@ export default function AdminNewsPage() {
             ))}
           </div>
         )}
+
+        {/* 현재 노출 중인 실시간 자동 뉴스 (읽기 전용 미리보기) */}
+        <h2 className="t-section mt-10 mb-1">실시간 자동 뉴스 · 노출 중</h2>
+        <p className="t-sub mb-3">Google 뉴스에서 자동 수집되어 /news에 실시간으로 표시됩니다. 별도 관리가 필요 없는 읽기 전용 영역입니다.</p>
+        <AutoFeedPreview />
       </div>
 
       {editing && (
@@ -129,15 +132,37 @@ export default function AdminNewsPage() {
           onSaved={async () => { setEditing(null); await reload(); }}
         />
       )}
-      {importing && (
-        <ImportModal
-          existingUrls={posts.map((p) => p.url).filter(Boolean) as string[]}
-          nextOrder={posts.length ? Math.max(...posts.map((p) => p.sort_order)) + 1 : 0}
-          onClose={() => setImporting(false)}
-          onImported={async () => { await reload(); }}
-        />
-      )}
     </main>
+  );
+}
+
+/** 현재 노출 중인 실시간 자동 뉴스 미리보기 (읽기 전용) */
+function AutoFeedPreview() {
+  const [items, setItems] = useState<NewsFeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let c = false;
+    fetch('/api/news').then((r) => r.json())
+      .then((d) => { if (!c) setItems(d.items ?? []); })
+      .catch(() => {})
+      .finally(() => { if (!c) setLoading(false); });
+    return () => { c = true; };
+  }, []);
+  if (loading) return <div className="card"><div className="animate-pulse space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-5 bg-muted rounded w-5/6" />)}</div></div>;
+  if (items.length === 0) return <div className="card text-center py-8 text-[13px] text-text-tertiary">표시할 실시간 뉴스가 없습니다.</div>;
+  return (
+    <div className="card divide-y divide-line-faint">
+      {items.map((it) => (
+        <a key={it.link} href={it.link} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2.5 py-2.5 px-1 hover:bg-surface-sunken transition-colors">
+          <span className="badge badge-info shrink-0 mt-0.5">{it.keyword}</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13.5px] font-semibold text-ink leading-snug line-clamp-1">{it.title}</div>
+            <div className="text-[11px] text-text-tertiary mt-0.5">{it.source}{it.pubDate ? ` · ${it.pubDate.slice(0, 10)}` : ''}</div>
+          </div>
+          <span className="text-text-tertiary text-[12px] shrink-0">↗</span>
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -227,84 +252,6 @@ function PostModal({ post, userId, nextOrder, onClose, onSaved }: {
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="btn-secondary flex-1">취소</button>
           <button onClick={save} disabled={saving} className="btn-primary flex-1">{saving ? '저장 중…' : '저장'}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** 자동 뉴스(Google 뉴스 RSS)에서 항목을 골라 게시글로 가져오기 */
-function ImportModal({ existingUrls, nextOrder, onClose, onImported }: {
-  existingUrls: string[]; nextOrder: number; onClose: () => void; onImported: () => void;
-}) {
-  const [items, setItems] = useState<NewsFeedItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [done, setDone] = useState<Set<string>>(new Set(existingUrls));
-  const [busy, setBusy] = useState<string | null>(null);
-  const orderRef = useRef(nextOrder);
-
-  useEffect(() => {
-    let c = false;
-    fetch('/api/news').then((r) => r.json())
-      .then((d) => { if (!c) setItems(d.items ?? []); })
-      .catch(() => {})
-      .finally(() => { if (!c) setLoading(false); });
-    return () => { c = true; };
-  }, []);
-
-  async function importOne(it: NewsFeedItem) {
-    setBusy(it.link);
-    try {
-      await createNewsletterPost({
-        title: it.title,
-        url: it.link,
-        source: it.source,
-        summary: null,
-        category: it.keyword,
-        published: true,
-        sort_order: orderRef.current++,
-      });
-      setDone((prev) => new Set(prev).add(it.link));
-      onImported();
-    } catch (e) { alert('가져오기 실패: ' + (e as Error).message); }
-    finally { setBusy(null); }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-page w-full sm:max-w-lg rounded-t-card sm:rounded-card p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-[16px] font-extrabold text-ink">자동 뉴스 가져오기</h2>
-          <button onClick={onClose} className="text-text-tertiary text-[18px] px-2">×</button>
-        </div>
-        <p className="t-sub mb-4">Google 뉴스에서 수집한 항목을 게시글로 가져옵니다. 가져온 글은 편집·순서조정할 수 있습니다.</p>
-        {loading ? (
-          <div className="card"><div className="animate-pulse space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-5 bg-muted rounded w-5/6" />)}</div></div>
-        ) : (
-          <div className="divide-y divide-line-faint">
-            {items.map((it) => {
-              const imported = done.has(it.link);
-              return (
-                <div key={it.link} className="flex items-start gap-3 py-3">
-                  <span className="badge badge-info shrink-0 mt-0.5">{it.keyword}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13.5px] font-semibold text-ink leading-snug">{it.title}</div>
-                    <div className="text-[11px] text-text-tertiary mt-0.5">{it.source}{it.pubDate ? ` · ${it.pubDate.slice(0, 10)}` : ''}</div>
-                  </div>
-                  <button
-                    onClick={() => importOne(it)}
-                    disabled={imported || busy === it.link}
-                    className={`shrink-0 text-[12px] py-1.5 px-3 rounded-input font-semibold ${imported ? 'bg-muted text-text-tertiary' : 'btn-primary'}`}
-                  >
-                    {imported ? '가져옴' : busy === it.link ? '…' : '가져오기'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <div className="flex justify-end mt-4">
-          <button onClick={onClose} className="btn-secondary text-[13px] py-2 px-4">닫기</button>
         </div>
       </div>
     </div>

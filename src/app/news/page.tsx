@@ -55,7 +55,9 @@ export default function NewsPage() {
   // 통합 피드: 관리자 글 + 자동 뉴스를 날짜 내림차순으로 혼합, 카테고리 필터
   const entries = useMemo<FeedEntry[]>(() => {
     const p = (cat === '전체' ? posts : posts.filter((x) => x.category === cat));
-    const n = (cat === '전체' ? feed : feed.filter((x) => x.keyword === cat));
+    // 게시글로 등록된 동일 링크의 자동 뉴스는 중복 제거
+    const postUrls = new Set(posts.map((x) => x.url).filter(Boolean) as string[]);
+    const n = (cat === '전체' ? feed : feed.filter((x) => x.keyword === cat)).filter((x) => !postUrls.has(x.link));
     const merged: FeedEntry[] = [
       ...p.map((post): FeedEntry => ({ kind: 'post', post })),
       ...n.map((item): FeedEntry => ({ kind: 'news', item })),
