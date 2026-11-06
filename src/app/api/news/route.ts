@@ -29,8 +29,11 @@ function pick(block: string, tag: string): string | null {
   return m ? decodeEntities(m[1]) : null;
 }
 
-// 모집공고 유입 훅: 지자체·행사 모집 공고를 뉴스에서 수집(category=모집공고로 태깅)
-const RECRUIT_QUERIES = ['푸드트럭 모집', '플리마켓 셀러 모집', '행사 부스 모집'];
+// 모집공고 유입 훅: 지자체·행사·프로구단(K리그 등) 모집 공고를 뉴스에서 수집(category=모집공고 태깅)
+const RECRUIT_QUERIES = [
+  '푸드트럭 모집', '플리마켓 셀러 모집', '행사 부스 모집',
+  'K리그 푸드트럭 모집', '경기장 푸드트럭 모집', // 프로축구 구단 홈경기장 모집(연초 공고)
+];
 
 async function fetchKeyword(query: string, label: string = query): Promise<NewsFeedItem[]> {
   const ctrl = new AbortController();
