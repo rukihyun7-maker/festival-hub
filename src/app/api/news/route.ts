@@ -80,6 +80,10 @@ export async function GET() {
     seen.add(key);
     merged.push(item);
   }
-  merged.sort((a, b) => (b.pubDate ?? '').localeCompare(a.pubDate ?? ''));
-  return NextResponse.json({ items: merged.slice(0, 40), keywords: [...NEWS_KEYWORDS, '모집공고'] });
+  const byDate = (a: NewsFeedItem, b: NewsFeedItem) => (b.pubDate ?? '').localeCompare(a.pubDate ?? '');
+  // 모집공고는 최신순에 밀려 사라지지 않도록 별도 슬롯 보장(모집 15 + 일반 35)
+  const recruit = merged.filter((i) => i.keyword === '모집공고').sort(byDate).slice(0, 15);
+  const others = merged.filter((i) => i.keyword !== '모집공고').sort(byDate).slice(0, 35);
+  const items = [...recruit, ...others].sort(byDate);
+  return NextResponse.json({ items, keywords: [...NEWS_KEYWORDS, '모집공고'] });
 }
