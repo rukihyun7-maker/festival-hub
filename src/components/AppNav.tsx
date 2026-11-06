@@ -28,6 +28,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/seller/inventory': '내 창고',
   '/calendar': '일정',
   '/news': '뉴스레터',
+  '/recruit': '모집공고',
   '/admin/news': '뉴스레터 관리',
   '/admin/announcements': '공지사항 관리',
   '/settings': '설정',
@@ -51,6 +52,7 @@ function profileMenu(role: Role): { href: string; label: string }[] {
     return [
       { href: '/host', label: '대시보드' },
       { href: '/host/settlement', label: '정산' },
+      { href: '/recruit', label: '모집공고' },
       { href: '/news', label: '뉴스레터' },
       { href: '/settings', label: '설정' },
     ];
@@ -67,6 +69,7 @@ function profileMenu(role: Role): { href: string; label: string }[] {
     { href: '/seller/documents', label: '서류 관리' },
     { href: '/seller/inventory', label: '내 창고' },
     { href: '/seller/simulator', label: '손익 시뮬레이터' },
+    { href: '/recruit', label: '모집공고' },
     { href: '/news', label: '뉴스레터' },
     { href: '/settings', label: '설정' },
   ];
@@ -118,6 +121,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/calendar', label: '일정' },
         { href: '/host/ratings', label: '평가' },
         { href: '/host/settlement', label: '정산' },
+        { href: '/recruit', label: '모집공고' },
         { href: '/news', label: '뉴스레터' },
       ]
     : effectiveRole === 'admin'
@@ -142,6 +146,7 @@ export default function AppNav({ role = 'seller' as Role }) {
         { href: '/seller', label: '내 참여' },
         { href: '/seller/simulator', label: '손익 시뮬' },
         { href: '/seller/inventory', label: '창고' },
+        { href: '/recruit', label: '모집공고' },
         { href: '/news', label: '뉴스레터' },
       ];
 

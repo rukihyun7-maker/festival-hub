@@ -32,7 +32,8 @@ function pick(block: string, tag: string): string | null {
 
 // 모집공고 유입 훅: 지자체·행사·프로구단(K리그 등) 모집 공고를 뉴스에서 수집(category=모집공고 태깅)
 const RECRUIT_QUERIES = [
-  '푸드트럭 모집', '플리마켓 셀러 모집', '경기장 푸드트럭', // 경기장=K리그 등 홈경기장 모집(연초 공고)
+  '푸드트럭 모집', '플리마켓 셀러 모집', '행사 부스 모집',
+  '경기장 푸드트럭', 'K리그 푸드트럭', // 프로구단 홈경기장(K리그 등) 모집·연초 공고
 ];
 
 async function fetchKeyword(query: string, label: string = query): Promise<NewsFeedItem[]> {
