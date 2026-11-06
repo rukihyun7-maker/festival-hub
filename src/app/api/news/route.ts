@@ -5,9 +5,9 @@ import { NEWS_KEYWORDS, type NewsFeedItem } from '@/lib/types';
  * 뉴스레터 자동 피드 · Google 뉴스 RSS 검색(키/비용 없음)
  *  - 검색어 5종(페스티벌·행사·축제·푸드트럭·플리마켓)을 각각 조회해 병합·중복제거·최신순
  *  - 제목·출처·발행일·원문 링크만 전달(원문은 출처로 링크아웃)
- * 외부 Google 뉴스 fetch만 30분 캐시(next.revalidate), 라우트 자체는 매 요청 실행(응답 전체 캐시 방지).
+ * 응답을 30분 캐시(revalidate) — 집계 결과를 캐시해 Google 뉴스 과호출/레이트리밋 방지.
  */
-export const dynamic = 'force-dynamic';
+export const revalidate = 1800;
 
 function rss(keyword: string): string {
   const q = encodeURIComponent(`${keyword} when:30d`);
@@ -70,18 +70,11 @@ async function fetchKeyword(query: string, label: string = query): Promise<NewsF
   }
 }
 
-export async function GET(req: Request) {
-  const allQueries: { q: string; label: string }[] = [
-    ...RECRUIT_QUERIES.map((q) => ({ q, label: '모집공고' })), // 모집공고 우선 태깅(중복 시 유지)
-    ...NEWS_KEYWORDS.map((k) => ({ q: k, label: k })),
-  ];
-  const results = await Promise.all(allQueries.map(({ q, label }) => fetchKeyword(q, label)));
-
-  if (new URL(req.url).searchParams.get('debug')) {
-    return NextResponse.json({
-      perQuery: allQueries.map(({ q }, i) => ({ q, count: results[i].length, first: results[i][0]?.title?.slice(0, 40) ?? null })),
-    });
-  }
+export async function GET() {
+  const results = await Promise.all([
+    ...RECRUIT_QUERIES.map((q) => fetchKeyword(q, '모집공고')), // 모집공고 우선 태깅(중복 시 유지)
+    ...NEWS_KEYWORDS.map((k) => fetchKeyword(k)),
+  ]);
   const seen = new Set<string>();
   const merged: NewsFeedItem[] = [];
   for (const item of results.flat()) {
