@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '@/components/AppNav';
 import Icon, { type IconName } from '@/components/Icon';
-import EventForm, { initialFormValues, type EventFormValues } from '@/components/EventForm';
+import EventForm, { initialFormValues, EVENT_REGIONS, EVENT_CATEGORIES, type EventFormValues } from '@/components/EventForm';
 import { createEvent, fetchMyProfile, updateEvent, fetchPlatformSettings } from '@/lib/supabase/queries';
 import { compactSiteDetails } from '@/lib/types';
 import type { Profile } from '@/lib/types';
@@ -24,6 +24,55 @@ export default function CreateEventPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ id: string; name: string; isAdmin: boolean; summary: NearbySummary | null; located: boolean } | null>(null);
   const [categories, setCategories] = useState<string[] | undefined>(undefined);
+  // AI 공고 초안 (붙여넣기 → 자동 채움)
+  const [aiText, setAiText] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiErr, setAiErr] = useState<string | null>(null);
+  const [aiNote, setAiNote] = useState<string | null>(null);
+  const [formInit, setFormInit] = useState<EventFormValues | null>(null);
+  const [formKey, setFormKey] = useState(0);
+
+  async function runAiDraft() {
+    if (!me || !aiText.trim()) return;
+    setAiBusy(true); setAiErr(null); setAiNote(null);
+    try {
+      const res = await fetch('/api/ai/event-draft', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: aiText }) });
+      const j = await res.json();
+      if (j.configured === false) { setAiErr('AI 공고 작성이 아직 설정되지 않았습니다. (관리자: ANTHROPIC_API_KEY 등록 필요)'); return; }
+      if (!j.fields) { setAiErr(j.error || 'AI 처리에 실패했습니다.'); return; }
+      const f = j.fields as Record<string, unknown>;
+      const str = (v: unknown) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v));
+      const num = (v: unknown, d: number) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
+      const bool = (v: unknown) => v === true || v === 'true';
+      const date = (v: unknown) => { const s = str(v); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ''; };
+      const catList = categories ?? EVENT_CATEGORIES;
+      const base = initialFormValues(me);
+      const merged: EventFormValues = {
+        ...base,
+        name: str(f.name) || base.name,
+        category: catList.includes(str(f.category)) ? str(f.category) : base.category,
+        organizer: str(f.organizer) || base.organizer,
+        start_date: date(f.start_date),
+        end_date: date(f.end_date) || date(f.start_date),
+        region: EVENT_REGIONS.includes(str(f.region)) ? str(f.region) : base.region,
+        address: str(f.address),
+        visitors: str(f.visitors),
+        capacity: str(f.capacity),
+        fee: num(f.fee, base.fee),
+        fee_rate: num(f.fee_rate, 0),
+        deadline: date(f.deadline),
+        electric: bool(f.electric), water: bool(f.water), gas: bool(f.gas), parking: bool(f.parking),
+        description: str(f.description),
+      };
+      setFormInit(merged);
+      setFormKey((k) => k + 1);
+      setAiNote('AI가 초안을 채웠습니다. 아래에서 꼭 검토·수정한 뒤 등록하세요.');
+    } catch (e) {
+      setAiErr((e as Error).message);
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -215,14 +264,43 @@ export default function CreateEventPage() {
           <span className="text-ink">새 행사 등록</span>
         </nav>
 
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="t-title mb-2">새 행사 등록</h1>
           <p className="t-sub">필수 항목을 입력하고 등록하면, 관리자 검수를 거쳐 입점 파트너에게 공개됩니다.</p>
         </div>
 
+        {/* AI 공고 불러오기 — 단톡/문서/지자체 공고를 붙여넣으면 자동으로 폼을 채움 */}
+        <details className="card mb-6" style={{ background: 'var(--info-soft, #F4F7FE)' }}>
+          <summary className="cursor-pointer list-none flex items-center justify-between gap-2">
+            <span className="text-[14px] font-extrabold text-ink flex items-center gap-1.5">
+              ✨ AI로 공고 불러오기
+              <span className="text-[11px] font-normal text-text-tertiary">단톡·문서 붙여넣기 → 자동 채움</span>
+            </span>
+            <span className="text-[12px] text-info font-semibold">열기 ▾</span>
+          </summary>
+          <div className="mt-3">
+            <textarea
+              value={aiText}
+              onChange={(e) => setAiText(e.target.value)}
+              rows={5}
+              className="input resize-none"
+              placeholder={'모집 공고 글을 그대로 붙여넣으세요.\n예) 송도 가을 장터 푸드트럭 4대 모집 / 11월 15~16일 / 참가비 1일 5만원 / 전기·주차 가능 / 신청 11/10까지…'}
+            />
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <button onClick={runAiDraft} disabled={aiBusy || !aiText.trim()} className="btn-primary text-[13px]">
+                {aiBusy ? 'AI가 읽는 중…' : '공고 자동 채우기'}
+              </button>
+              <span className="text-[11px] text-text-tertiary">AI 초안은 부정확할 수 있어요. 등록 전 반드시 확인하세요.</span>
+            </div>
+            {aiErr && <div className="mt-2 text-[12px] text-danger font-semibold">{aiErr}</div>}
+            {aiNote && <div className="mt-2 text-[12px] text-success font-semibold">{aiNote}</div>}
+          </div>
+        </details>
+
         <EventForm
+          key={formKey}
           mode="create"
-          initial={initialFormValues(me)}
+          initial={formInit ?? initialFormValues(me)}
           submitting={submitting}
           error={error}
           cancelHref="/host"
