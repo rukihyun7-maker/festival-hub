@@ -70,11 +70,18 @@ async function fetchKeyword(query: string, label: string = query): Promise<NewsF
   }
 }
 
-export async function GET() {
-  const results = await Promise.all([
-    ...RECRUIT_QUERIES.map((q) => fetchKeyword(q, '모집공고')), // 모집공고 우선 태깅(중복 시 유지)
-    ...NEWS_KEYWORDS.map((k) => fetchKeyword(k)),
-  ]);
+export async function GET(req: Request) {
+  const allQueries: { q: string; label: string }[] = [
+    ...RECRUIT_QUERIES.map((q) => ({ q, label: '모집공고' })), // 모집공고 우선 태깅(중복 시 유지)
+    ...NEWS_KEYWORDS.map((k) => ({ q: k, label: k })),
+  ];
+  const results = await Promise.all(allQueries.map(({ q, label }) => fetchKeyword(q, label)));
+
+  if (new URL(req.url).searchParams.get('debug')) {
+    return NextResponse.json({
+      perQuery: allQueries.map(({ q }, i) => ({ q, count: results[i].length, first: results[i][0]?.title?.slice(0, 40) ?? null })),
+    });
+  }
   const seen = new Set<string>();
   const merged: NewsFeedItem[] = [];
   for (const item of results.flat()) {
