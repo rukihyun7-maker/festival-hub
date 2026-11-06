@@ -17,8 +17,8 @@ type FeedEntry =
   | { kind: 'post'; post: NewsletterPost }
   | { kind: 'news'; item: NewsFeedItem };
 
-const CAT_BG: Record<string, string> = { 페스티벌: '#EAF2FF', 행사: '#FFF3E0', 축제: '#FDEAF1', 푸드트럭: '#E9F7EF', 플리마켓: '#F3EEFB', 기타: '#EEEAE1' };
-const CAT_FG: Record<string, string> = { 페스티벌: '#2B4B9B', 행사: '#8F6D00', 축제: '#B23A7A', 푸드트럭: '#1D6B2A', 플리마켓: '#6B3FA0', 기타: '#6B6456' };
+const CAT_BG: Record<string, string> = { 모집공고: '#FFF0E6', 페스티벌: '#EAF2FF', 행사: '#FFF3E0', 축제: '#FDEAF1', 푸드트럭: '#E9F7EF', 플리마켓: '#F3EEFB', 기타: '#EEEAE1' };
+const CAT_FG: Record<string, string> = { 모집공고: '#C2410C', 페스티벌: '#2B4B9B', 행사: '#8F6D00', 축제: '#B23A7A', 푸드트럭: '#1D6B2A', 플리마켓: '#6B3FA0', 기타: '#6B6456' };
 
 export default function NewsPage() {
   const [authed, setAuthed] = useState<boolean | null>(null);

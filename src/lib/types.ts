@@ -928,8 +928,8 @@ export interface NewsFeedItem {
 
 /** 뉴스레터 자동 수집 검색어 */
 export const NEWS_KEYWORDS = ['페스티벌', '행사', '축제', '푸드트럭', '플리마켓'] as const;
-/** 뉴스레터 카테고리(자동 키워드 + 기타) · 관리자 글 분류 + /news 탭 */
-export const NEWS_CATEGORIES = ['페스티벌', '행사', '축제', '푸드트럭', '플리마켓', '기타'] as const;
+/** 뉴스레터 카테고리(자동 키워드 + 모집공고 + 기타) · 관리자 글 분류 + /news 탭 */
+export const NEWS_CATEGORIES = ['모집공고', '페스티벌', '행사', '축제', '푸드트럭', '플리마켓', '기타'] as const;
 
 // ============================================
 // v58: 공지사항(상단 배너) — 관리자 대상 선택형

@@ -29,11 +29,14 @@ function pick(block: string, tag: string): string | null {
   return m ? decodeEntities(m[1]) : null;
 }
 
-async function fetchKeyword(keyword: string): Promise<NewsFeedItem[]> {
+// 모집공고 유입 훅: 지자체·행사 모집 공고를 뉴스에서 수집(category=모집공고로 태깅)
+const RECRUIT_QUERIES = ['푸드트럭 모집', '플리마켓 셀러 모집', '행사 부스 모집'];
+
+async function fetchKeyword(query: string, label: string = query): Promise<NewsFeedItem[]> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 6000);
   try {
-    const res = await fetch(rss(keyword), { signal: ctrl.signal, next: { revalidate: 1800 } });
+    const res = await fetch(rss(query), { signal: ctrl.signal, next: { revalidate: 1800 } });
     if (!res.ok) return [];
     const xml = await res.text();
     const blocks = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
@@ -53,7 +56,7 @@ async function fetchKeyword(keyword: string): Promise<NewsFeedItem[]> {
         link,
         source,
         pubDate: pub ? new Date(pub).toISOString() : null,
-        keyword,
+        keyword: label,
       });
     }
     return out;
@@ -65,7 +68,10 @@ async function fetchKeyword(keyword: string): Promise<NewsFeedItem[]> {
 }
 
 export async function GET() {
-  const results = await Promise.all(NEWS_KEYWORDS.map(fetchKeyword));
+  const results = await Promise.all([
+    ...RECRUIT_QUERIES.map((q) => fetchKeyword(q, '모집공고')), // 모집공고 우선 태깅(중복 시 유지)
+    ...NEWS_KEYWORDS.map((k) => fetchKeyword(k)),
+  ]);
   const seen = new Set<string>();
   const merged: NewsFeedItem[] = [];
   for (const item of results.flat()) {
@@ -75,5 +81,5 @@ export async function GET() {
     merged.push(item);
   }
   merged.sort((a, b) => (b.pubDate ?? '').localeCompare(a.pubDate ?? ''));
-  return NextResponse.json({ items: merged.slice(0, 30), keywords: NEWS_KEYWORDS });
+  return NextResponse.json({ items: merged.slice(0, 40), keywords: [...NEWS_KEYWORDS, '모집공고'] });
 }
