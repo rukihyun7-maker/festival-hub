@@ -5,9 +5,9 @@ import { NEWS_KEYWORDS, type NewsFeedItem } from '@/lib/types';
  * 뉴스레터 자동 피드 · Google 뉴스 RSS 검색(키/비용 없음)
  *  - 검색어 5종(페스티벌·행사·축제·푸드트럭·플리마켓)을 각각 조회해 병합·중복제거·최신순
  *  - 제목·출처·발행일·원문 링크만 전달(원문은 출처로 링크아웃)
- * 30분 캐시.
+ * 외부 Google 뉴스 fetch만 30분 캐시(next.revalidate), 라우트 자체는 매 요청 실행(응답 전체 캐시 방지).
  */
-export const revalidate = 1800;
+export const dynamic = 'force-dynamic';
 
 function rss(keyword: string): string {
   const q = encodeURIComponent(`${keyword} when:30d`);
