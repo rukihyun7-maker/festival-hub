@@ -2076,3 +2076,37 @@ export async function deleteAnnouncement(id: string): Promise<void> {
   const { error } = await supabase.from('announcements').delete().eq('id', id);
   if (error) throw error;
 }
+
+// ============================================
+// 신청자 "한 장 카드" 요약 (대표메뉴 썸네일·메뉴수·서류/부스사진) · 일괄 조회(N+1 방지)
+// ============================================
+export interface ApplicantSummary {
+  sigMenuImage: string | null;
+  sigMenuName: string | null;
+  menuCount: number;
+  docVerified: number;   // 검증 완료 서류 수
+  docSubmitted: number;  // 제출된(파일 있는) 비-부스 서류 수
+  boothPhotos: number;   // 제출된 부스·트럭 사진 수
+}
+export async function fetchApplicantSummaries(sellerIds: string[]): Promise<Record<string, ApplicantSummary>> {
+  const out: Record<string, ApplicantSummary> = {};
+  const ids = [...new Set(sellerIds.filter(Boolean))];
+  if (ids.length === 0) return out;
+  const supabase = createClient();
+  const [menuRes, docRes] = await Promise.all([
+    supabase.from('menus').select('seller_id,name,image_url,signature').in('seller_id', ids),
+    supabase.from('documents').select('seller_id,kind,file_url,status').in('seller_id', ids),
+  ]);
+  for (const id of ids) out[id] = { sigMenuImage: null, sigMenuName: null, menuCount: 0, docVerified: 0, docSubmitted: 0, boothPhotos: 0 };
+  for (const m of (menuRes.data ?? []) as { seller_id: string; name: string; image_url: string | null; signature: boolean }[]) {
+    const s = out[m.seller_id]; if (!s) continue;
+    s.menuCount++;
+    if (m.signature && !s.sigMenuName) { s.sigMenuName = m.name; s.sigMenuImage = m.image_url ?? null; }
+  }
+  for (const d of (docRes.data ?? []) as { seller_id: string; kind: string; file_url: string | null; status: string }[]) {
+    const s = out[d.seller_id]; if (!s || !d.file_url) continue;
+    if (d.kind.startsWith('booth_')) s.boothPhotos++;
+    else { s.docSubmitted++; if (d.status === 'verified') s.docVerified++; }
+  }
+  return out;
+}

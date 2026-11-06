@@ -18,6 +18,8 @@ import {
   fetchPlatformSettings,
   fetchPartnerReviewsPublic,
   fetchApplicationDocuments,
+  fetchApplicantSummaries,
+  type ApplicantSummary,
 } from '@/lib/supabase/queries';
 import { REHIRE_LABEL } from '@/lib/types';
 import type {
@@ -56,6 +58,7 @@ function HostApplicantsInner() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [apps, setApps] = useState<ApplicationWithRelations[]>([]);
+  const [summaries, setSummaries] = useState<Record<string, ApplicantSummary>>({});
   const [loading, setLoading] = useState(true);
   const [eventFilter, setEventFilter] = useState<string>(searchParams.get('event') ?? 'all');
   const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('pending');
@@ -76,6 +79,9 @@ function HostApplicantsInner() {
           setEvents(evs);
           setDocDownload(settings?.host_doc_download ?? false);
           setApps(apps);
+          // 신청자 한 장 카드용 요약(대표메뉴·메뉴수·서류) 일괄 조회
+          fetchApplicantSummaries(apps.map((a) => a.seller?.id).filter(Boolean) as string[])
+            .then(setSummaries).catch(() => {});
         }
       } finally {
         setLoading(false);
@@ -191,7 +197,7 @@ function HostApplicantsInner() {
         ) : (
           <div className="space-y-3">
             {filtered.map((a) => (
-              <ApplicantCard key={a.id} app={a} actionOn={actionOn} onAct={act} docDownload={docDownload} />
+              <ApplicantCard key={a.id} app={a} summary={a.seller ? summaries[a.seller.id] : undefined} actionOn={actionOn} onAct={act} docDownload={docDownload} />
             ))}
           </div>
         )}
@@ -201,9 +207,10 @@ function HostApplicantsInner() {
 }
 
 function ApplicantCard({
-  app: a, actionOn, onAct, docDownload,
+  app: a, summary, actionOn, onAct, docDownload,
 }: {
   app: ApplicationWithRelations;
+  summary?: ApplicantSummary;
   actionOn: string | null;
   onAct: (id: string, status: 'approved' | 'rejected') => void;
   docDownload: boolean;
@@ -271,6 +278,34 @@ function ApplicantCard({
           {open ? '접기 ▲' : '세부정보 ▼'}
         </button>
       </div>
+
+      {/* 한 장 카드 요약 — 대표메뉴 썸네일·메뉴수·서류/부스사진 (펼치지 않아도 한눈에) */}
+      {summary && (
+        <div className="flex items-center gap-3 mt-3 p-2 rounded-input" style={{ background: 'var(--bg-surface-sunken, #FDFBF6)' }}>
+          {summary.sigMenuImage ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={summary.sigMenuImage} alt="" className="shrink-0 w-12 h-12 rounded-input object-cover" />
+          ) : (
+            <span className="shrink-0 w-12 h-12 rounded-input flex items-center justify-center text-text-tertiary" style={{ background: 'var(--bg-muted,#F0ECE1)' }}>
+              <Icon name="camera" size={18} />
+            </span>
+          )}
+          <div className="min-w-0 flex-1 text-[12px]">
+            <div className="text-ink-soft truncate">
+              <span className="font-semibold text-ink">메뉴 {summary.menuCount}개</span>
+              {summary.sigMenuName && <span className="text-text-secondary"> · 대표 {summary.sigMenuName}</span>}
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${summary.docVerified >= 6 ? 'badge-success' : summary.docSubmitted > 0 ? 'badge-info' : 'badge-danger'}`}>
+                서류 {summary.docVerified}/{summary.docSubmitted}
+              </span>
+              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${summary.boothPhotos >= 3 ? 'badge-success' : summary.boothPhotos > 0 ? 'badge-info' : 'badge-danger'}`}>
+                부스사진 {summary.boothPhotos}/3
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {open && (
         <div className="mt-4 pt-4 border-t border-line-faint animate-fh-up">
